@@ -1,12 +1,16 @@
-<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 100 100">
+<svg xmlns="http://www.w3.org/2000/svg" viewBox="0 0 200 200">
   <defs>
-    <linearGradient id="g" x1="0" y1="0" x2="100" y2="100" gradientUnits="userSpaceOnUse">
+    <linearGradient id="g" x1="0" y1="0" x2="200" y2="200" gradientUnits="userSpaceOnUse">
       <stop offset="0%" stop-color="#0D1B8C"/>
       <stop offset="100%" stop-color="#07113A"/>
     </linearGradient>
+    <clipPath id="c">
+      <rect width="200" height="200" rx="40"/>
+    </clipPath>
   </defs>
-  <rect width="100" height="100" rx="20" fill="url(#g)"/>
-  <text x="52" y="74" font-family="Arial Black, Helvetica, sans-serif" font-weight="900" font-size="66" fill="white" text-anchor="middle" dominant-baseline="auto" letter-spacing="-2">S</text>
-  <polyline points="17,46 30,60 52,28" stroke="#10A65A" stroke-width="9" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
-  <path d="M0 82 Q50 72 100 82 L100 100 Q50 100 0 100 Z" fill="#10A65A" opacity="0.3"/>
+  <rect width="200" height="200" rx="40" fill="url(#g)"/>
+  <path d="M0 148 Q50 132 100 148 Q150 164 200 148 L200 200 L0 200 Z" fill="#10A65A" opacity="0.3" clip-path="url(#c)"/>
+  <path d="M0 162 Q50 150 100 162 Q150 174 200 162 L200 200 L0 200 Z" fill="#10A65A" opacity="0.45" clip-path="url(#c)"/>
+  <text x="106" y="148" font-family="Arial Black, sans-serif" font-weight="900" font-size="140" fill="white" text-anchor="middle" dominant-baseline="auto" letter-spacing="-4" opacity="0.97">S</text>
+  <polyline points="28,88 62,124 118,44" stroke="#10A65A" stroke-width="19" stroke-linecap="round" stroke-linejoin="round" fill="none"/>
 </svg>

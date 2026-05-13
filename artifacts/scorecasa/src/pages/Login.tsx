@@ -4,8 +4,8 @@ import { z } from "zod";
 import { useLocation } from "wouter";
 import { useLogin } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Lock, Mail, TrendingUp, Shield, Zap } from "lucide-react";
-import { ScoreCasaLogo, ScoreCasaIcon, ScoreCasaWordmark } from "@/components/ScoreCasaLogo";
+import { Lock, Mail } from "lucide-react";
+import { ScoreCasaLogo, ScoreCasaIcon } from "@/components/ScoreCasaLogo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -48,7 +48,7 @@ export function Login() {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: "#07113A" }}>
         <div className="flex flex-col items-center gap-4">
-          <ScoreCasaIcon size={48} />
+          <ScoreCasaIcon size={52} />
           <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin" />
         </div>
       </div>
@@ -56,56 +56,102 @@ export function Login() {
   }
 
   return (
-    <div className="min-h-screen flex" style={{ background: "#07113A" }}>
-      {/* Left: Branding */}
-      <div className="hidden lg:flex flex-col justify-between w-1/2 p-12" style={{ background: "#07113A" }}>
-        <ScoreCasaLogo variant="light" size="md" />
+    <div className="min-h-screen flex" style={{ background: "#F2F4F7" }}>
 
-        <div>
-          <h1 className="text-4xl font-bold text-white leading-tight mb-4">
+      {/* ── Left: Brand panel ── */}
+      <div
+        className="hidden lg:flex flex-col w-[52%] flex-shrink-0 relative overflow-hidden"
+        style={{ background: "linear-gradient(135deg, #0D1B8C 0%, #07113A 100%)" }}
+      >
+        {/* Top logo */}
+        <div className="relative z-10 px-12 pt-10">
+          <ScoreCasaLogo variant="light" size="md" />
+        </div>
+
+        {/* Center content */}
+        <div className="relative z-10 flex-1 flex flex-col justify-center px-12 pb-16">
+          {/* Big icon */}
+          <div className="mb-10">
+            <ScoreCasaIcon size={92} />
+          </div>
+
+          <h1
+            className="text-5xl font-bold leading-tight mb-5"
+            style={{ fontFamily: "Poppins, sans-serif", color: "#FFFFFF" }}
+          >
             Inteligência para<br />
             <span style={{ color: "#10A65A" }}>aprovar mais.</span>
           </h1>
-          <p className="text-blue-300 text-lg leading-relaxed mb-10">
-            Transformamos dados em aprovações. Análise preditiva de crédito imobiliário para corretores e correspondentes bancários.
+
+          <p
+            className="text-lg leading-relaxed max-w-sm"
+            style={{ color: "rgba(255,255,255,0.65)", fontFamily: "Poppins, sans-serif", fontWeight: 400 }}
+          >
+            Análise preditiva de crédito imobiliário com IA para corretores e correspondentes bancários.
           </p>
 
-          <div className="space-y-4">
+          {/* Feature pills */}
+          <div className="mt-10 flex flex-wrap gap-3">
             {[
-              { icon: TrendingUp, text: "Score proprietário com IA preditiva" },
-              { icon: Shield, text: "Integração Open Finance e múltiplos bancos" },
-              { icon: Zap, text: "Análise em tempo real com ranking de leads" },
-            ].map(({ icon: Icon, text }) => (
-              <div key={text} className="flex items-center gap-3">
-                <div
-                  className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0"
-                  style={{ background: "rgba(16,166,90,0.15)" }}
-                >
-                  <Icon className="w-4 h-4" style={{ color: "#10A65A" }} />
-                </div>
-                <span className="text-blue-200 text-sm">{text}</span>
-              </div>
+              "Score proprietário com IA",
+              "Open Finance integrado",
+              "Múltiplos bancos",
+              "Ranking de leads",
+            ].map((feat) => (
+              <span
+                key={feat}
+                className="text-xs px-3 py-1.5 rounded-full font-medium"
+                style={{
+                  background: "rgba(16,166,90,0.18)",
+                  color: "#10A65A",
+                  border: "1px solid rgba(16,166,90,0.3)",
+                  fontFamily: "Poppins, sans-serif",
+                }}
+              >
+                {feat}
+              </span>
             ))}
           </div>
         </div>
 
-        <div className="text-blue-400 text-xs">
-          &copy; {new Date().getFullYear()} ScoreCasa. Todos os direitos reservados.
+        {/* Green wave bottom — matches brand pack icon style */}
+        <div className="absolute bottom-0 left-0 right-0 z-0">
+          <svg viewBox="0 0 600 120" preserveAspectRatio="none" className="w-full" style={{ height: 120 }}>
+            <path d="M0 60 Q150 20 300 60 Q450 100 600 60 L600 120 L0 120 Z" fill="#10A65A" opacity="0.22" />
+            <path d="M0 80 Q150 45 300 80 Q450 115 600 80 L600 120 L0 120 Z" fill="#10A65A" opacity="0.32" />
+          </svg>
+        </div>
+
+        {/* Footer copyright */}
+        <div
+          className="relative z-10 px-12 pb-5 text-xs"
+          style={{ color: "rgba(255,255,255,0.35)", fontFamily: "Poppins, sans-serif" }}
+        >
+          © {new Date().getFullYear()} ScoreCasa. Todos os direitos reservados.
         </div>
       </div>
 
-      {/* Right: Login form */}
-      <div className="flex-1 flex items-center justify-center p-6" style={{ background: "#F2F4F7" }}>
+      {/* ── Right: Login form ── */}
+      <div className="flex-1 flex items-center justify-center p-6 lg:p-10">
         <div className="w-full max-w-md">
+
           {/* Mobile logo */}
           <div className="flex justify-center mb-8 lg:hidden">
             <ScoreCasaLogo variant="dark" size="md" />
           </div>
 
-          <div className="bg-white rounded-2xl shadow-lg p-8">
+          <div className="bg-white rounded-2xl shadow-xl p-8 border border-gray-100">
+            {/* Header */}
             <div className="mb-8">
-              <h2 className="text-2xl font-bold text-gray-900 mb-1">Acessar plataforma</h2>
-              <p className="text-gray-500 text-sm">Entre com suas credenciais para continuar</p>
+              <h2
+                className="text-2xl font-bold mb-1"
+                style={{ color: "#07113A", fontFamily: "Poppins, sans-serif" }}
+              >
+                Acessar plataforma
+              </h2>
+              <p className="text-sm" style={{ color: "#6B7280", fontFamily: "Poppins, sans-serif" }}>
+                Entre com suas credenciais para continuar
+              </p>
             </div>
 
             <Form {...form}>
@@ -115,10 +161,15 @@ export function Login() {
                   name="email"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-gray-700 text-sm font-medium">Email</FormLabel>
+                      <FormLabel
+                        className="text-sm font-semibold"
+                        style={{ color: "#07113A", fontFamily: "Poppins, sans-serif" }}
+                      >
+                        Email
+                      </FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <Mail className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#6B7280" }} />
                           <Input
                             {...field}
                             type="email"
@@ -138,10 +189,15 @@ export function Login() {
                   name="password"
                   render={({ field }) => (
                     <FormItem>
-                      <FormLabel className="text-gray-700 text-sm font-medium">Senha</FormLabel>
+                      <FormLabel
+                        className="text-sm font-semibold"
+                        style={{ color: "#07113A", fontFamily: "Poppins, sans-serif" }}
+                      >
+                        Senha
+                      </FormLabel>
                       <FormControl>
                         <div className="relative">
-                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+                          <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#6B7280" }} />
                           <Input
                             {...field}
                             type="password"
@@ -158,8 +214,8 @@ export function Login() {
 
                 <Button
                   type="submit"
-                  className="w-full text-white font-semibold py-2.5 rounded-lg transition-all"
-                  style={{ background: "#0D1B8C" }}
+                  className="w-full font-semibold py-2.5 rounded-xl text-white transition-all hover:opacity-90"
+                  style={{ background: "#0D1B8C", fontFamily: "Poppins, sans-serif" }}
                   disabled={login.isPending}
                   data-testid="button-submit"
                 >
@@ -168,20 +224,31 @@ export function Login() {
               </form>
             </Form>
 
-            <div className="mt-6 pt-6 border-t border-gray-100 space-y-3 text-center">
-              <p className="text-sm text-gray-500">
+            <div
+              className="mt-6 pt-6 space-y-3 text-center"
+              style={{ borderTop: "1px solid #F2F4F7" }}
+            >
+              <p className="text-sm" style={{ color: "#6B7280", fontFamily: "Poppins, sans-serif" }}>
                 É cliente e quer analisar seu crédito?{" "}
-                <a href="/cadastro" className="font-semibold" style={{ color: "#0D1B8C" }}>
+                <a
+                  href="/cadastro"
+                  className="font-semibold hover:underline"
+                  style={{ color: "#0D1B8C" }}
+                >
                   Cadastre-se grátis
                 </a>
               </p>
-              <p className="text-xs text-gray-400">
-                Acesso demo: <span className="font-mono text-gray-600">admin@scorecasa.com.br</span> / <span className="font-mono text-gray-600">admin123</span>
+              <p className="text-xs" style={{ color: "#9CA3AF", fontFamily: "Poppins, sans-serif" }}>
+                Acesso demo:{" "}
+                <span className="font-mono" style={{ color: "#6B7280" }}>admin@scorecasa.com.br</span>
+                {" / "}
+                <span className="font-mono" style={{ color: "#6B7280" }}>admin123</span>
               </p>
             </div>
           </div>
         </div>
       </div>
+
     </div>
   );
 }
