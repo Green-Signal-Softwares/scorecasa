@@ -13,8 +13,6 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { pdf } from "@react-pdf/renderer";
-import { LeadReport } from "@/components/pdf/LeadReport";
 import {
   ArrowLeft, CheckCircle, TrendingUp, TrendingDown, Minus,
   Building2, Phone, Mail, DollarSign, Pencil, X, Save, RefreshCw,
@@ -133,6 +131,10 @@ export function LeadDetails({ id }: { id: number }) {
     if (!lead) return;
     setExporting(true);
     try {
+      const [{ pdf }, { LeadReport }] = await Promise.all([
+        import("@react-pdf/renderer"),
+        import("@/components/pdf/LeadReport"),
+      ]);
       const blob = await pdf(
         <LeadReport lead={lead} score={score ?? null} />
       ).toBlob();

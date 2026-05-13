@@ -24,22 +24,48 @@ function Router() {
       <Route path="/cadastro" component={ClientRegister} />
       <Route path="/portal/meus-dados" component={ClientMeusDados} />
       <Route path="/portal" component={ClientPortal} />
-      <Route path="/:rest*">
-        {() => (
+
+      <Route path="/leads/:id">
+        {(params) => (
           <AppLayout>
-            <Switch>
-              <Route path="/dashboard" component={Dashboard} />
-              <Route path="/leads/:id">
-                {(params) => <LeadDetails key={params?.id} id={Number(params?.id)} />}
-              </Route>
-              <Route path="/leads" component={Leads} />
-              <Route path="/brokers" component={Brokers} />
-              <Route path="/ranking" component={Ranking} />
-              <Route component={NotFound} />
-            </Switch>
+            <LeadDetails id={Number(params?.id)} />
           </AppLayout>
         )}
       </Route>
+
+      <Route path="/leads">
+        {() => (
+          <AppLayout>
+            <Leads />
+          </AppLayout>
+        )}
+      </Route>
+
+      <Route path="/dashboard">
+        {() => (
+          <AppLayout>
+            <Dashboard />
+          </AppLayout>
+        )}
+      </Route>
+
+      <Route path="/brokers">
+        {() => (
+          <AppLayout>
+            <Brokers />
+          </AppLayout>
+        )}
+      </Route>
+
+      <Route path="/ranking">
+        {() => (
+          <AppLayout>
+            <Ranking />
+          </AppLayout>
+        )}
+      </Route>
+
+      <Route component={NotFound} />
     </Switch>
   );
 }
