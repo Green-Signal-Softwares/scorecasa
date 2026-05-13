@@ -13,9 +13,12 @@ import { useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
+import { pdf } from "@react-pdf/renderer";
+import { LeadReport } from "@/components/pdf/LeadReport";
 import {
   ArrowLeft, CheckCircle, TrendingUp, TrendingDown, Minus,
   Building2, Phone, Mail, DollarSign, Pencil, X, Save, RefreshCw,
+  FileDown,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -92,6 +95,7 @@ export function LeadDetails() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
+  const [exporting, setExporting] = useState(false);
 
   const { data: lead, isLoading } = useGetLead(id, {
     query: { enabled: !!id, queryKey: getGetLeadQueryKey(id) },
@@ -126,6 +130,27 @@ export function LeadDetails() {
       });
     }
   }, [lead, form]);
+
+  const handleExportPDF = async () => {
+    if (!lead) return;
+    setExporting(true);
+    try {
+      const blob = await pdf(
+        <LeadReport lead={lead} score={score ?? null} />
+      ).toBlob();
+      const url = URL.createObjectURL(blob);
+      const a = document.createElement("a");
+      a.href = url;
+      a.download = `ScoreCasa_${lead.name.replace(/\s+/g, "_")}_Relatorio.pdf`;
+      a.click();
+      URL.revokeObjectURL(url);
+      toast({ title: "PDF exportado com sucesso" });
+    } catch {
+      toast({ title: "Erro ao gerar PDF", description: "Tente novamente." });
+    } finally {
+      setExporting(false);
+    }
+  };
 
   const handleStatusChange = (status: string) => {
     updateLead.mutate(
@@ -241,16 +266,27 @@ export function LeadDetails() {
             </span>
           </div>
         </div>
-        <Select value={lead.status} onValueChange={handleStatusChange}>
-          <SelectTrigger className="w-44" data-testid="select-lead-status">
-            <SelectValue />
-          </SelectTrigger>
-          <SelectContent>
-            {Object.entries(STATUS_CONFIG).map(([k, v]) => (
-              <SelectItem key={k} value={k}>{v.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex items-center gap-2">
+          <button
+            onClick={handleExportPDF}
+            disabled={exporting}
+            data-testid="button-export-pdf"
+            className="flex items-center gap-2 px-3 py-2 rounded-lg text-sm font-medium border border-border hover:bg-muted transition-colors disabled:opacity-50 text-foreground"
+          >
+            <FileDown className="w-4 h-4" />
+            {exporting ? "Gerando..." : "Exportar PDF"}
+          </button>
+          <Select value={lead.status} onValueChange={handleStatusChange}>
+            <SelectTrigger className="w-44" data-testid="select-lead-status">
+              <SelectValue />
+            </SelectTrigger>
+            <SelectContent>
+              {Object.entries(STATUS_CONFIG).map(([k, v]) => (
+                <SelectItem key={k} value={k}>{v.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Main grid */}
