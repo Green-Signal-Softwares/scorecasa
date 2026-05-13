@@ -26,8 +26,9 @@ export const LoginResponse = zod.object({
     id: zod.number(),
     name: zod.string(),
     email: zod.string(),
-    role: zod.enum(["admin", "broker", "analyst"]),
+    role: zod.enum(["admin", "broker", "analyst", "client"]),
     avatarUrl: zod.string().nullish(),
+    leadId: zod.number().nullish(),
   }),
 });
 
@@ -38,8 +39,105 @@ export const GetMeResponse = zod.object({
   id: zod.number(),
   name: zod.string(),
   email: zod.string(),
-  role: zod.enum(["admin", "broker", "analyst"]),
+  role: zod.enum(["admin", "broker", "analyst", "client"]),
   avatarUrl: zod.string().nullish(),
+  leadId: zod.number().nullish(),
+});
+
+/**
+ * @summary Register as a client
+ */
+export const RegisterBody = zod.object({
+  name: zod.string(),
+  cpf: zod.string(),
+  email: zod.string().email(),
+  phone: zod.string(),
+  password: zod.string(),
+  income: zod.number(),
+  propertyValue: zod.number(),
+});
+
+/**
+ * @summary Get client's own profile and lead data
+ */
+export const GetClientProfileResponse = zod.object({
+  user: zod.object({
+    id: zod.number(),
+    name: zod.string(),
+    email: zod.string(),
+    role: zod.enum(["admin", "broker", "analyst", "client"]),
+    avatarUrl: zod.string().nullish(),
+    leadId: zod.number().nullish(),
+  }),
+  lead: zod.object({
+    id: zod.number(),
+    name: zod.string(),
+    cpf: zod.string(),
+    email: zod.string(),
+    phone: zod.string(),
+    income: zod.number().describe("Monthly income in BRL"),
+    propertyValue: zod.number().describe("Desired property value in BRL"),
+    status: zod.enum([
+      "pending",
+      "analyzing",
+      "approved",
+      "rejected",
+      "in_progress",
+    ]),
+    approvalChance: zod.number().describe("AI approval probability 0-100"),
+    scoreCaixa: zod.number().describe("Caixa Econômica credit score"),
+    scoreMCMV: zod.number().describe("Minha Casa Minha Vida eligibility score"),
+    brokerId: zod.number().nullish(),
+    brokerName: zod.string().nullish(),
+    aiRecommendation: zod.string().nullish(),
+    createdAt: zod.coerce.date(),
+    updatedAt: zod.coerce.date(),
+  }),
+});
+
+/**
+ * @summary Update client's financial data
+ */
+export const UpdateClientProfileBody = zod.object({
+  income: zod.number().optional(),
+  propertyValue: zod.number().optional(),
+  phone: zod.string().optional(),
+  name: zod.string().optional(),
+});
+
+export const UpdateClientProfileResponse = zod.object({
+  user: zod.object({
+    id: zod.number(),
+    name: zod.string(),
+    email: zod.string(),
+    role: zod.enum(["admin", "broker", "analyst", "client"]),
+    avatarUrl: zod.string().nullish(),
+    leadId: zod.number().nullish(),
+  }),
+  lead: zod.object({
+    id: zod.number(),
+    name: zod.string(),
+    cpf: zod.string(),
+    email: zod.string(),
+    phone: zod.string(),
+    income: zod.number().describe("Monthly income in BRL"),
+    propertyValue: zod.number().describe("Desired property value in BRL"),
+    status: zod.enum([
+      "pending",
+      "analyzing",
+      "approved",
+      "rejected",
+      "in_progress",
+    ]),
+    approvalChance: zod.number().describe("AI approval probability 0-100"),
+    scoreCaixa: zod.number().describe("Caixa Econômica credit score"),
+    scoreMCMV: zod.number().describe("Minha Casa Minha Vida eligibility score"),
+    brokerId: zod.number().nullish(),
+    brokerName: zod.string().nullish(),
+    aiRecommendation: zod.string().nullish(),
+    createdAt: zod.coerce.date(),
+    updatedAt: zod.coerce.date(),
+  }),
 });
 
 /**

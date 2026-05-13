@@ -26,6 +26,7 @@ export const UserRole = {
   admin: "admin",
   broker: "broker",
   analyst: "analyst",
+  client: "client",
 } as const;
 
 export interface User {
@@ -34,10 +35,28 @@ export interface User {
   email: string;
   role: UserRole;
   avatarUrl?: string | null;
+  leadId?: number | null;
 }
 
 export interface AuthResult {
   user: User;
+}
+
+export interface RegisterRequest {
+  name: string;
+  cpf: string;
+  email: string;
+  phone: string;
+  password: string;
+  income: number;
+  propertyValue: number;
+}
+
+export interface UpdateClientProfileRequest {
+  income?: number;
+  propertyValue?: number;
+  phone?: string;
+  name?: string;
 }
 
 export type LeadStatus = (typeof LeadStatus)[keyof typeof LeadStatus];
@@ -72,6 +91,11 @@ export interface Lead {
   aiRecommendation?: string | null;
   createdAt: string;
   updatedAt: string;
+}
+
+export interface ClientProfile {
+  user: User;
+  lead: Lead;
 }
 
 export interface CreateLeadRequest {

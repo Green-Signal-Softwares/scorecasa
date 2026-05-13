@@ -12,4 +12,5 @@ export interface User {
   email: string;
   role: UserRole;
   avatarUrl?: string | null;
+  leadId?: number | null;
 }

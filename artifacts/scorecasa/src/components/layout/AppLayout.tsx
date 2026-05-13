@@ -3,7 +3,7 @@ import { LayoutDashboard, Users, UserCheck, Trophy, LogOut, CheckCircle, Menu, X
 import { useState } from "react";
 import { useLogout } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { useRequireAuth } from "@/hooks/use-auth";
+import { useRequireBrokerAuth } from "@/hooks/use-auth";
 import { NotificationBell } from "./NotificationBell";
 
 const navItems = [
@@ -18,7 +18,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const logout = useLogout();
   const queryClient = useQueryClient();
-  const { isLoading, isAuthenticated } = useRequireAuth();
+  const { isLoading, isAuthenticated } = useRequireBrokerAuth();
 
   if (isLoading) {
     return (

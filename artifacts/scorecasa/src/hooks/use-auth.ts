@@ -21,6 +21,30 @@ export function useRequireAuth() {
   return { user, isLoading, isAuthenticated: !!user && !isError };
 }
 
+export function useRequireBrokerAuth() {
+  const [, setLocation] = useLocation();
+  const { data: user, isLoading, isError } = useGetMe({
+    query: {
+      queryKey: getGetMeQueryKey(),
+      retry: false,
+      staleTime: 60_000,
+    },
+  });
+
+  useEffect(() => {
+    if (!isLoading) {
+      if (isError || !user) {
+        setLocation("/login");
+      } else if (user.role === "client") {
+        setLocation("/portal");
+      }
+    }
+  }, [isLoading, isError, user, setLocation]);
+
+  const isBroker = !!user && !isError && user.role !== "client";
+  return { user, isLoading, isAuthenticated: isBroker };
+}
+
 export function useRedirectIfAuthenticated() {
   const [, setLocation] = useLocation();
   const { data: user, isLoading } = useGetMe({
@@ -33,7 +57,11 @@ export function useRedirectIfAuthenticated() {
 
   useEffect(() => {
     if (!isLoading && user) {
-      setLocation("/dashboard");
+      if (user.role === "client") {
+        setLocation("/portal");
+      } else {
+        setLocation("/dashboard");
+      }
     }
   }, [isLoading, user, setLocation]);
 

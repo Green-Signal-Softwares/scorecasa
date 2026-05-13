@@ -31,9 +31,10 @@ export function Login() {
     login.mutate(
       { data },
       {
-        onSuccess: () => {
+        onSuccess: (data) => {
           queryClient.invalidateQueries();
-          setLocation("/dashboard");
+          const role = (data as any)?.user?.role;
+          setLocation(role === "client" ? "/portal" : "/dashboard");
         },
         onError: () => {
           form.setError("password", { message: "Email ou senha inválidos" });
@@ -185,7 +186,13 @@ export function Login() {
               </form>
             </Form>
 
-            <div className="mt-6 pt-6 border-t border-gray-100 text-center">
+            <div className="mt-6 pt-6 border-t border-gray-100 space-y-3 text-center">
+              <p className="text-sm text-gray-500">
+                É cliente e quer analisar seu crédito?{" "}
+                <a href="/cadastro" className="font-semibold" style={{ color: "#0D1B8C" }}>
+                  Cadastre-se grátis
+                </a>
+              </p>
               <p className="text-xs text-gray-400">
                 Acesso demo: <span className="font-mono text-gray-600">admin@scorecasa.com.br</span> / <span className="font-mono text-gray-600">admin123</span>
               </p>

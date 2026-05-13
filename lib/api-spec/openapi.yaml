@@ -64,6 +64,59 @@ paths:
         "401":
           description: Unauthorized
 
+  /auth/register:
+    post:
+      operationId: register
+      summary: Register as a client
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/RegisterRequest"
+      responses:
+        "201":
+          description: Registration successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientProfile"
+        "409":
+          description: Email already in use
+
+  /client/profile:
+    get:
+      operationId: getClientProfile
+      summary: Get client's own profile and lead data
+      tags: [client]
+      responses:
+        "200":
+          description: Client profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientProfile"
+        "401":
+          description: Unauthorized
+    put:
+      operationId: updateClientProfile
+      summary: Update client's financial data
+      tags: [client]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateClientProfileRequest"
+      responses:
+        "200":
+          description: Updated profile
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ClientProfile"
+
   /notifications:
     get:
       operationId: getNotifications
@@ -417,10 +470,54 @@ components:
           type: string
         role:
           type: string
-          enum: [admin, broker, analyst]
+          enum: [admin, broker, analyst, client]
         avatarUrl:
           type: string
           nullable: true
+        leadId:
+          type: integer
+          nullable: true
+
+    RegisterRequest:
+      type: object
+      required: [name, cpf, email, phone, password, income, propertyValue]
+      properties:
+        name:
+          type: string
+        cpf:
+          type: string
+        email:
+          type: string
+          format: email
+        phone:
+          type: string
+        password:
+          type: string
+        income:
+          type: number
+        propertyValue:
+          type: number
+
+    UpdateClientProfileRequest:
+      type: object
+      properties:
+        income:
+          type: number
+        propertyValue:
+          type: number
+        phone:
+          type: string
+        name:
+          type: string
+
+    ClientProfile:
+      type: object
+      required: [user, lead]
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+        lead:
+          $ref: "#/components/schemas/Lead"
 
     Lead:
       type: object

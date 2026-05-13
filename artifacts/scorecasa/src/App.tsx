@@ -10,6 +10,8 @@ import { LeadDetails } from "@/pages/LeadDetails";
 import { Brokers } from "@/pages/Brokers";
 import { Ranking } from "@/pages/Ranking";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { ClientPortal } from "@/pages/ClientPortal";
+import { ClientRegister } from "@/pages/ClientRegister";
 
 const queryClient = new QueryClient();
 
@@ -17,6 +19,8 @@ function Router() {
   return (
     <Switch>
       <Route path="/login" component={Login} />
+      <Route path="/cadastro" component={ClientRegister} />
+      <Route path="/portal" component={ClientPortal} />
       <Route path="/:rest*">
         {() => (
           <AppLayout>
