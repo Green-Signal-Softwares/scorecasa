@@ -54,6 +54,23 @@ export const leadsTable = pgTable("leads", {
   scoreMCMV: integer("score_mcmv").notNull().default(0),
   brokerId: integer("broker_id"),
   aiRecommendation: text("ai_recommendation"),
+
+  // ── Enriquecimento bureaus & Caixa ───────────────────────────
+  serasaScore: integer("serasa_score"),
+  hasNegativations: boolean("has_negativations"),
+  negativationsValue: real("negativations_value"),
+  hasProtests: boolean("has_protests"),
+  protestsValue: real("protests_value"),
+  siricStatus: text("siric_status", {
+    enum: ["regular", "irregular", "pendente"],
+  }),
+  siricObservation: text("siric_observation"),
+  fgtsMonths: integer("fgts_months"),
+  fgtsMonthlyAvg: real("fgts_monthly_avg"),
+  caixaScoreReal: integer("caixa_score_real"),
+  enrichedAt: timestamp("enriched_at"),
+  enrichedBy: text("enriched_by"),
+
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

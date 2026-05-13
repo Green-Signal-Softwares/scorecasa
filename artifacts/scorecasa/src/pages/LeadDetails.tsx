@@ -4,6 +4,7 @@ import {
   useGetLead,
   useGetLeadScore,
   useUpdateLead,
+  useEnrichLead,
   useGetBrokers,
   getGetLeadQueryKey,
   getGetLeadScoreQueryKey,
@@ -16,7 +17,8 @@ import { z } from "zod";
 import {
   ArrowLeft, CheckCircle, TrendingUp, TrendingDown, Minus,
   Building2, Phone, Mail, DollarSign, Pencil, X, Save, RefreshCw,
-  FileDown,
+  FileDown, ShieldCheck, ShieldX, AlertTriangle, Landmark, Clock,
+  BadgeCheck, ChevronDown, ChevronUp,
 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -101,6 +103,66 @@ export function LeadDetails({ id }: { id: number }) {
   });
   const { data: brokers } = useGetBrokers({});
   const updateLead = useUpdateLead();
+  const enrichLead = useEnrichLead();
+  const [enrichOpen, setEnrichOpen] = useState(false);
+  const [enrichForm, setEnrichForm] = useState({
+    serasaScore: "",
+    hasNegativations: false,
+    negativationsValue: "",
+    hasProtests: false,
+    protestsValue: "",
+    siricStatus: "" as "" | "regular" | "irregular" | "pendente",
+    siricObservation: "",
+    fgtsMonths: "",
+    fgtsMonthlyAvg: "",
+    caixaScoreReal: "",
+    enrichedBy: "",
+  });
+
+  useEffect(() => {
+    if (lead && lead.enrichedAt) {
+      setEnrichForm({
+        serasaScore: lead.serasaScore != null ? String(lead.serasaScore) : "",
+        hasNegativations: lead.hasNegativations ?? false,
+        negativationsValue: lead.negativationsValue != null ? String(lead.negativationsValue) : "",
+        hasProtests: lead.hasProtests ?? false,
+        protestsValue: lead.protestsValue != null ? String(lead.protestsValue) : "",
+        siricStatus: (lead.siricStatus as "" | "regular" | "irregular" | "pendente") ?? "",
+        siricObservation: lead.siricObservation ?? "",
+        fgtsMonths: lead.fgtsMonths != null ? String(lead.fgtsMonths) : "",
+        fgtsMonthlyAvg: lead.fgtsMonthlyAvg != null ? String(lead.fgtsMonthlyAvg) : "",
+        caixaScoreReal: lead.caixaScoreReal != null ? String(lead.caixaScoreReal) : "",
+        enrichedBy: lead.enrichedBy ?? "",
+      });
+    }
+  }, [lead?.enrichedAt]);
+
+  const handleEnrichSave = () => {
+    const payload = {
+      serasaScore: enrichForm.serasaScore ? Number(enrichForm.serasaScore) : undefined,
+      hasNegativations: enrichForm.hasNegativations,
+      negativationsValue: enrichForm.hasNegativations && enrichForm.negativationsValue ? Number(enrichForm.negativationsValue) : undefined,
+      hasProtests: enrichForm.hasProtests,
+      protestsValue: enrichForm.hasProtests && enrichForm.protestsValue ? Number(enrichForm.protestsValue) : undefined,
+      siricStatus: enrichForm.siricStatus || undefined,
+      siricObservation: enrichForm.siricObservation || undefined,
+      fgtsMonths: enrichForm.fgtsMonths ? Number(enrichForm.fgtsMonths) : undefined,
+      fgtsMonthlyAvg: enrichForm.fgtsMonthlyAvg ? Number(enrichForm.fgtsMonthlyAvg) : undefined,
+      caixaScoreReal: enrichForm.caixaScoreReal ? Number(enrichForm.caixaScoreReal) : undefined,
+      enrichedBy: enrichForm.enrichedBy || undefined,
+    };
+    enrichLead.mutate(
+      { id, data: payload },
+      {
+        onSuccess: () => {
+          queryClient.invalidateQueries({ queryKey: getGetLeadQueryKey(id) });
+          queryClient.invalidateQueries({ queryKey: getGetLeadScoreQueryKey(id) });
+          toast({ title: "Enriquecimento salvo", description: "Scores recalculados com dados reais." });
+        },
+        onError: () => toast({ title: "Erro ao salvar", description: "Verifique os dados e tente novamente." }),
+      }
+    );
+  };
 
   const form = useForm<EditForm>({
     resolver: zodResolver(editSchema),
@@ -581,6 +643,242 @@ export function LeadDetails({ id }: { id: number }) {
               </div>
             </div>
           )}
+
+          {/* ── Enrichment panel ── */}
+          <div className="bg-card rounded-xl border border-card-border shadow-sm overflow-hidden">
+            {/* Header */}
+            <button
+              type="button"
+              onClick={() => setEnrichOpen((v) => !v)}
+              className="w-full flex items-center justify-between px-5 py-4 hover:bg-muted/50 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "#EFF6FF" }}>
+                  <Landmark className="w-4 h-4" style={{ color: "#0D1B8C" }} />
+                </div>
+                <div className="text-left">
+                  <div className="text-sm font-semibold text-foreground">Dados Caixa & Bureaus</div>
+                  {lead.enrichedAt ? (
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <BadgeCheck className="w-3 h-3" style={{ color: "#10A65A" }} />
+                      <span className="text-xs" style={{ color: "#10A65A" }}>
+                        Enriquecido em {new Date(lead.enrichedAt).toLocaleDateString("pt-BR")}
+                        {lead.enrichedBy ? ` por ${lead.enrichedBy}` : ""}
+                      </span>
+                    </div>
+                  ) : (
+                    <div className="flex items-center gap-1.5 mt-0.5">
+                      <Clock className="w-3 h-3 text-muted-foreground" />
+                      <span className="text-xs text-muted-foreground">Nao enriquecido — insira dados da consulta Caixa</span>
+                    </div>
+                  )}
+                </div>
+              </div>
+              {enrichOpen ? <ChevronUp className="w-4 h-4 text-muted-foreground" /> : <ChevronDown className="w-4 h-4 text-muted-foreground" />}
+            </button>
+
+            {enrichOpen && (
+              <div className="px-5 pb-5 space-y-5 border-t border-border">
+                <p className="text-xs text-muted-foreground pt-4">
+                  Preencha com os dados consultados no sistema Caixa e nos bureaus (Serasa, SPC). Os scores serao recalculados automaticamente ao salvar.
+                </p>
+
+                {/* SIRIC */}
+                <div>
+                  <div className="text-xs font-semibold text-foreground mb-2 uppercase tracking-wide" style={{ color: "#0D1B8C" }}>SIRIC — Sistema Caixa</div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-muted-foreground block mb-1">Status SIRIC</label>
+                      <Select
+                        value={enrichForm.siricStatus}
+                        onValueChange={(v) => setEnrichForm((f) => ({ ...f, siricStatus: v as any }))}
+                      >
+                        <SelectTrigger className="h-9 text-sm" data-testid="select-siric-status">
+                          <SelectValue placeholder="Selecione..." />
+                        </SelectTrigger>
+                        <SelectContent>
+                          <SelectItem value="regular">
+                            <span className="flex items-center gap-1.5"><ShieldCheck className="w-3.5 h-3.5 text-green-600" /> Regular</span>
+                          </SelectItem>
+                          <SelectItem value="irregular">
+                            <span className="flex items-center gap-1.5"><ShieldX className="w-3.5 h-3.5 text-red-500" /> Irregular</span>
+                          </SelectItem>
+                          <SelectItem value="pendente">
+                            <span className="flex items-center gap-1.5"><AlertTriangle className="w-3.5 h-3.5 text-amber-500" /> Pendente</span>
+                          </SelectItem>
+                        </SelectContent>
+                      </Select>
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground block mb-1">Score Caixa Real</label>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={1000}
+                        placeholder="Ex: 720"
+                        className="h-9 text-sm"
+                        value={enrichForm.caixaScoreReal}
+                        onChange={(e) => setEnrichForm((f) => ({ ...f, caixaScoreReal: e.target.value }))}
+                        data-testid="input-caixa-score-real"
+                      />
+                    </div>
+                  </div>
+                  <div className="mt-3">
+                    <label className="text-xs text-muted-foreground block mb-1">Observacao SIRIC</label>
+                    <Input
+                      placeholder="Ex: Financiamento ativo no SIRIC..."
+                      className="h-9 text-sm"
+                      value={enrichForm.siricObservation}
+                      onChange={(e) => setEnrichForm((f) => ({ ...f, siricObservation: e.target.value }))}
+                    />
+                  </div>
+                </div>
+
+                {/* Serasa / bureaus */}
+                <div>
+                  <div className="text-xs font-semibold mb-2 uppercase tracking-wide" style={{ color: "#0D1B8C" }}>Serasa / SPC</div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-muted-foreground block mb-1">Score Serasa (0–1000)</label>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={1000}
+                        placeholder="Ex: 680"
+                        className="h-9 text-sm"
+                        value={enrichForm.serasaScore}
+                        onChange={(e) => setEnrichForm((f) => ({ ...f, serasaScore: e.target.value }))}
+                        data-testid="input-serasa-score"
+                      />
+                    </div>
+                    <div className="flex flex-col gap-2">
+                      <label className="text-xs text-muted-foreground">Restricoes</label>
+                      <div className="flex gap-3">
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={enrichForm.hasNegativations}
+                            onChange={(e) => setEnrichForm((f) => ({ ...f, hasNegativations: e.target.checked }))}
+                            className="w-4 h-4 rounded"
+                            data-testid="check-has-negativations"
+                          />
+                          <span className="text-xs text-foreground">Negativacoes</span>
+                        </label>
+                        <label className="flex items-center gap-2 cursor-pointer">
+                          <input
+                            type="checkbox"
+                            checked={enrichForm.hasProtests}
+                            onChange={(e) => setEnrichForm((f) => ({ ...f, hasProtests: e.target.checked }))}
+                            className="w-4 h-4 rounded"
+                            data-testid="check-has-protests"
+                          />
+                          <span className="text-xs text-foreground">Protestos</span>
+                        </label>
+                      </div>
+                    </div>
+                  </div>
+                  {(enrichForm.hasNegativations || enrichForm.hasProtests) && (
+                    <div className="grid grid-cols-2 gap-3 mt-3">
+                      {enrichForm.hasNegativations && (
+                        <div>
+                          <label className="text-xs text-muted-foreground block mb-1">Valor negativacoes (R$)</label>
+                          <Input
+                            type="number"
+                            min={0}
+                            placeholder="Ex: 3500"
+                            className="h-9 text-sm"
+                            value={enrichForm.negativationsValue}
+                            onChange={(e) => setEnrichForm((f) => ({ ...f, negativationsValue: e.target.value }))}
+                          />
+                        </div>
+                      )}
+                      {enrichForm.hasProtests && (
+                        <div>
+                          <label className="text-xs text-muted-foreground block mb-1">Valor protestos (R$)</label>
+                          <Input
+                            type="number"
+                            min={0}
+                            placeholder="Ex: 8000"
+                            className="h-9 text-sm"
+                            value={enrichForm.protestsValue}
+                            onChange={(e) => setEnrichForm((f) => ({ ...f, protestsValue: e.target.value }))}
+                          />
+                        </div>
+                      )}
+                    </div>
+                  )}
+                </div>
+
+                {/* FGTS real */}
+                <div>
+                  <div className="text-xs font-semibold mb-2 uppercase tracking-wide" style={{ color: "#0D1B8C" }}>FGTS — Dados Reais</div>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-muted-foreground block mb-1">Meses de contribuicao</label>
+                      <Input
+                        type="number"
+                        min={0}
+                        placeholder="Ex: 48"
+                        className="h-9 text-sm"
+                        value={enrichForm.fgtsMonths}
+                        onChange={(e) => setEnrichForm((f) => ({ ...f, fgtsMonths: e.target.value }))}
+                        data-testid="input-fgts-months"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground block mb-1">Deposito medio mensal (R$)</label>
+                      <Input
+                        type="number"
+                        min={0}
+                        placeholder="Ex: 400"
+                        className="h-9 text-sm"
+                        value={enrichForm.fgtsMonthlyAvg}
+                        onChange={(e) => setEnrichForm((f) => ({ ...f, fgtsMonthlyAvg: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                </div>
+
+                {/* Responsavel */}
+                <div>
+                  <label className="text-xs text-muted-foreground block mb-1">Responsavel pela consulta</label>
+                  <Input
+                    placeholder="Seu nome ou codigo de corretor"
+                    className="h-9 text-sm"
+                    value={enrichForm.enrichedBy}
+                    onChange={(e) => setEnrichForm((f) => ({ ...f, enrichedBy: e.target.value }))}
+                    data-testid="input-enriched-by"
+                  />
+                </div>
+
+                {/* Warnings */}
+                {(enrichForm.hasNegativations || enrichForm.hasProtests || enrichForm.siricStatus === "irregular") && (
+                  <div className="flex items-start gap-2 p-3 rounded-lg text-xs" style={{ background: "#FEF2F2", color: "#991B1B" }}>
+                    <AlertTriangle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                    <span>
+                      {[
+                        enrichForm.siricStatus === "irregular" && "SIRIC irregular reduz drasticamente a chance de aprovacao Caixa.",
+                        enrichForm.hasProtests && "Protestos em cartorio sao critério eliminatorio na maioria dos programas habitacionais.",
+                        enrichForm.hasNegativations && "Negativacoes impactam negativamente o score e a analise de credito.",
+                      ].filter(Boolean).join(" ")}
+                    </span>
+                  </div>
+                )}
+
+                <button
+                  type="button"
+                  onClick={handleEnrichSave}
+                  disabled={enrichLead.isPending}
+                  className="w-full flex items-center justify-center gap-2 py-2.5 rounded-lg text-sm font-semibold text-white transition-opacity disabled:opacity-60"
+                  style={{ background: "#0D1B8C" }}
+                  data-testid="button-save-enrichment"
+                >
+                  <Save className="w-4 h-4" />
+                  {enrichLead.isPending ? "Recalculando scores..." : "Salvar e recalcular scores"}
+                </button>
+              </div>
+            )}
+          </div>
         </div>
       </div>
     </div>

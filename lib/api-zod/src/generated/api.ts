@@ -129,6 +129,47 @@ export const GetClientProfileResponse = zod.object({
     brokerId: zod.number().nullish(),
     brokerName: zod.string().nullish(),
     aiRecommendation: zod.string().nullish(),
+    serasaScore: zod
+      .number()
+      .nullish()
+      .describe("Serasa Score consultado (0-1000)"),
+    hasNegativations: zod.boolean().nullish(),
+    negativationsValue: zod
+      .number()
+      .nullish()
+      .describe("Valor total de negativações em BRL"),
+    hasProtests: zod.boolean().nullish(),
+    protestsValue: zod
+      .number()
+      .nullish()
+      .describe("Valor total de protestos em cartório em BRL"),
+    siricStatus: zod
+      .enum(["regular", "irregular", "pendente"])
+      .nullish()
+      .describe("Status no SIRIC (sistema Caixa)"),
+    siricObservation: zod.string().nullish().describe("Observações do SIRIC"),
+    fgtsMonths: zod
+      .number()
+      .nullish()
+      .describe("Meses de contribuição ao FGTS"),
+    fgtsMonthlyAvg: zod
+      .number()
+      .nullish()
+      .describe("Depósito médio mensal no FGTS em BRL"),
+    caixaScoreReal: zod
+      .number()
+      .nullish()
+      .describe(
+        "Score real consultado no sistema Caixa (override do calculado)",
+      ),
+    enrichedAt: zod.coerce
+      .date()
+      .nullish()
+      .describe("Data\/hora do enriquecimento"),
+    enrichedBy: zod
+      .string()
+      .nullish()
+      .describe("Nome do responsável pelo enriquecimento"),
     createdAt: zod.coerce.date(),
     updatedAt: zod.coerce.date(),
   }),
@@ -213,6 +254,47 @@ export const UpdateClientProfileResponse = zod.object({
     brokerId: zod.number().nullish(),
     brokerName: zod.string().nullish(),
     aiRecommendation: zod.string().nullish(),
+    serasaScore: zod
+      .number()
+      .nullish()
+      .describe("Serasa Score consultado (0-1000)"),
+    hasNegativations: zod.boolean().nullish(),
+    negativationsValue: zod
+      .number()
+      .nullish()
+      .describe("Valor total de negativações em BRL"),
+    hasProtests: zod.boolean().nullish(),
+    protestsValue: zod
+      .number()
+      .nullish()
+      .describe("Valor total de protestos em cartório em BRL"),
+    siricStatus: zod
+      .enum(["regular", "irregular", "pendente"])
+      .nullish()
+      .describe("Status no SIRIC (sistema Caixa)"),
+    siricObservation: zod.string().nullish().describe("Observações do SIRIC"),
+    fgtsMonths: zod
+      .number()
+      .nullish()
+      .describe("Meses de contribuição ao FGTS"),
+    fgtsMonthlyAvg: zod
+      .number()
+      .nullish()
+      .describe("Depósito médio mensal no FGTS em BRL"),
+    caixaScoreReal: zod
+      .number()
+      .nullish()
+      .describe(
+        "Score real consultado no sistema Caixa (override do calculado)",
+      ),
+    enrichedAt: zod.coerce
+      .date()
+      .nullish()
+      .describe("Data\/hora do enriquecimento"),
+    enrichedBy: zod
+      .string()
+      .nullish()
+      .describe("Nome do responsável pelo enriquecimento"),
     createdAt: zod.coerce.date(),
     updatedAt: zod.coerce.date(),
   }),
@@ -357,6 +439,47 @@ export const GetLeadsResponse = zod.object({
       brokerId: zod.number().nullish(),
       brokerName: zod.string().nullish(),
       aiRecommendation: zod.string().nullish(),
+      serasaScore: zod
+        .number()
+        .nullish()
+        .describe("Serasa Score consultado (0-1000)"),
+      hasNegativations: zod.boolean().nullish(),
+      negativationsValue: zod
+        .number()
+        .nullish()
+        .describe("Valor total de negativações em BRL"),
+      hasProtests: zod.boolean().nullish(),
+      protestsValue: zod
+        .number()
+        .nullish()
+        .describe("Valor total de protestos em cartório em BRL"),
+      siricStatus: zod
+        .enum(["regular", "irregular", "pendente"])
+        .nullish()
+        .describe("Status no SIRIC (sistema Caixa)"),
+      siricObservation: zod.string().nullish().describe("Observações do SIRIC"),
+      fgtsMonths: zod
+        .number()
+        .nullish()
+        .describe("Meses de contribuição ao FGTS"),
+      fgtsMonthlyAvg: zod
+        .number()
+        .nullish()
+        .describe("Depósito médio mensal no FGTS em BRL"),
+      caixaScoreReal: zod
+        .number()
+        .nullish()
+        .describe(
+          "Score real consultado no sistema Caixa (override do calculado)",
+        ),
+      enrichedAt: zod.coerce
+        .date()
+        .nullish()
+        .describe("Data\/hora do enriquecimento"),
+      enrichedBy: zod
+        .string()
+        .nullish()
+        .describe("Nome do responsável pelo enriquecimento"),
       createdAt: zod.coerce.date(),
       updatedAt: zod.coerce.date(),
     }),
@@ -469,6 +592,42 @@ export const GetLeadResponse = zod.object({
   brokerId: zod.number().nullish(),
   brokerName: zod.string().nullish(),
   aiRecommendation: zod.string().nullish(),
+  serasaScore: zod
+    .number()
+    .nullish()
+    .describe("Serasa Score consultado (0-1000)"),
+  hasNegativations: zod.boolean().nullish(),
+  negativationsValue: zod
+    .number()
+    .nullish()
+    .describe("Valor total de negativações em BRL"),
+  hasProtests: zod.boolean().nullish(),
+  protestsValue: zod
+    .number()
+    .nullish()
+    .describe("Valor total de protestos em cartório em BRL"),
+  siricStatus: zod
+    .enum(["regular", "irregular", "pendente"])
+    .nullish()
+    .describe("Status no SIRIC (sistema Caixa)"),
+  siricObservation: zod.string().nullish().describe("Observações do SIRIC"),
+  fgtsMonths: zod.number().nullish().describe("Meses de contribuição ao FGTS"),
+  fgtsMonthlyAvg: zod
+    .number()
+    .nullish()
+    .describe("Depósito médio mensal no FGTS em BRL"),
+  caixaScoreReal: zod
+    .number()
+    .nullish()
+    .describe("Score real consultado no sistema Caixa (override do calculado)"),
+  enrichedAt: zod.coerce
+    .date()
+    .nullish()
+    .describe("Data\/hora do enriquecimento"),
+  enrichedBy: zod
+    .string()
+    .nullish()
+    .describe("Nome do responsável pelo enriquecimento"),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -547,6 +706,42 @@ export const UpdateLeadResponse = zod.object({
   brokerId: zod.number().nullish(),
   brokerName: zod.string().nullish(),
   aiRecommendation: zod.string().nullish(),
+  serasaScore: zod
+    .number()
+    .nullish()
+    .describe("Serasa Score consultado (0-1000)"),
+  hasNegativations: zod.boolean().nullish(),
+  negativationsValue: zod
+    .number()
+    .nullish()
+    .describe("Valor total de negativações em BRL"),
+  hasProtests: zod.boolean().nullish(),
+  protestsValue: zod
+    .number()
+    .nullish()
+    .describe("Valor total de protestos em cartório em BRL"),
+  siricStatus: zod
+    .enum(["regular", "irregular", "pendente"])
+    .nullish()
+    .describe("Status no SIRIC (sistema Caixa)"),
+  siricObservation: zod.string().nullish().describe("Observações do SIRIC"),
+  fgtsMonths: zod.number().nullish().describe("Meses de contribuição ao FGTS"),
+  fgtsMonthlyAvg: zod
+    .number()
+    .nullish()
+    .describe("Depósito médio mensal no FGTS em BRL"),
+  caixaScoreReal: zod
+    .number()
+    .nullish()
+    .describe("Score real consultado no sistema Caixa (override do calculado)"),
+  enrichedAt: zod.coerce
+    .date()
+    .nullish()
+    .describe("Data\/hora do enriquecimento"),
+  enrichedBy: zod
+    .string()
+    .nullish()
+    .describe("Nome do responsável pelo enriquecimento"),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -634,6 +829,122 @@ export const UpdateBrokerResponse = zod.object({
   approvedLeads: zod.number(),
   approvalRate: zod.number().optional(),
   createdAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Save Caixa/bureau enrichment data and recalculate score
+ */
+export const EnrichLeadParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const EnrichLeadBody = zod.object({
+  serasaScore: zod.number().nullish(),
+  hasNegativations: zod.boolean().nullish(),
+  negativationsValue: zod.number().nullish(),
+  hasProtests: zod.boolean().nullish(),
+  protestsValue: zod.number().nullish(),
+  siricStatus: zod.enum(["regular", "irregular", "pendente"]).nullish(),
+  siricObservation: zod.string().nullish(),
+  fgtsMonths: zod.number().nullish(),
+  fgtsMonthlyAvg: zod.number().nullish(),
+  caixaScoreReal: zod.number().nullish(),
+  enrichedBy: zod.string().nullish(),
+});
+
+export const EnrichLeadResponse = zod.object({
+  id: zod.number(),
+  name: zod.string(),
+  cpf: zod.string(),
+  email: zod.string(),
+  phone: zod.string(),
+  birthDate: zod.string().nullish().describe("Date of birth YYYY-MM-DD"),
+  maritalStatus: zod
+    .enum(["solteiro", "casado", "divorciado", "viuvo", "uniao_estavel"])
+    .nullish(),
+  profession: zod.string().nullish(),
+  employmentType: zod
+    .enum([
+      "clt",
+      "autonomo",
+      "servidor_publico",
+      "empresario",
+      "aposentado",
+      "liberal",
+      "desempregado",
+    ])
+    .nullish(),
+  employmentMonths: zod.number().nullish().describe("Months in current job"),
+  income: zod.number().describe("Monthly formal income in BRL"),
+  informalIncome: zod
+    .number()
+    .nullish()
+    .describe("Monthly informal\/complementary income in BRL"),
+  hasFgts: zod.boolean().nullish(),
+  fgtsBalance: zod.number().nullish().describe("Estimated FGTS balance in BRL"),
+  propertyValue: zod.number().describe("Desired property value in BRL"),
+  propertyType: zod.enum(["novo", "usado", "construcao", "terreno"]).nullish(),
+  propertyCity: zod.string().nullish(),
+  propertyState: zod
+    .string()
+    .nullish()
+    .describe("Brazilian state abbreviation e.g. SP"),
+  spouseName: zod.string().nullish(),
+  spouseCpf: zod.string().nullish(),
+  spouseBirthDate: zod.string().nullish(),
+  spouseProfession: zod.string().nullish(),
+  spouseIncome: zod.number().nullish(),
+  status: zod.enum([
+    "pending",
+    "analyzing",
+    "approved",
+    "rejected",
+    "in_progress",
+  ]),
+  approvalChance: zod.number().describe("AI approval probability 0-100"),
+  scoreCaixa: zod.number().describe("Caixa Econômica credit score"),
+  scoreMCMV: zod.number().describe("Minha Casa Minha Vida eligibility score"),
+  brokerId: zod.number().nullish(),
+  brokerName: zod.string().nullish(),
+  aiRecommendation: zod.string().nullish(),
+  serasaScore: zod
+    .number()
+    .nullish()
+    .describe("Serasa Score consultado (0-1000)"),
+  hasNegativations: zod.boolean().nullish(),
+  negativationsValue: zod
+    .number()
+    .nullish()
+    .describe("Valor total de negativações em BRL"),
+  hasProtests: zod.boolean().nullish(),
+  protestsValue: zod
+    .number()
+    .nullish()
+    .describe("Valor total de protestos em cartório em BRL"),
+  siricStatus: zod
+    .enum(["regular", "irregular", "pendente"])
+    .nullish()
+    .describe("Status no SIRIC (sistema Caixa)"),
+  siricObservation: zod.string().nullish().describe("Observações do SIRIC"),
+  fgtsMonths: zod.number().nullish().describe("Meses de contribuição ao FGTS"),
+  fgtsMonthlyAvg: zod
+    .number()
+    .nullish()
+    .describe("Depósito médio mensal no FGTS em BRL"),
+  caixaScoreReal: zod
+    .number()
+    .nullish()
+    .describe("Score real consultado no sistema Caixa (override do calculado)"),
+  enrichedAt: zod.coerce
+    .date()
+    .nullish()
+    .describe("Data\/hora do enriquecimento"),
+  enrichedBy: zod
+    .string()
+    .nullish()
+    .describe("Nome do responsável pelo enriquecimento"),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
 });
 
 /**

@@ -5,6 +5,7 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { EmploymentType } from "./employmentType";
+import type { LeadSiricStatus } from "./leadSiricStatus";
 import type { LeadStatus } from "./leadStatus";
 import type { MaritalStatus } from "./maritalStatus";
 import type { PropertyType } from "./propertyType";
@@ -50,6 +51,28 @@ export interface Lead {
   brokerId?: number | null;
   brokerName?: string | null;
   aiRecommendation?: string | null;
+  /** Serasa Score consultado (0-1000) */
+  serasaScore?: number | null;
+  hasNegativations?: boolean | null;
+  /** Valor total de negativações em BRL */
+  negativationsValue?: number | null;
+  hasProtests?: boolean | null;
+  /** Valor total de protestos em cartório em BRL */
+  protestsValue?: number | null;
+  /** Status no SIRIC (sistema Caixa) */
+  siricStatus?: LeadSiricStatus;
+  /** Observações do SIRIC */
+  siricObservation?: string | null;
+  /** Meses de contribuição ao FGTS */
+  fgtsMonths?: number | null;
+  /** Depósito médio mensal no FGTS em BRL */
+  fgtsMonthlyAvg?: number | null;
+  /** Score real consultado no sistema Caixa (override do calculado) */
+  caixaScoreReal?: number | null;
+  /** Data/hora do enriquecimento */
+  enrichedAt?: Date | null;
+  /** Nome do responsável pelo enriquecimento */
+  enrichedBy?: string | null;
   createdAt: Date;
   updatedAt: Date;
 }

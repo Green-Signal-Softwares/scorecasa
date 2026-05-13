@@ -369,6 +369,33 @@ paths:
               schema:
                 $ref: "#/components/schemas/Broker"
 
+  /leads/{id}/enrich:
+    put:
+      operationId: enrichLead
+      summary: Save Caixa/bureau enrichment data and recalculate score
+      tags: [leads]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CaixaEnrichRequest"
+      responses:
+        "200":
+          description: Lead updated with enrichment data
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lead"
+        "404":
+          description: Lead not found
+
   /leads/{id}/score:
     get:
       operationId: getLeadScore
@@ -625,12 +652,98 @@ components:
         aiRecommendation:
           type: string
           nullable: true
+        serasaScore:
+          type: integer
+          nullable: true
+          description: Serasa Score consultado (0-1000)
+        hasNegativations:
+          type: boolean
+          nullable: true
+        negativationsValue:
+          type: number
+          nullable: true
+          description: Valor total de negativações em BRL
+        hasProtests:
+          type: boolean
+          nullable: true
+        protestsValue:
+          type: number
+          nullable: true
+          description: Valor total de protestos em cartório em BRL
+        siricStatus:
+          type: string
+          nullable: true
+          enum: [regular, irregular, pendente]
+          description: Status no SIRIC (sistema Caixa)
+        siricObservation:
+          type: string
+          nullable: true
+          description: Observações do SIRIC
+        fgtsMonths:
+          type: integer
+          nullable: true
+          description: Meses de contribuição ao FGTS
+        fgtsMonthlyAvg:
+          type: number
+          nullable: true
+          description: Depósito médio mensal no FGTS em BRL
+        caixaScoreReal:
+          type: integer
+          nullable: true
+          description: Score real consultado no sistema Caixa (override do calculado)
+        enrichedAt:
+          type: string
+          format: date-time
+          nullable: true
+          description: Data/hora do enriquecimento
+        enrichedBy:
+          type: string
+          nullable: true
+          description: Nome do responsável pelo enriquecimento
         createdAt:
           type: string
           format: date-time
         updatedAt:
           type: string
           format: date-time
+
+    CaixaEnrichRequest:
+      type: object
+      properties:
+        serasaScore:
+          type: integer
+          nullable: true
+        hasNegativations:
+          type: boolean
+          nullable: true
+        negativationsValue:
+          type: number
+          nullable: true
+        hasProtests:
+          type: boolean
+          nullable: true
+        protestsValue:
+          type: number
+          nullable: true
+        siricStatus:
+          type: string
+          nullable: true
+          enum: [regular, irregular, pendente]
+        siricObservation:
+          type: string
+          nullable: true
+        fgtsMonths:
+          type: integer
+          nullable: true
+        fgtsMonthlyAvg:
+          type: number
+          nullable: true
+        caixaScoreReal:
+          type: integer
+          nullable: true
+        enrichedBy:
+          type: string
+          nullable: true
 
     CreateLeadRequest:
       type: object

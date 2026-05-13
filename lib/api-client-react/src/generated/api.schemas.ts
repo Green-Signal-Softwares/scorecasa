@@ -101,6 +101,19 @@ export const LeadStatus = {
   in_progress: "in_progress",
 } as const;
 
+/**
+ * Status no SIRIC (sistema Caixa)
+ */
+export type LeadSiricStatus =
+  | (typeof LeadSiricStatus)[keyof typeof LeadSiricStatus]
+  | null;
+
+export const LeadSiricStatus = {
+  regular: "regular",
+  irregular: "irregular",
+  pendente: "pendente",
+} as const;
+
 export interface Lead {
   id: number;
   name: string;
@@ -142,6 +155,28 @@ export interface Lead {
   brokerId?: number | null;
   brokerName?: string | null;
   aiRecommendation?: string | null;
+  /** Serasa Score consultado (0-1000) */
+  serasaScore?: number | null;
+  hasNegativations?: boolean | null;
+  /** Valor total de negativações em BRL */
+  negativationsValue?: number | null;
+  hasProtests?: boolean | null;
+  /** Valor total de protestos em cartório em BRL */
+  protestsValue?: number | null;
+  /** Status no SIRIC (sistema Caixa) */
+  siricStatus?: LeadSiricStatus;
+  /** Observações do SIRIC */
+  siricObservation?: string | null;
+  /** Meses de contribuição ao FGTS */
+  fgtsMonths?: number | null;
+  /** Depósito médio mensal no FGTS em BRL */
+  fgtsMonthlyAvg?: number | null;
+  /** Score real consultado no sistema Caixa (override do calculado) */
+  caixaScoreReal?: number | null;
+  /** Data/hora do enriquecimento */
+  enrichedAt?: string | null;
+  /** Nome do responsável pelo enriquecimento */
+  enrichedBy?: string | null;
   createdAt: string;
   updatedAt: string;
 }
@@ -149,6 +184,30 @@ export interface Lead {
 export interface ClientProfile {
   user: User;
   lead: Lead;
+}
+
+export type CaixaEnrichRequestSiricStatus =
+  | (typeof CaixaEnrichRequestSiricStatus)[keyof typeof CaixaEnrichRequestSiricStatus]
+  | null;
+
+export const CaixaEnrichRequestSiricStatus = {
+  regular: "regular",
+  irregular: "irregular",
+  pendente: "pendente",
+} as const;
+
+export interface CaixaEnrichRequest {
+  serasaScore?: number | null;
+  hasNegativations?: boolean | null;
+  negativationsValue?: number | null;
+  hasProtests?: boolean | null;
+  protestsValue?: number | null;
+  siricStatus?: CaixaEnrichRequestSiricStatus;
+  siricObservation?: string | null;
+  fgtsMonths?: number | null;
+  fgtsMonthlyAvg?: number | null;
+  caixaScoreReal?: number | null;
+  enrichedBy?: string | null;
 }
 
 export interface CreateLeadRequest {

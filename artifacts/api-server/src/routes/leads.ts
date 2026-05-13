@@ -4,11 +4,13 @@ import { eq, sql, ilike, or, and, desc } from "drizzle-orm";
 import {
   CreateLeadBody,
   UpdateLeadBody,
+  EnrichLeadBody,
   GetLeadsQueryParams,
   GetLeadParams,
   UpdateLeadParams,
   DeleteLeadParams,
   GetLeadScoreParams,
+  EnrichLeadParams,
 } from "@workspace/api-zod";
 
 const router = Router();
@@ -25,6 +27,13 @@ interface ScoreInput {
   maritalStatus?: string | null;
   propertyType?: string | null;
   birthDate?: string | null;
+  // Bureau / Caixa real data
+  serasaScore?: number | null;
+  hasNegativations?: boolean | null;
+  hasProtests?: boolean | null;
+  siricStatus?: string | null;
+  fgtsMonths?: number | null;
+  caixaScoreReal?: number | null;
 }
 
 function computeScore(input: ScoreInput): {
@@ -47,6 +56,15 @@ function computeScore(input: ScoreInput): {
     birthDate,
   } = input;
 
+  const {
+    serasaScore,
+    hasNegativations,
+    hasProtests,
+    siricStatus,
+    fgtsMonths,
+    caixaScoreReal,
+  } = input;
+
   // ── Renda total composta ───────────────────────────────────────────────────
   const totalIncome = income + (informalIncome ?? 0) * 0.7 + (spouseIncome ?? 0);
 
@@ -60,6 +78,9 @@ function computeScore(input: ScoreInput): {
     const fgtsRatio = (fgtsBalance ?? 0) / propertyValue;
     baseChance += Math.min(10, fgtsRatio * 100);
   }
+  // FGTS real: tempo de contribuição adiciona estabilidade
+  if ((fgtsMonths ?? 0) >= 36) baseChance += 5;
+  else if ((fgtsMonths ?? 0) >= 12) baseChance += 2;
 
   // ── Bônus: estabilidade empregatícia ─────────────────────────────────────
   if (employmentType === "clt" || employmentType === "servidor_publico") {
@@ -91,8 +112,27 @@ function computeScore(input: ScoreInput): {
     else if (age > 70) baseChance -= 10;
   }
 
+  // ── Dados reais dos bureaus (alta prioridade) ─────────────────────────────
+  if (serasaScore != null) {
+    if (serasaScore >= 800) baseChance += 12;
+    else if (serasaScore >= 700) baseChance += 8;
+    else if (serasaScore >= 600) baseChance += 3;
+    else if (serasaScore >= 500) baseChance -= 5;
+    else if (serasaScore >= 400) baseChance -= 12;
+    else baseChance -= 20;
+  }
+  if (hasNegativations) baseChance -= 25;
+  if (hasProtests) baseChance -= 30;
+  if (siricStatus === "irregular") baseChance -= 40;
+  else if (siricStatus === "regular") baseChance += 5;
+
   const approvalChance = Math.round(Math.max(0, Math.min(100, baseChance)));
-  const scoreCaixa = Math.min(1000, Math.max(300, Math.round(300 + (approvalChance / 100) * 550 + (Math.random() * 80 - 40))));
+
+  // ── Score Caixa: usa real se disponível, senão calcula ───────────────────
+  const scoreCaixa = caixaScoreReal != null
+    ? Math.min(1000, Math.max(0, caixaScoreReal))
+    : Math.min(1000, Math.max(300, Math.round(300 + (approvalChance / 100) * 550 + (Math.random() * 80 - 40))));
+
   const scoreMCMV = totalIncome <= 8000 ? Math.round(600 + Math.random() * 250) : Math.round(300 + Math.random() * 200);
 
   // ── Recomendação ─────────────────────────────────────────────────────────
@@ -101,6 +141,9 @@ function computeScore(input: ScoreInput): {
   if (employmentType === "autonomo" && (employmentMonths ?? 0) < 24) issues.push("renda autônoma com menos de 2 anos de histórico");
   if (!hasFgts) issues.push("ausência de FGTS para abater entrada");
   if ((maritalStatus === "casado" || maritalStatus === "uniao_estavel") && !(spouseIncome ?? 0)) issues.push("renda do cônjuge não informada");
+  if (hasNegativations) issues.push("negativações ativas no Serasa/SPC");
+  if (hasProtests) issues.push("protestos em cartório");
+  if (siricStatus === "irregular") issues.push("situação irregular no SIRIC Caixa");
 
   let recommendation = "";
   if (approvalChance >= 75) {
@@ -317,6 +360,73 @@ router.delete("/:id", async (req, res) => {
 
   await db.delete(leadsTable).where(eq(leadsTable.id, parsed.data.id));
   res.status(204).send();
+});
+
+router.put("/:id/enrich", async (req, res) => {
+  const paramsParsed = EnrichLeadParams.safeParse({ id: Number(req.params.id) });
+  if (!paramsParsed.success) {
+    res.status(400).json({ error: "Invalid ID" });
+    return;
+  }
+
+  const bodyParsed = EnrichLeadBody.safeParse(req.body);
+  if (!bodyParsed.success) {
+    res.status(400).json({ error: "Invalid request body" });
+    return;
+  }
+
+  const [existing] = await db.select().from(leadsTable).where(eq(leadsTable.id, paramsParsed.data.id)).limit(1);
+  if (!existing) {
+    res.status(404).json({ error: "Lead not found" });
+    return;
+  }
+
+  const enrichData = bodyParsed.data;
+
+  const scores = computeScore({
+    income: existing.income,
+    propertyValue: existing.propertyValue,
+    informalIncome: existing.informalIncome,
+    spouseIncome: existing.spouseIncome,
+    hasFgts: existing.hasFgts,
+    fgtsBalance: existing.fgtsBalance,
+    employmentType: existing.employmentType,
+    employmentMonths: existing.employmentMonths,
+    maritalStatus: existing.maritalStatus,
+    propertyType: existing.propertyType,
+    birthDate: existing.birthDate,
+    serasaScore: enrichData.serasaScore ?? existing.serasaScore,
+    hasNegativations: enrichData.hasNegativations ?? existing.hasNegativations,
+    hasProtests: enrichData.hasProtests ?? existing.hasProtests,
+    siricStatus: enrichData.siricStatus ?? existing.siricStatus,
+    fgtsMonths: enrichData.fgtsMonths ?? existing.fgtsMonths,
+    caixaScoreReal: enrichData.caixaScoreReal ?? existing.caixaScoreReal,
+  });
+
+  const [updated] = await db
+    .update(leadsTable)
+    .set({
+      ...enrichData,
+      ...scores,
+      enrichedAt: new Date(),
+      updatedAt: new Date(),
+    })
+    .where(eq(leadsTable.id, paramsParsed.data.id))
+    .returning();
+
+  let brokerName: string | null = null;
+  if (updated.brokerId) {
+    const [broker] = await db.select({ name: brokersTable.name }).from(brokersTable).where(eq(brokersTable.id, updated.brokerId)).limit(1);
+    brokerName = broker?.name ?? null;
+  }
+
+  res.json({
+    ...updated,
+    brokerName,
+    createdAt: updated.createdAt.toISOString(),
+    updatedAt: updated.updatedAt.toISOString(),
+    enrichedAt: updated.enrichedAt ? updated.enrichedAt.toISOString() : null,
+  });
 });
 
 router.get("/:id/score", async (req, res) => {

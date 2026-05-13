@@ -20,6 +20,7 @@ import type {
   AuthResult,
   Broker,
   BrokerRanking,
+  CaixaEnrichRequest,
   ClientProfile,
   CreateBrokerRequest,
   CreateLeadRequest,
@@ -1698,6 +1699,93 @@ export const useUpdateBroker = <
   TContext
 > => {
   return useMutation(getUpdateBrokerMutationOptions(options));
+};
+
+/**
+ * @summary Save Caixa/bureau enrichment data and recalculate score
+ */
+export const getEnrichLeadUrl = (id: number) => {
+  return `/api/leads/${id}/enrich`;
+};
+
+export const enrichLead = async (
+  id: number,
+  caixaEnrichRequest: CaixaEnrichRequest,
+  options?: RequestInit,
+): Promise<Lead> => {
+  return customFetch<Lead>(getEnrichLeadUrl(id), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(caixaEnrichRequest),
+  });
+};
+
+export const getEnrichLeadMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof enrichLead>>,
+    TError,
+    { id: number; data: BodyType<CaixaEnrichRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof enrichLead>>,
+  TError,
+  { id: number; data: BodyType<CaixaEnrichRequest> },
+  TContext
+> => {
+  const mutationKey = ["enrichLead"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof enrichLead>>,
+    { id: number; data: BodyType<CaixaEnrichRequest> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return enrichLead(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type EnrichLeadMutationResult = NonNullable<
+  Awaited<ReturnType<typeof enrichLead>>
+>;
+export type EnrichLeadMutationBody = BodyType<CaixaEnrichRequest>;
+export type EnrichLeadMutationError = ErrorType<void>;
+
+/**
+ * @summary Save Caixa/bureau enrichment data and recalculate score
+ */
+export const useEnrichLead = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof enrichLead>>,
+    TError,
+    { id: number; data: BodyType<CaixaEnrichRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof enrichLead>>,
+  TError,
+  { id: number; data: BodyType<CaixaEnrichRequest> },
+  TContext
+> => {
+  return useMutation(getEnrichLeadMutationOptions(options));
 };
 
 /**
