@@ -231,6 +231,30 @@ export interface LeadRanking {
   status: string;
 }
 
+export interface Notification {
+  id: number;
+  leadId: number;
+  leadName: string;
+  previousStatus: string;
+  newStatus: string;
+  message: string;
+  isRead: boolean;
+  createdAt: string;
+}
+
+export interface NotificationsResult {
+  notifications: Notification[];
+  unreadCount: number;
+}
+
+export type MarkAllNotificationsRead200 = {
+  ok: boolean;
+};
+
+export type MarkNotificationRead200 = {
+  ok: boolean;
+};
+
 export type GetLeadsParams = {
   status?: GetLeadsStatus;
   search?: string;

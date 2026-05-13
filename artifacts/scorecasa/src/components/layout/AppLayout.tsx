@@ -4,6 +4,7 @@ import { useState } from "react";
 import { useLogout } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRequireAuth } from "@/hooks/use-auth";
+import { NotificationBell } from "./NotificationBell";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -47,15 +48,18 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
 
   const SidebarContent = () => (
     <>
-      <div className="px-6 py-8">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "#10A65A" }}>
-            <CheckCircle className="w-5 h-5 text-white" />
+      <div className="px-4 py-6">
+        <div className="flex items-center justify-between">
+          <div className="flex items-center gap-2">
+            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "#10A65A" }}>
+              <CheckCircle className="w-5 h-5 text-white" />
+            </div>
+            <div>
+              <div className="text-white font-bold text-lg leading-none tracking-tight">ScoreCasa</div>
+              <div className="text-xs leading-none mt-0.5" style={{ color: "#10A65A" }}>Inteligência de Crédito</div>
+            </div>
           </div>
-          <div>
-            <div className="text-white font-bold text-lg leading-none tracking-tight">ScoreCasa</div>
-            <div className="text-xs leading-none mt-0.5" style={{ color: "#10A65A" }}>Inteligência de Crédito</div>
-          </div>
+          <NotificationBell />
         </div>
       </div>
 

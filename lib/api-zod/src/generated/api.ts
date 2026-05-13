@@ -43,6 +43,43 @@ export const GetMeResponse = zod.object({
 });
 
 /**
+ * @summary Get all notifications
+ */
+export const GetNotificationsResponse = zod.object({
+  notifications: zod.array(
+    zod.object({
+      id: zod.number(),
+      leadId: zod.number(),
+      leadName: zod.string(),
+      previousStatus: zod.string(),
+      newStatus: zod.string(),
+      message: zod.string(),
+      isRead: zod.boolean(),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
+  unreadCount: zod.number(),
+});
+
+/**
+ * @summary Mark all notifications as read
+ */
+export const MarkAllNotificationsReadResponse = zod.object({
+  ok: zod.boolean(),
+});
+
+/**
+ * @summary Mark a single notification as read
+ */
+export const MarkNotificationReadParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const MarkNotificationReadResponse = zod.object({
+  ok: zod.boolean(),
+});
+
+/**
  * @summary Get dashboard summary stats
  */
 export const GetDashboardResponse = zod.object({

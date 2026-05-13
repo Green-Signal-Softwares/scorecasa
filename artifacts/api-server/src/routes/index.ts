@@ -6,6 +6,7 @@ import brokersRouter from "./brokers";
 import dashboardRouter from "./dashboard";
 import funnelRouter from "./funnel";
 import rankingRouter from "./ranking";
+import notificationsRouter from "./notifications";
 
 const router: IRouter = Router();
 
@@ -16,5 +17,6 @@ router.use("/brokers", brokersRouter);
 router.use("/dashboard", dashboardRouter);
 router.use("/funnel", funnelRouter);
 router.use("/ranking", rankingRouter);
+router.use("/notifications", notificationsRouter);
 
 export default router;

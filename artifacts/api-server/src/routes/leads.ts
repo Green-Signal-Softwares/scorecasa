@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, leadsTable, brokersTable } from "@workspace/db";
+import { db, leadsTable, brokersTable, notificationsTable } from "@workspace/db";
 import { eq, sql, ilike, or, and, desc } from "drizzle-orm";
 import {
   CreateLeadBody,
@@ -190,6 +190,25 @@ router.put("/:id", async (req, res) => {
   }
 
   const [updated] = await db.update(leadsTable).set(updateData).where(eq(leadsTable.id, paramsParsed.data.id)).returning();
+
+  if (bodyParsed.data.status && bodyParsed.data.status !== existing.status) {
+    const statusLabels: Record<string, string> = {
+      pending: "Pendente",
+      analyzing: "Em Análise",
+      approved: "Aprovado",
+      rejected: "Reprovado",
+      in_progress: "Em Andamento",
+    };
+    const fromLabel = statusLabels[existing.status] ?? existing.status;
+    const toLabel = statusLabels[bodyParsed.data.status] ?? bodyParsed.data.status;
+    await db.insert(notificationsTable).values({
+      leadId: updated.id,
+      leadName: updated.name,
+      previousStatus: existing.status,
+      newStatus: bodyParsed.data.status,
+      message: `${updated.name} mudou de ${fromLabel} para ${toLabel}`,
+    });
+  }
 
   let brokerName: string | null = null;
   if (updated.brokerId) {

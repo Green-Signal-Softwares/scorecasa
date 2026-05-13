@@ -64,6 +64,59 @@ paths:
         "401":
           description: Unauthorized
 
+  /notifications:
+    get:
+      operationId: getNotifications
+      summary: Get all notifications
+      tags: [notifications]
+      responses:
+        "200":
+          description: Notifications list with unread count
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/NotificationsResult"
+
+  /notifications/read-all:
+    post:
+      operationId: markAllNotificationsRead
+      summary: Mark all notifications as read
+      tags: [notifications]
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok:
+                    type: boolean
+
+  /notifications/{id}/read:
+    post:
+      operationId: markNotificationRead
+      summary: Mark a single notification as read
+      tags: [notifications]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: OK
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok:
+                    type: boolean
+
   /dashboard:
     get:
       operationId: getDashboard
@@ -658,3 +711,36 @@ components:
           type: integer
         status:
           type: string
+
+    Notification:
+      type: object
+      required: [id, leadId, leadName, previousStatus, newStatus, message, isRead, createdAt]
+      properties:
+        id:
+          type: integer
+        leadId:
+          type: integer
+        leadName:
+          type: string
+        previousStatus:
+          type: string
+        newStatus:
+          type: string
+        message:
+          type: string
+        isRead:
+          type: boolean
+        createdAt:
+          type: string
+          format: date-time
+
+    NotificationsResult:
+      type: object
+      required: [notifications, unreadCount]
+      properties:
+        notifications:
+          type: array
+          items:
+            $ref: "#/components/schemas/Notification"
+        unreadCount:
+          type: integer
