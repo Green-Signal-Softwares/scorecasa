@@ -18,8 +18,9 @@ import {
   ArrowLeft, CheckCircle, TrendingUp, TrendingDown, Minus,
   Building2, Phone, Mail, DollarSign, Pencil, X, Save, RefreshCw,
   FileDown, ShieldCheck, ShieldX, AlertTriangle, Landmark, Clock,
-  BadgeCheck, ChevronDown, ChevronUp,
+  BadgeCheck, ChevronDown, ChevronUp, BarChart3, SlidersHorizontal,
 } from "lucide-react";
+import { BankComparison } from "@/components/BankComparison";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -94,6 +95,7 @@ export function LeadDetails({ id }: { id: number }) {
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [exporting, setExporting] = useState(false);
+  const [rightTab, setRightTab] = useState<"analise" | "comparativo">("analise");
 
   const { data: lead, isLoading } = useGetLead(id, {
     query: { enabled: !!id, queryKey: getGetLeadQueryKey(id) },
@@ -559,6 +561,37 @@ export function LeadDetails({ id }: { id: number }) {
 
         {/* ── Score panel ── */}
         <div className="lg:col-span-2 space-y-4">
+
+          {/* ── Tab bar ── */}
+          <div className="flex gap-1 p-1 rounded-xl bg-muted border border-border">
+            {(
+              [
+                { key: "analise", label: "Análise ScoreCasa", icon: SlidersHorizontal },
+                { key: "comparativo", label: "Comparativo de Bancos", icon: BarChart3 },
+              ] as const
+            ).map(({ key, label, icon: Icon }) => (
+              <button
+                key={key}
+                type="button"
+                onClick={() => setRightTab(key)}
+                data-testid={`tab-${key}`}
+                className="flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-sm font-medium transition-all"
+                style={
+                  rightTab === key
+                    ? { background: "#0D1B8C", color: "#fff", boxShadow: "0 1px 4px rgba(13,27,140,.25)" }
+                    : { color: "hsl(var(--muted-foreground))" }
+                }
+              >
+                <Icon className="w-4 h-4" />
+                {label}
+              </button>
+            ))}
+          </div>
+
+          {rightTab === "comparativo" ? (
+            <BankComparison lead={lead} />
+          ) : (
+          <>
           {/* Scores */}
           <div className="bg-card rounded-xl border border-card-border p-5 shadow-sm">
             <div className="text-sm font-semibold text-foreground mb-4">Analise de Credito</div>
@@ -879,6 +912,8 @@ export function LeadDetails({ id }: { id: number }) {
               </div>
             )}
           </div>
+          </>
+          )}
         </div>
       </div>
     </div>
