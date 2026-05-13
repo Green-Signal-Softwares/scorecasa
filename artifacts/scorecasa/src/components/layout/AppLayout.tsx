@@ -111,7 +111,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
         className="hidden lg:flex lg:flex-col w-60 flex-shrink-0"
         style={{ background: "#07113A" }}
       >
-        <SidebarContent />
+        {SidebarContent()}
       </aside>
 
       {/* Mobile sidebar overlay */}
@@ -128,7 +128,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             >
               <X className="w-5 h-5" />
             </button>
-            <SidebarContent />
+            {SidebarContent()}
           </aside>
         </div>
       )}

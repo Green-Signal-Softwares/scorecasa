@@ -291,35 +291,35 @@ function CreateLeadForm({ brokers, onCreated, onCancel }: CreateLeadFormProps) {
   );
 
   // ── Steps content ─────────────────────────────────────────────────────────
+  // NOTE: TextField/SelectField are called as plain functions (not <Component/>)
+  // to avoid React unmounting/remounting inputs on every keystroke (focus loss bug).
 
   const renderStep = () => {
     if (step === 0) return (
       <div className="space-y-3">
-        <TextField label="Nome completo *" fkey="name" placeholder="João da Silva" />
+        {TextField({ label: "Nome completo *", fkey: "name", placeholder: "João da Silva" })}
         <div className="grid grid-cols-2 gap-3">
-          <TextField label="CPF *" fkey="cpf" placeholder="000.000.000-00" />
-          <TextField label="Telefone *" fkey="phone" placeholder="(11) 99999-9999" />
+          {TextField({ label: "CPF *", fkey: "cpf", placeholder: "000.000.000-00" })}
+          {TextField({ label: "Telefone *", fkey: "phone", placeholder: "(11) 99999-9999" })}
         </div>
-        <TextField label="Email *" fkey="email" placeholder="cliente@email.com" type="email" />
+        {TextField({ label: "Email *", fkey: "email", placeholder: "cliente@email.com", type: "email" })}
         <div className="grid grid-cols-2 gap-3">
-          <TextField label="Data de nascimento *" fkey="birthDate" type="date" />
-          <SelectField label="Estado civil *" fkey="maritalStatus" options={MARITAL_OPTIONS} />
+          {TextField({ label: "Data de nascimento *", fkey: "birthDate", type: "date" })}
+          {SelectField({ label: "Estado civil *", fkey: "maritalStatus", options: MARITAL_OPTIONS })}
         </div>
       </div>
     );
 
     if (step === 1) return (
       <div className="space-y-3">
-        <TextField label="Profissão *" fkey="profession" placeholder="Ex: Engenheiro, Médico, Comerciante..." />
+        {TextField({ label: "Profissão *", fkey: "profession", placeholder: "Ex: Engenheiro, Médico, Comerciante..." })}
         <div className="grid grid-cols-2 gap-3">
-          <SelectField label="Vínculo empregatício *" fkey="employmentType" options={EMPLOYMENT_OPTIONS} />
-          <TextField label="Tempo no emprego atual" fkey="employmentMonths" placeholder="Ex: 24" type="number"
-            hint="Em meses" />
+          {SelectField({ label: "Vínculo empregatício *", fkey: "employmentType", options: EMPLOYMENT_OPTIONS })}
+          {TextField({ label: "Tempo no emprego atual", fkey: "employmentMonths", placeholder: "Ex: 24", type: "number", hint: "Em meses" })}
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <TextField label="Renda mensal formal *" fkey="income" placeholder="R$ 0,00" />
-          <TextField label="Renda informal / extra" fkey="informalIncome" placeholder="R$ 0,00"
-            hint="70% considerado pela Caixa" />
+          {TextField({ label: "Renda mensal formal *", fkey: "income", placeholder: "R$ 0,00" })}
+          {TextField({ label: "Renda informal / extra", fkey: "informalIncome", placeholder: "R$ 0,00", hint: "70% considerado pela Caixa" })}
         </div>
 
         {/* FGTS */}
@@ -341,9 +341,7 @@ function CreateLeadForm({ brokers, onCreated, onCancel }: CreateLeadFormProps) {
               </button>
             ))}
           </div>
-          {fields.hasFgts === "true" && (
-            <TextField label="Saldo estimado FGTS" fkey="fgtsBalance" placeholder="R$ 0,00" />
-          )}
+          {fields.hasFgts === "true" && TextField({ label: "Saldo estimado FGTS", fkey: "fgtsBalance", placeholder: "R$ 0,00" })}
         </div>
 
         {/* Comprometimento de renda preview */}
@@ -365,12 +363,12 @@ function CreateLeadForm({ brokers, onCreated, onCancel }: CreateLeadFormProps) {
     if (step === 2) return (
       <div className="space-y-3">
         <div className="grid grid-cols-2 gap-3">
-          <TextField label="Valor do imóvel *" fkey="propertyValue" placeholder="R$ 0,00" />
-          <SelectField label="Tipo do imóvel *" fkey="propertyType" options={PROPERTY_TYPE_OPTIONS} />
+          {TextField({ label: "Valor do imóvel *", fkey: "propertyValue", placeholder: "R$ 0,00" })}
+          {SelectField({ label: "Tipo do imóvel *", fkey: "propertyType", options: PROPERTY_TYPE_OPTIONS })}
         </div>
         <div className="grid grid-cols-2 gap-3">
-          <TextField label="Cidade do imóvel *" fkey="propertyCity" placeholder="São Paulo" />
-          <SelectField label="UF *" fkey="propertyState" options={BR_STATES.map((s) => ({ value: s, label: s }))} placeholder="UF" />
+          {TextField({ label: "Cidade do imóvel *", fkey: "propertyCity", placeholder: "São Paulo" })}
+          {SelectField({ label: "UF *", fkey: "propertyState", options: BR_STATES.map((s) => ({ value: s, label: s })), placeholder: "UF" })}
         </div>
         <div>
           <label className="block text-sm font-medium text-gray-700 mb-1">Corretor responsável</label>
@@ -392,13 +390,13 @@ function CreateLeadForm({ brokers, onCreated, onCancel }: CreateLeadFormProps) {
         <div className="flex items-center gap-2 p-3 rounded-xl bg-blue-50 border border-blue-100">
           <span className="text-xs text-blue-700">A Caixa exige dados do cônjuge para composição de renda no financiamento.</span>
         </div>
-        <TextField label="Nome completo do cônjuge *" fkey="spouseName" placeholder="Maria da Silva" />
+        {TextField({ label: "Nome completo do cônjuge *", fkey: "spouseName", placeholder: "Maria da Silva" })}
         <div className="grid grid-cols-2 gap-3">
-          <TextField label="CPF do cônjuge" fkey="spouseCpf" placeholder="000.000.000-00" />
-          <TextField label="Data de nascimento" fkey="spouseBirthDate" type="date" />
+          {TextField({ label: "CPF do cônjuge", fkey: "spouseCpf", placeholder: "000.000.000-00" })}
+          {TextField({ label: "Data de nascimento", fkey: "spouseBirthDate", type: "date" })}
         </div>
-        <TextField label="Profissão do cônjuge" fkey="spouseProfession" placeholder="Ex: Professora, Enfermeira..." />
-        <TextField label="Renda mensal do cônjuge" fkey="spouseIncome" placeholder="R$ 0,00" />
+        {TextField({ label: "Profissão do cônjuge", fkey: "spouseProfession", placeholder: "Ex: Professora, Enfermeira..." })}
+        {TextField({ label: "Renda mensal do cônjuge", fkey: "spouseIncome", placeholder: "R$ 0,00" })}
       </div>
     );
 
