@@ -30,7 +30,7 @@ function Router() {
             <Switch>
               <Route path="/dashboard" component={Dashboard} />
               <Route path="/leads/:id">
-                {(params) => <LeadDetails key={params?.id} />}
+                {(params) => <LeadDetails key={params?.id} id={Number(params?.id)} />}
               </Route>
               <Route path="/leads" component={Leads} />
               <Route path="/brokers" component={Brokers} />

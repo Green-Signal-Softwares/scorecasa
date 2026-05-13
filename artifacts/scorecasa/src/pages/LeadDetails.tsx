@@ -1,5 +1,5 @@
 import { useState, useEffect } from "react";
-import { useRoute, useLocation } from "wouter";
+import { useLocation } from "wouter";
 import {
   useGetLead,
   useGetLeadScore,
@@ -88,10 +88,8 @@ function ScoreGauge({ value, max = 1000, label }: { value: number; max?: number;
   );
 }
 
-export function LeadDetails() {
-  const [, params] = useRoute("/leads/:id");
+export function LeadDetails({ id }: { id: number }) {
   const [, setLocation] = useLocation();
-  const id = Number(params?.id);
   const { toast } = useToast();
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
