@@ -1,0 +1,535 @@
+SCORECASA — BRANDBOOK OFICIAL
+
+Inteligência para aprovar mais.
+
+⸻
+
+1. VISÃO DA MARCA
+
+O que é o ScoreCasa
+
+O ScoreCasa é uma plataforma inteligente de análise e aprovação de crédito imobiliário focada em financiamento habitacional no Brasil.
+
+A plataforma conecta:
+
+* clientes que desejam adquirir imóvel
+* imobiliárias
+* corretores
+* correspondentes bancários
+* bancos
+* Open Finance
+* análise de crédito inteligente
+
+O objetivo do ScoreCasa é transformar clientes reprovados em clientes aprováveis.
+
+⸻
+
+2. PROPÓSITO
+
+Missão
+
+Facilitar o acesso ao crédito imobiliário através de inteligência financeira, tecnologia e análise preditiva.
+
+Visão
+
+Ser a principal plataforma brasileira de inteligência de aprovação imobiliária.
+
+Valores
+
+* Transparência
+* Inteligência de dados
+* Aprovação responsável
+* Tecnologia acessível
+* Crescimento sustentável
+* Confiança
+* Inovação
+
+⸻
+
+3. POSICIONAMENTO
+
+Categoria
+
+Fintech + Proptech + SaaS Imobiliário
+
+Posicionamento Estratégico
+
+O ScoreCasa não é apenas um simulador.
+
+É uma plataforma de inteligência de aprovação imobiliária.
+
+⸻
+
+4. PERSONALIDADE DA MARCA
+
+A marca é:
+
+* Inteligente
+* Moderna
+* Tecnológica
+* Segura
+* Confiável
+* Humana
+* Objetiva
+* Financeira
+* Escalável
+
+A marca NÃO é:
+
+* burocrática
+* fria
+* ultrapassada
+* complicada
+* agressiva
+
+⸻
+
+5. LOGOTIPO
+
+Estrutura da Marca
+
+A marca ScoreCasa utiliza:
+
+* símbolo de check de aprovação
+* letra S estilizada
+* combinação azul + verde
+
+Significado
+
+Check Verde
+
+Representa:
+
+* aprovação
+* validação
+* segurança
+* confiança
+
+Azul
+
+Representa:
+
+* estabilidade
+* sistema financeiro
+* tecnologia
+* autoridade
+
+Verde
+
+Representa:
+
+* crescimento
+* conquista
+* aprovação
+* resultado
+
+⸻
+
+6. PALETA DE CORES
+
+Azul Principal
+
+HEX:
+
+#0D1B8C
+
+RGB:
+
+13 27 140
+
+Uso:
+
+* botão principal
+* dashboards
+* identidade institucional
+* login
+* CTAs
+
+⸻
+
+Verde Principal
+
+HEX:
+
+#10A65A
+
+RGB:
+
+16 166 90
+
+Uso:
+
+* aprovação
+* score positivo
+* sucesso
+* status aprovados
+
+⸻
+
+Azul Escuro
+
+HEX:
+
+#07113A
+
+Uso:
+
+* backgrounds premium
+* menus
+* dark mode
+
+⸻
+
+Cinza Interface
+
+HEX:
+
+#6B7280
+
+Uso:
+
+* textos secundários
+* bordas
+* elementos auxiliares
+
+⸻
+
+Branco
+
+HEX:
+
+#F2F4F7
+
+Uso:
+
+* cards
+* fundos
+* áreas neutras
+
+⸻
+
+7. TIPOGRAFIA
+
+Fonte Oficial
+
+Poppins
+
+Pesos Utilizados
+
+* Bold
+* Semibold
+* Medium
+* Regular
+
+Aplicação
+
+Títulos
+
+Poppins Bold
+
+Subtítulos
+
+Poppins Semibold
+
+Texto padrão
+
+Poppins Regular
+
+⸻
+
+8. SISTEMA VISUAL
+
+Estilo Visual
+
+O ScoreCasa segue um padrão:
+
+* clean
+* moderno
+* fintech premium
+* minimalista
+* altamente tecnológico
+
+⸻
+
+9. DIREÇÃO DE UI/UX
+
+Interface
+
+A interface deve transmitir:
+
+* confiança
+* simplicidade
+* rapidez
+* inteligência
+* previsibilidade
+
+Componentes
+
+Botões
+
+* arredondados
+* sólidos
+* azul principal
+* hover verde
+
+Cards
+
+* branco
+* sombra suave
+* bordas arredondadas
+
+Inputs
+
+* minimalistas
+* limpos
+* acessíveis
+
+Dashboard
+
+* indicadores em tempo real
+* gráficos modernos
+* score circular
+* ranking visual
+
+⸻
+
+10. ÍCONES
+
+Estilo
+
+* outline moderno
+* minimalista
+* arredondado
+
+Referências
+
+* Lucide
+* Heroicons
+* Feather
+
+⸻
+
+11. TOM DE VOZ
+
+Como a marca fala
+
+A comunicação do ScoreCasa deve ser:
+
+* clara
+* inteligente
+* simples
+* objetiva
+* consultiva
+
+Exemplos
+
+Correto
+
+“Seu perfil está próximo da aprovação.”
+
+“Ajustando sua renda e comprometimento, sua chance aumenta.”
+
+“Inteligência para aprovar mais.”
+
+Evitar
+
+* termos excessivamente bancários
+* linguagem difícil
+* comunicação agressiva
+* promessas irreais
+
+⸻
+
+12. EXPERIÊNCIA DIGITAL
+
+Sensação desejada
+
+O usuário deve sentir:
+
+* controle
+* clareza
+* evolução
+* previsibilidade
+* confiança
+
+⸻
+
+13. BRANDING MOBILE
+
+App
+
+O aplicativo deve seguir:
+
+* interface limpa
+* poucos cliques
+* navegação rápida
+* visual premium fintech
+
+Splash Screen
+
+Fundo:
+
+* azul profundo
+
+Logo:
+
+* branca/verde
+
+⸻
+
+14. DASHBOARD SCORECASA
+
+Componentes principais
+
+* score aprovação
+* chance de aprovação
+* score Caixa
+* score MCMV
+* ranking leads
+* previsão IA
+* evolução cliente
+* funil aprovação
+* ranking corretores
+
+⸻
+
+15. IDENTIDADE CORPORATIVA
+
+Papelaria
+
+* cartão visita
+* assinatura e-mail
+* proposta comercial
+* envelope
+* pasta institucional
+
+Uniformes
+
+* camisa azul premium
+* logo frontal
+* check verde em destaque
+
+Veículos
+
+* envelopamento branco + azul
+* elementos financeiros
+* slogan institucional
+
+⸻
+
+16. POSICIONAMENTO DE MERCADO
+
+O ScoreCasa é:
+
+* plataforma inteligente
+* ecossistema de aprovação
+* inteligência imobiliária
+* fintech imobiliária
+
+O ScoreCasa NÃO é:
+
+* banco
+* financeira tradicional
+* imobiliária convencional
+
+⸻
+
+17. DIFERENCIAIS COMPETITIVOS
+
+Principais diferenciais
+
+* score proprietário
+* IA de aprovação
+* Open Finance
+* previsão de aprovação
+* múltiplos bancos
+* integração imobiliária
+* ranking de leads
+* motor Caixa + MCMV
+
+⸻
+
+18. MANIFESTO DA MARCA
+
+Comprar um imóvel não deveria ser um processo confuso.
+
+Milhares de brasileiros possuem renda, potencial e capacidade.
+
+Mas são reprovados sem orientação.
+
+O ScoreCasa nasce para mudar isso.
+
+Transformamos dados em inteligência.
+
+Reprovação em planejamento.
+
+E intenção em aprovação.
+
+Porque acreditamos que tecnologia deve aproximar pessoas da conquista da casa própria.
+
+ScoreCasa.
+
+Inteligência para aprovar mais.
+
+⸻
+
+19. DIRETRIZES DE USO
+
+Nunca:
+
+* distorcer logotipo
+* alterar cores oficiais
+* usar fontes fora do padrão
+* aplicar efeitos exagerados
+
+Sempre:
+
+* respeitar área de respiro
+* manter contraste
+* usar versão oficial
+* priorizar legibilidade
+
+⸻
+
+20. ECOSSISTEMA SCORECASA
+
+Produtos futuros
+
+* ScoreCasa App
+* ScoreCasa IA
+* ScoreCasa Bank Connect
+* ScoreCasa Analytics
+* ScoreCasa Leads
+* ScoreCasa Imobiliárias
+* ScoreCasa Open Finance
+* ScoreCasa Correspondente
+
+⸻
+
+21. ASSINATURA OFICIAL
+
+Slogan
+
+“Inteligência para aprovar mais.”
+
+⸻
+
+22. CONCLUSÃO
+
+O ScoreCasa é uma plataforma construída para liderar a transformação da aprovação imobiliária no Brasil.
+
+A marca representa:
+
+* inteligência
+* tecnologia
+* aprovação
+* confiança
+* crescimento
+
+Toda aplicação visual, comunicação e experiência devem reforçar esse posicionamento.
+
+⸻
+
+SCORECASA
+
+Inteligência para aprovar mais.
