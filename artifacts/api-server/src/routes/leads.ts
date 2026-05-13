@@ -34,6 +34,10 @@ interface ScoreInput {
   siricStatus?: string | null;
   fgtsMonths?: number | null;
   caixaScoreReal?: number | null;
+  // Comprometimento financeiro ativo
+  vehicleLoanMonthly?: number | null;
+  creditCardUsage?: number | null;
+  otherLoansMonthly?: number | null;
 }
 
 function computeScore(input: ScoreInput): {
@@ -63,6 +67,9 @@ function computeScore(input: ScoreInput): {
     siricStatus,
     fgtsMonths,
     caixaScoreReal,
+    vehicleLoanMonthly,
+    creditCardUsage,
+    otherLoansMonthly,
   } = input;
 
   // ── Renda total composta ───────────────────────────────────────────────────
@@ -125,6 +132,17 @@ function computeScore(input: ScoreInput): {
   if (hasProtests) baseChance -= 30;
   if (siricStatus === "irregular") baseChance -= 40;
   else if (siricStatus === "regular") baseChance += 5;
+
+  // ── Comprometimento financeiro ativo (veículo, empréstimos, cartão) ────────
+  const monthlyDebt = (vehicleLoanMonthly ?? 0) + (otherLoansMonthly ?? 0);
+  const debtRatio = totalIncome > 0 ? monthlyDebt / totalIncome : 0;
+  if (debtRatio > 0.30) baseChance -= 18;
+  else if (debtRatio > 0.20) baseChance -= 10;
+  else if (debtRatio > 0.10) baseChance -= 4;
+
+  // Utilização de cartão de crédito > 80% indica stress financeiro
+  if ((creditCardUsage ?? 0) > 80) baseChance -= 10;
+  else if ((creditCardUsage ?? 0) > 50) baseChance -= 5;
 
   const approvalChance = Math.round(Math.max(0, Math.min(100, baseChance)));
 
@@ -401,6 +419,9 @@ router.put("/:id/enrich", async (req, res) => {
     siricStatus: enrichData.siricStatus ?? existing.siricStatus,
     fgtsMonths: enrichData.fgtsMonths ?? existing.fgtsMonths,
     caixaScoreReal: enrichData.caixaScoreReal ?? existing.caixaScoreReal,
+    vehicleLoanMonthly: enrichData.vehicleLoanMonthly ?? existing.vehicleLoanMonthly,
+    creditCardUsage: enrichData.creditCardUsage ?? existing.creditCardUsage,
+    otherLoansMonthly: enrichData.otherLoansMonthly ?? existing.otherLoansMonthly,
   });
 
   const [updated] = await db

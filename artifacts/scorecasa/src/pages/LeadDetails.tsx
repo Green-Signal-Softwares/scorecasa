@@ -19,8 +19,10 @@ import {
   Building2, Phone, Mail, DollarSign, Pencil, X, Save, RefreshCw,
   FileDown, ShieldCheck, ShieldX, AlertTriangle, Landmark, Clock,
   BadgeCheck, ChevronDown, ChevronUp, BarChart3, SlidersHorizontal,
+  Navigation, CreditCard, Car, Wallet,
 } from "lucide-react";
 import { BankComparison } from "@/components/BankComparison";
+import { CreditGPS, computeGpsSteps } from "@/components/CreditGPS";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
@@ -95,7 +97,7 @@ export function LeadDetails({ id }: { id: number }) {
   const queryClient = useQueryClient();
   const [editing, setEditing] = useState(false);
   const [exporting, setExporting] = useState(false);
-  const [rightTab, setRightTab] = useState<"analise" | "comparativo">("analise");
+  const [rightTab, setRightTab] = useState<"analise" | "comparativo" | "gps">("analise");
 
   const { data: lead, isLoading } = useGetLead(id, {
     query: { enabled: !!id, queryKey: getGetLeadQueryKey(id) },
@@ -119,6 +121,10 @@ export function LeadDetails({ id }: { id: number }) {
     fgtsMonthlyAvg: "",
     caixaScoreReal: "",
     enrichedBy: "",
+    vehicleLoanMonthly: "",
+    creditCardLimit: "",
+    creditCardUsage: "",
+    otherLoansMonthly: "",
   });
 
   useEffect(() => {
@@ -135,6 +141,10 @@ export function LeadDetails({ id }: { id: number }) {
         fgtsMonthlyAvg: lead.fgtsMonthlyAvg != null ? String(lead.fgtsMonthlyAvg) : "",
         caixaScoreReal: lead.caixaScoreReal != null ? String(lead.caixaScoreReal) : "",
         enrichedBy: lead.enrichedBy ?? "",
+        vehicleLoanMonthly: lead.vehicleLoanMonthly != null ? String(lead.vehicleLoanMonthly) : "",
+        creditCardLimit: lead.creditCardLimit != null ? String(lead.creditCardLimit) : "",
+        creditCardUsage: lead.creditCardUsage != null ? String(lead.creditCardUsage) : "",
+        otherLoansMonthly: lead.otherLoansMonthly != null ? String(lead.otherLoansMonthly) : "",
       });
     }
   }, [lead?.enrichedAt]);
@@ -152,6 +162,10 @@ export function LeadDetails({ id }: { id: number }) {
       fgtsMonthlyAvg: enrichForm.fgtsMonthlyAvg ? Number(enrichForm.fgtsMonthlyAvg) : undefined,
       caixaScoreReal: enrichForm.caixaScoreReal ? Number(enrichForm.caixaScoreReal) : undefined,
       enrichedBy: enrichForm.enrichedBy || undefined,
+      vehicleLoanMonthly: enrichForm.vehicleLoanMonthly ? Number(enrichForm.vehicleLoanMonthly) : undefined,
+      creditCardLimit: enrichForm.creditCardLimit ? Number(enrichForm.creditCardLimit) : undefined,
+      creditCardUsage: enrichForm.creditCardUsage ? Number(enrichForm.creditCardUsage) : undefined,
+      otherLoansMonthly: enrichForm.otherLoansMonthly ? Number(enrichForm.otherLoansMonthly) : undefined,
     };
     enrichLead.mutate(
       { id, data: payload },
@@ -199,8 +213,9 @@ export function LeadDetails({ id }: { id: number }) {
         import("@react-pdf/renderer"),
         import("@/components/pdf/LeadReport"),
       ]);
+      const gpsSteps = computeGpsSteps(lead).filter((s) => s.status !== "done");
       const blob = await pdf(
-        <LeadReport lead={lead} score={score ?? null} />
+        <LeadReport lead={lead} score={score ?? null} gpsSteps={gpsSteps} />
       ).toBlob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -566,8 +581,9 @@ export function LeadDetails({ id }: { id: number }) {
           <div className="flex gap-1 p-1 rounded-xl bg-muted border border-border">
             {(
               [
-                { key: "analise", label: "Análise ScoreCasa", icon: SlidersHorizontal },
-                { key: "comparativo", label: "Comparativo de Bancos", icon: BarChart3 },
+                { key: "analise", label: "Análise", icon: SlidersHorizontal },
+                { key: "gps", label: "GPS de Aprovação", icon: Navigation },
+                { key: "comparativo", label: "Bancos", icon: BarChart3 },
               ] as const
             ).map(({ key, label, icon: Icon }) => (
               <button
@@ -575,14 +591,14 @@ export function LeadDetails({ id }: { id: number }) {
                 type="button"
                 onClick={() => setRightTab(key)}
                 data-testid={`tab-${key}`}
-                className="flex-1 flex items-center justify-center gap-2 py-2 px-3 rounded-lg text-sm font-medium transition-all"
+                className="flex-1 flex items-center justify-center gap-2 py-2 px-2 rounded-lg text-xs font-medium transition-all"
                 style={
                   rightTab === key
                     ? { background: "#0D1B8C", color: "#fff", boxShadow: "0 1px 4px rgba(13,27,140,.25)" }
                     : { color: "hsl(var(--muted-foreground))" }
                 }
               >
-                <Icon className="w-4 h-4" />
+                <Icon className="w-3.5 h-3.5" />
                 {label}
               </button>
             ))}
@@ -590,6 +606,8 @@ export function LeadDetails({ id }: { id: number }) {
 
           {rightTab === "comparativo" ? (
             <BankComparison lead={lead} />
+          ) : rightTab === "gps" ? (
+            <CreditGPS lead={lead} />
           ) : (
           <>
           {/* Scores */}
@@ -870,6 +888,95 @@ export function LeadDetails({ id }: { id: number }) {
                       />
                     </div>
                   </div>
+                </div>
+
+                {/* ── Comprometimento financeiro ativo ── */}
+                <div>
+                  <div className="text-xs font-semibold mb-2 uppercase tracking-wide" style={{ color: "#0D1B8C" }}>
+                    Dívidas & Comprometimento Financeiro
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Informe parcelas mensais ativas — impactam diretamente na margem de crédito disponível.
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-muted-foreground block mb-1 flex items-center gap-1">
+                        <Car className="w-3 h-3" /> Parcela veículo (R$/mês)
+                      </label>
+                      <Input
+                        type="number"
+                        min={0}
+                        placeholder="Ex: 850"
+                        className="h-9 text-sm"
+                        value={enrichForm.vehicleLoanMonthly}
+                        onChange={(e) => setEnrichForm((f) => ({ ...f, vehicleLoanMonthly: e.target.value }))}
+                        data-testid="input-vehicle-loan"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground block mb-1 flex items-center gap-1">
+                        <Wallet className="w-3 h-3" /> Outras parcelas (R$/mês)
+                      </label>
+                      <Input
+                        type="number"
+                        min={0}
+                        placeholder="CDC, consignado, emprest."
+                        className="h-9 text-sm"
+                        value={enrichForm.otherLoansMonthly}
+                        onChange={(e) => setEnrichForm((f) => ({ ...f, otherLoansMonthly: e.target.value }))}
+                        data-testid="input-other-loans"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground block mb-1 flex items-center gap-1">
+                        <CreditCard className="w-3 h-3" /> Limite total de cartões (R$)
+                      </label>
+                      <Input
+                        type="number"
+                        min={0}
+                        placeholder="Ex: 15000"
+                        className="h-9 text-sm"
+                        value={enrichForm.creditCardLimit}
+                        onChange={(e) => setEnrichForm((f) => ({ ...f, creditCardLimit: e.target.value }))}
+                        data-testid="input-credit-card-limit"
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground block mb-1 flex items-center gap-1">
+                        <CreditCard className="w-3 h-3" /> Utilização do cartão (%)
+                      </label>
+                      <Input
+                        type="number"
+                        min={0}
+                        max={100}
+                        placeholder="Ex: 45"
+                        className="h-9 text-sm"
+                        value={enrichForm.creditCardUsage}
+                        onChange={(e) => setEnrichForm((f) => ({ ...f, creditCardUsage: e.target.value }))}
+                        data-testid="input-credit-card-usage"
+                      />
+                    </div>
+                  </div>
+                  {/* Live debt ratio indicator */}
+                  {(enrichForm.vehicleLoanMonthly || enrichForm.otherLoansMonthly) && (() => {
+                    const totalDebt = Number(enrichForm.vehicleLoanMonthly || 0) + Number(enrichForm.otherLoansMonthly || 0);
+                    const ratio = lead.income > 0 ? (totalDebt / lead.income) * 100 : 0;
+                    const color = ratio > 30 ? "#EF4444" : ratio > 15 ? "#F59E0B" : "#10A65A";
+                    return (
+                      <div className="mt-3 p-3 rounded-lg" style={{ background: ratio > 30 ? "#FEF2F2" : ratio > 15 ? "#FFFBEB" : "#F0FDF4" }}>
+                        <div className="flex justify-between items-center text-xs mb-1.5">
+                          <span className="font-medium" style={{ color }}>Comprometimento com dívidas</span>
+                          <span className="font-bold" style={{ color }}>{ratio.toFixed(1)}% da renda</span>
+                        </div>
+                        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, ratio)}%`, background: color }} />
+                        </div>
+                        <div className="text-xs mt-1" style={{ color }}>
+                          {ratio > 30 ? "Acima do limite — reduz fortemente a margem de crédito imobiliário" : ratio > 15 ? "Atenção — pode impactar a análise de crédito" : "Dentro do limite aceitável pelos bancos"}
+                        </div>
+                      </div>
+                    );
+                  })()}
                 </div>
 
                 {/* Responsavel */}

@@ -700,6 +700,22 @@ components:
           type: string
           nullable: true
           description: Nome do responsável pelo enriquecimento
+        vehicleLoanMonthly:
+          type: number
+          nullable: true
+          description: Parcela mensal de financiamento de veículo (R$/mês)
+        creditCardLimit:
+          type: number
+          nullable: true
+          description: Limite total de cartões de crédito (R$)
+        creditCardUsage:
+          type: number
+          nullable: true
+          description: Utilização atual do cartão de crédito (0-100 %)
+        otherLoansMonthly:
+          type: number
+          nullable: true
+          description: Outras parcelas mensais (CDC, empréstimos pessoais, consignado, R$/mês)
         createdAt:
           type: string
           format: date-time
@@ -744,6 +760,22 @@ components:
         enrichedBy:
           type: string
           nullable: true
+        vehicleLoanMonthly:
+          type: number
+          nullable: true
+          description: Parcela mensal de financiamento de veículo (R$/mês)
+        creditCardLimit:
+          type: number
+          nullable: true
+          description: Limite total de cartões de crédito (R$)
+        creditCardUsage:
+          type: number
+          nullable: true
+          description: Utilização atual do cartão de crédito (0-100 %)
+        otherLoansMonthly:
+          type: number
+          nullable: true
+          description: Outras parcelas mensais (CDC, empréstimos pessoais, R$/mês)
 
     CreateLeadRequest:
       type: object

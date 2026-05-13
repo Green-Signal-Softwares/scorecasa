@@ -71,6 +71,12 @@ export const leadsTable = pgTable("leads", {
   enrichedAt: timestamp("enriched_at"),
   enrichedBy: text("enriched_by"),
 
+  // ── Comprometimento financeiro (dívidas ativas) ───────────────
+  vehicleLoanMonthly: real("vehicle_loan_monthly"),
+  creditCardLimit: real("credit_card_limit"),
+  creditCardUsage: real("credit_card_usage"),
+  otherLoansMonthly: real("other_loans_monthly"),
+
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

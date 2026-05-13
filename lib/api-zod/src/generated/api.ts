@@ -170,6 +170,24 @@ export const GetClientProfileResponse = zod.object({
       .string()
       .nullish()
       .describe("Nome do responsável pelo enriquecimento"),
+    vehicleLoanMonthly: zod
+      .number()
+      .nullish()
+      .describe("Parcela mensal de financiamento de veículo (R$\/mês)"),
+    creditCardLimit: zod
+      .number()
+      .nullish()
+      .describe("Limite total de cartões de crédito (R$)"),
+    creditCardUsage: zod
+      .number()
+      .nullish()
+      .describe("Utilização atual do cartão de crédito (0-100 %)"),
+    otherLoansMonthly: zod
+      .number()
+      .nullish()
+      .describe(
+        "Outras parcelas mensais (CDC, empréstimos pessoais, consignado, R$\/mês)",
+      ),
     createdAt: zod.coerce.date(),
     updatedAt: zod.coerce.date(),
   }),
@@ -295,6 +313,24 @@ export const UpdateClientProfileResponse = zod.object({
       .string()
       .nullish()
       .describe("Nome do responsável pelo enriquecimento"),
+    vehicleLoanMonthly: zod
+      .number()
+      .nullish()
+      .describe("Parcela mensal de financiamento de veículo (R$\/mês)"),
+    creditCardLimit: zod
+      .number()
+      .nullish()
+      .describe("Limite total de cartões de crédito (R$)"),
+    creditCardUsage: zod
+      .number()
+      .nullish()
+      .describe("Utilização atual do cartão de crédito (0-100 %)"),
+    otherLoansMonthly: zod
+      .number()
+      .nullish()
+      .describe(
+        "Outras parcelas mensais (CDC, empréstimos pessoais, consignado, R$\/mês)",
+      ),
     createdAt: zod.coerce.date(),
     updatedAt: zod.coerce.date(),
   }),
@@ -480,6 +516,24 @@ export const GetLeadsResponse = zod.object({
         .string()
         .nullish()
         .describe("Nome do responsável pelo enriquecimento"),
+      vehicleLoanMonthly: zod
+        .number()
+        .nullish()
+        .describe("Parcela mensal de financiamento de veículo (R$\/mês)"),
+      creditCardLimit: zod
+        .number()
+        .nullish()
+        .describe("Limite total de cartões de crédito (R$)"),
+      creditCardUsage: zod
+        .number()
+        .nullish()
+        .describe("Utilização atual do cartão de crédito (0-100 %)"),
+      otherLoansMonthly: zod
+        .number()
+        .nullish()
+        .describe(
+          "Outras parcelas mensais (CDC, empréstimos pessoais, consignado, R$\/mês)",
+        ),
       createdAt: zod.coerce.date(),
       updatedAt: zod.coerce.date(),
     }),
@@ -628,6 +682,24 @@ export const GetLeadResponse = zod.object({
     .string()
     .nullish()
     .describe("Nome do responsável pelo enriquecimento"),
+  vehicleLoanMonthly: zod
+    .number()
+    .nullish()
+    .describe("Parcela mensal de financiamento de veículo (R$\/mês)"),
+  creditCardLimit: zod
+    .number()
+    .nullish()
+    .describe("Limite total de cartões de crédito (R$)"),
+  creditCardUsage: zod
+    .number()
+    .nullish()
+    .describe("Utilização atual do cartão de crédito (0-100 %)"),
+  otherLoansMonthly: zod
+    .number()
+    .nullish()
+    .describe(
+      "Outras parcelas mensais (CDC, empréstimos pessoais, consignado, R$\/mês)",
+    ),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -742,6 +814,24 @@ export const UpdateLeadResponse = zod.object({
     .string()
     .nullish()
     .describe("Nome do responsável pelo enriquecimento"),
+  vehicleLoanMonthly: zod
+    .number()
+    .nullish()
+    .describe("Parcela mensal de financiamento de veículo (R$\/mês)"),
+  creditCardLimit: zod
+    .number()
+    .nullish()
+    .describe("Limite total de cartões de crédito (R$)"),
+  creditCardUsage: zod
+    .number()
+    .nullish()
+    .describe("Utilização atual do cartão de crédito (0-100 %)"),
+  otherLoansMonthly: zod
+    .number()
+    .nullish()
+    .describe(
+      "Outras parcelas mensais (CDC, empréstimos pessoais, consignado, R$\/mês)",
+    ),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -850,6 +940,22 @@ export const EnrichLeadBody = zod.object({
   fgtsMonthlyAvg: zod.number().nullish(),
   caixaScoreReal: zod.number().nullish(),
   enrichedBy: zod.string().nullish(),
+  vehicleLoanMonthly: zod
+    .number()
+    .nullish()
+    .describe("Parcela mensal de financiamento de veículo (R$\/mês)"),
+  creditCardLimit: zod
+    .number()
+    .nullish()
+    .describe("Limite total de cartões de crédito (R$)"),
+  creditCardUsage: zod
+    .number()
+    .nullish()
+    .describe("Utilização atual do cartão de crédito (0-100 %)"),
+  otherLoansMonthly: zod
+    .number()
+    .nullish()
+    .describe("Outras parcelas mensais (CDC, empréstimos pessoais, R$\/mês)"),
 });
 
 export const EnrichLeadResponse = zod.object({
@@ -943,6 +1049,24 @@ export const EnrichLeadResponse = zod.object({
     .string()
     .nullish()
     .describe("Nome do responsável pelo enriquecimento"),
+  vehicleLoanMonthly: zod
+    .number()
+    .nullish()
+    .describe("Parcela mensal de financiamento de veículo (R$\/mês)"),
+  creditCardLimit: zod
+    .number()
+    .nullish()
+    .describe("Limite total de cartões de crédito (R$)"),
+  creditCardUsage: zod
+    .number()
+    .nullish()
+    .describe("Utilização atual do cartão de crédito (0-100 %)"),
+  otherLoansMonthly: zod
+    .number()
+    .nullish()
+    .describe(
+      "Outras parcelas mensais (CDC, empréstimos pessoais, consignado, R$\/mês)",
+    ),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });

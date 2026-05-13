@@ -73,6 +73,14 @@ export interface Lead {
   enrichedAt?: Date | null;
   /** Nome do responsável pelo enriquecimento */
   enrichedBy?: string | null;
+  /** Parcela mensal de financiamento de veículo (R$/mês) */
+  vehicleLoanMonthly?: number | null;
+  /** Limite total de cartões de crédito (R$) */
+  creditCardLimit?: number | null;
+  /** Utilização atual do cartão de crédito (0-100 %) */
+  creditCardUsage?: number | null;
+  /** Outras parcelas mensais (CDC, empréstimos pessoais, consignado, R$/mês) */
+  otherLoansMonthly?: number | null;
   createdAt: Date;
   updatedAt: Date;
 }
