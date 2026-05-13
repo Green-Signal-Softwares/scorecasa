@@ -87,7 +87,7 @@ function ScoreBar({ value, max, label, color }: { value: number; max: number; la
   );
 }
 
-// ─── Lead creation form with masked inputs ───────────────────────────────────
+// ─── Lead creation form — multi-step wizard ──────────────────────────────────
 
 type LeadCreated = {
   id: number;
@@ -104,53 +104,138 @@ interface CreateLeadFormProps {
   onCancel: () => void;
 }
 
+const MARITAL_OPTIONS = [
+  { value: "solteiro",      label: "Solteiro(a)" },
+  { value: "casado",        label: "Casado(a)" },
+  { value: "uniao_estavel", label: "União Estável" },
+  { value: "divorciado",    label: "Divorciado(a)" },
+  { value: "viuvo",         label: "Viúvo(a)" },
+];
+
+const EMPLOYMENT_OPTIONS = [
+  { value: "clt",             label: "CLT / Empregado" },
+  { value: "servidor_publico",label: "Servidor Público" },
+  { value: "autonomo",        label: "Autônomo" },
+  { value: "liberal",         label: "Profissional Liberal" },
+  { value: "empresario",      label: "Empresário / MEI" },
+  { value: "aposentado",      label: "Aposentado / Pensionista" },
+  { value: "desempregado",    label: "Desempregado" },
+];
+
+const PROPERTY_TYPE_OPTIONS = [
+  { value: "novo",      label: "Imóvel Novo" },
+  { value: "usado",     label: "Imóvel Usado" },
+  { value: "construcao",label: "Construção / Planta" },
+  { value: "terreno",   label: "Terreno" },
+];
+
+const BR_STATES = [
+  "AC","AL","AM","AP","BA","CE","DF","ES","GO","MA","MG","MS","MT","PA",
+  "PB","PE","PI","PR","RJ","RN","RO","RR","RS","SC","SE","SP","TO",
+];
+
+type FieldKey =
+  | "name" | "cpf" | "email" | "phone" | "birthDate" | "maritalStatus"
+  | "profession" | "employmentType" | "employmentMonths"
+  | "income" | "informalIncome" | "hasFgts" | "fgtsBalance"
+  | "propertyValue" | "propertyType" | "propertyCity" | "propertyState" | "brokerId"
+  | "spouseName" | "spouseCpf" | "spouseBirthDate" | "spouseProfession" | "spouseIncome";
+
+const STEPS = ["Identificação", "Profissão & Renda", "Imóvel", "Cônjuge"];
+
 function CreateLeadForm({ brokers, onCreated, onCancel }: CreateLeadFormProps) {
   const createLead = useCreateLead();
   const { toast } = useToast();
 
-  const [fields, setFields] = useState({
-    name: "", cpf: "", email: "", phone: "",
-    income: "", propertyValue: "", brokerId: "",
+  const [step, setStep] = useState(0);
+  const [errors, setErrors] = useState<Partial<Record<FieldKey, string>>>({});
+  const [fields, setFields] = useState<Record<FieldKey, string>>({
+    name: "", cpf: "", email: "", phone: "", birthDate: "", maritalStatus: "",
+    profession: "", employmentType: "", employmentMonths: "",
+    income: "", informalIncome: "", hasFgts: "", fgtsBalance: "",
+    propertyValue: "", propertyType: "", propertyCity: "", propertyState: "", brokerId: "",
+    spouseName: "", spouseCpf: "", spouseBirthDate: "", spouseProfession: "", spouseIncome: "",
   });
-  const [errors, setErrors] = useState<Record<string, string>>({});
 
-  const set = (key: keyof typeof fields) => (e: React.ChangeEvent<HTMLInputElement>) => {
-    let val = e.target.value;
-    if (key === "cpf") val = maskCPF(val);
-    else if (key === "phone") val = maskPhone(val);
-    else if (key === "income" || key === "propertyValue") val = maskBRL(val);
+  const needsSpouse = fields.maritalStatus === "casado" || fields.maritalStatus === "uniao_estavel";
+  const totalSteps = needsSpouse ? 4 : 3;
+
+  const setField = (key: FieldKey, val: string) => {
     setFields((f) => ({ ...f, [key]: val }));
-    setErrors((err) => ({ ...err, [key]: "" }));
+    setErrors((e) => ({ ...e, [key]: "" }));
   };
 
-  const validate = () => {
-    const e: Record<string, string> = {};
-    if (fields.name.trim().length < 3) e.name = "Nome obrigatório (mín. 3 caracteres)";
-    if (fields.cpf.replace(/\D/g, "").length !== 11) e.cpf = "CPF inválido";
-    if (!fields.email.includes("@")) e.email = "Email inválido";
-    if (fields.phone.replace(/\D/g, "").length < 10) e.phone = "Telefone inválido";
-    if (parseBRL(fields.income) < 1000) e.income = "Renda mínima R$ 1.000";
-    if (parseBRL(fields.propertyValue) < 50000) e.propertyValue = "Valor mínimo R$ 50.000";
+  const handleTextChange = (key: FieldKey, transform?: (v: string) => string) =>
+    (e: React.ChangeEvent<HTMLInputElement>) => setField(key, transform ? transform(e.target.value) : e.target.value);
+
+  const validateStep = (s: number): Partial<Record<FieldKey, string>> => {
+    const e: Partial<Record<FieldKey, string>> = {};
+    if (s === 0) {
+      if (fields.name.trim().length < 3) e.name = "Nome obrigatório (mín. 3 caracteres)";
+      if (fields.cpf.replace(/\D/g, "").length !== 11) e.cpf = "CPF inválido";
+      if (!fields.email.includes("@")) e.email = "Email inválido";
+      if (fields.phone.replace(/\D/g, "").length < 10) e.phone = "Telefone inválido";
+      if (!fields.birthDate) e.birthDate = "Data de nascimento obrigatória";
+      if (!fields.maritalStatus) e.maritalStatus = "Estado civil obrigatório";
+    }
+    if (s === 1) {
+      if (!fields.profession.trim()) e.profession = "Profissão obrigatória";
+      if (!fields.employmentType) e.employmentType = "Vínculo empregatício obrigatório";
+      if (parseBRL(fields.income) < 1000) e.income = "Renda mínima R$ 1.000";
+    }
+    if (s === 2) {
+      if (parseBRL(fields.propertyValue) < 50000) e.propertyValue = "Valor mínimo R$ 50.000";
+      if (!fields.propertyType) e.propertyType = "Tipo do imóvel obrigatório";
+      if (!fields.propertyCity.trim()) e.propertyCity = "Cidade obrigatória";
+      if (!fields.propertyState) e.propertyState = "UF obrigatória";
+    }
+    if (s === 3 && needsSpouse) {
+      if (!fields.spouseName.trim()) e.spouseName = "Nome do cônjuge obrigatório";
+      if (fields.spouseCpf && fields.spouseCpf.replace(/\D/g, "").length !== 11) e.spouseCpf = "CPF inválido";
+    }
     return e;
   };
 
-  const handleSubmit = (e: React.FormEvent) => {
-    e.preventDefault();
-    const errs = validate();
+  const next = () => {
+    const errs = validateStep(step);
+    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
+    setStep((s) => s + 1);
+  };
+
+  const prev = () => setStep((s) => Math.max(0, s - 1));
+
+  const handleSubmit = () => {
+    const errs = validateStep(step);
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
 
+    const data: Parameters<typeof createLead.mutate>[0]["data"] = {
+      name: fields.name.trim(),
+      cpf: fields.cpf.replace(/\D/g, ""),
+      email: fields.email.trim().toLowerCase(),
+      phone: fields.phone.replace(/\D/g, ""),
+      birthDate: fields.birthDate || null,
+      maritalStatus: (fields.maritalStatus as any) || null,
+      profession: fields.profession.trim() || null,
+      employmentType: (fields.employmentType as any) || null,
+      employmentMonths: fields.employmentMonths ? Number(fields.employmentMonths) : null,
+      income: parseBRL(fields.income),
+      informalIncome: fields.informalIncome ? parseBRL(fields.informalIncome) : null,
+      hasFgts: fields.hasFgts === "true" ? true : fields.hasFgts === "false" ? false : null,
+      fgtsBalance: fields.fgtsBalance ? parseBRL(fields.fgtsBalance) : null,
+      propertyValue: parseBRL(fields.propertyValue),
+      propertyType: (fields.propertyType as any) || null,
+      propertyCity: fields.propertyCity.trim() || null,
+      propertyState: fields.propertyState || null,
+      brokerId: fields.brokerId ? Number(fields.brokerId) : null,
+      spouseName: needsSpouse ? (fields.spouseName.trim() || null) : null,
+      spouseCpf: needsSpouse && fields.spouseCpf ? fields.spouseCpf.replace(/\D/g, "") : null,
+      spouseBirthDate: needsSpouse ? (fields.spouseBirthDate || null) : null,
+      spouseProfession: needsSpouse ? (fields.spouseProfession.trim() || null) : null,
+      spouseIncome: needsSpouse && fields.spouseIncome ? parseBRL(fields.spouseIncome) : null,
+    };
+
     createLead.mutate(
-      {
-        data: {
-          name: fields.name.trim(),
-          cpf: fields.cpf.replace(/\D/g, ""),
-          email: fields.email.trim().toLowerCase(),
-          phone: fields.phone.replace(/\D/g, ""),
-          income: parseBRL(fields.income),
-          propertyValue: parseBRL(fields.propertyValue),
-          brokerId: fields.brokerId ? Number(fields.brokerId) : null,
-        },
-      },
+      { data },
       {
         onSuccess: (lead) => onCreated(lead as LeadCreated),
         onError: () => toast({ title: "Erro ao criar lead", description: "Tente novamente." }),
@@ -158,92 +243,212 @@ function CreateLeadForm({ brokers, onCreated, onCancel }: CreateLeadFormProps) {
     );
   };
 
-  const Field = ({
-    label, id, value, onChange, placeholder, error, type = "text",
-  }: {
-    label: string; id: string; value: string; onChange: React.ChangeEventHandler<HTMLInputElement>;
-    placeholder?: string; error?: string; type?: string;
-  }) => (
+  // ── Reusable field components ─────────────────────────────────────────────
+
+  const TextField = ({
+    label, fkey, placeholder, type = "text", hint,
+  }: { label: string; fkey: FieldKey; placeholder?: string; type?: string; hint?: string }) => (
     <div>
-      <label htmlFor={id} className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
       <input
-        id={id}
         type={type}
-        value={value}
-        onChange={onChange}
+        value={fields[fkey]}
+        onChange={handleTextChange(fkey,
+          fkey === "cpf" ? maskCPF :
+          fkey === "phone" || fkey === "spouseCpf" ? (fkey === "spouseCpf" ? maskCPF : maskPhone) :
+          fkey === "income" || fkey === "informalIncome" || fkey === "fgtsBalance" || fkey === "propertyValue" || fkey === "spouseIncome" ? maskBRL :
+          undefined
+        )}
         placeholder={placeholder}
-        data-testid={`input-lead-${id}`}
+        data-testid={`input-lead-${fkey}`}
         className={`w-full px-3 py-2.5 rounded-lg border text-sm outline-none transition-colors ${
-          error ? "border-red-400 bg-red-50" : "border-gray-200 bg-white focus:border-[#0D1B8C] focus:ring-1 focus:ring-[#0D1B8C]/20"
+          errors[fkey] ? "border-red-400 bg-red-50" : "border-gray-200 bg-white focus:border-[#0D1B8C] focus:ring-1 focus:ring-[#0D1B8C]/20"
         }`}
       />
-      {error && <p className="text-red-500 text-xs mt-1">{error}</p>}
+      {hint && !errors[fkey] && <p className="text-gray-400 text-xs mt-1">{hint}</p>}
+      {errors[fkey] && <p className="text-red-500 text-xs mt-1">{errors[fkey]}</p>}
     </div>
   );
 
-  return (
-    <form onSubmit={handleSubmit} className="space-y-4">
-      <Field label="Nome completo" id="name" value={fields.name} onChange={set("name")} placeholder="João da Silva" error={errors.name} />
+  const SelectField = ({
+    label, fkey, options, placeholder,
+  }: { label: string; fkey: FieldKey; options: { value: string; label: string }[]; placeholder?: string }) => (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      <select
+        value={fields[fkey]}
+        onChange={(e) => setField(fkey, e.target.value)}
+        data-testid={`select-lead-${fkey}`}
+        className={`w-full px-3 py-2.5 rounded-lg border text-sm outline-none transition-colors bg-white ${
+          errors[fkey] ? "border-red-400 bg-red-50" : "border-gray-200 focus:border-[#0D1B8C] focus:ring-1 focus:ring-[#0D1B8C]/20"
+        } text-gray-700`}
+      >
+        <option value="">{placeholder ?? "Selecione..."}</option>
+        {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+      {errors[fkey] && <p className="text-red-500 text-xs mt-1">{errors[fkey]}</p>}
+    </div>
+  );
 
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="CPF" id="cpf" value={fields.cpf} onChange={set("cpf")} placeholder="000.000.000-00" error={errors.cpf} />
-        <Field label="Telefone" id="phone" value={fields.phone} onChange={set("phone")} placeholder="(11) 99999-9999" error={errors.phone} />
+  // ── Steps content ─────────────────────────────────────────────────────────
+
+  const renderStep = () => {
+    if (step === 0) return (
+      <div className="space-y-3">
+        <TextField label="Nome completo *" fkey="name" placeholder="João da Silva" />
+        <div className="grid grid-cols-2 gap-3">
+          <TextField label="CPF *" fkey="cpf" placeholder="000.000.000-00" />
+          <TextField label="Telefone *" fkey="phone" placeholder="(11) 99999-9999" />
+        </div>
+        <TextField label="Email *" fkey="email" placeholder="cliente@email.com" type="email" />
+        <div className="grid grid-cols-2 gap-3">
+          <TextField label="Data de nascimento *" fkey="birthDate" type="date" />
+          <SelectField label="Estado civil *" fkey="maritalStatus" options={MARITAL_OPTIONS} />
+        </div>
       </div>
+    );
 
-      <Field label="Email" id="email" value={fields.email} onChange={set("email")} placeholder="cliente@email.com" type="email" error={errors.email} />
+    if (step === 1) return (
+      <div className="space-y-3">
+        <TextField label="Profissão *" fkey="profession" placeholder="Ex: Engenheiro, Médico, Comerciante..." />
+        <div className="grid grid-cols-2 gap-3">
+          <SelectField label="Vínculo empregatício *" fkey="employmentType" options={EMPLOYMENT_OPTIONS} />
+          <TextField label="Tempo no emprego atual" fkey="employmentMonths" placeholder="Ex: 24" type="number"
+            hint="Em meses" />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <TextField label="Renda mensal formal *" fkey="income" placeholder="R$ 0,00" />
+          <TextField label="Renda informal / extra" fkey="informalIncome" placeholder="R$ 0,00"
+            hint="70% considerado pela Caixa" />
+        </div>
 
-      <div className="grid grid-cols-2 gap-3">
-        <Field label="Renda mensal" id="income" value={fields.income} onChange={set("income")} placeholder="R$ 0,00" error={errors.income} />
-        <Field label="Valor do imóvel" id="property-value" value={fields.propertyValue} onChange={set("propertyValue")} placeholder="R$ 0,00" error={errors.propertyValue} />
-      </div>
-
-      {/* Comprometimento preview */}
-      {parseBRL(fields.income) > 0 && parseBRL(fields.propertyValue) > 0 && (() => {
-        const comprometimento = Math.round((parseBRL(fields.propertyValue) / (parseBRL(fields.income) * 12)) * 100);
-        const ok = comprometimento <= 100;
-        return (
-          <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs ${ok ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-700"}`}>
-            <TrendingUp className="w-3.5 h-3.5 flex-shrink-0" />
-            Comprometimento de renda: <strong>{comprometimento}% da renda anual</strong>
-            {!ok && " — acima do limite Caixa (4,5×)"}
+        {/* FGTS */}
+        <div className="p-3 rounded-xl border border-gray-100 bg-gray-50 space-y-3">
+          <p className="text-sm font-semibold text-gray-700">FGTS</p>
+          <div className="flex gap-3">
+            {[{ v: "true", l: "Sim, possuo FGTS" }, { v: "false", l: "Não possuo FGTS" }].map(({ v, l }) => (
+              <button
+                key={v}
+                type="button"
+                onClick={() => setField("hasFgts", v)}
+                className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                  fields.hasFgts === v
+                    ? "border-[#0D1B8C] bg-[#0D1B8C] text-white"
+                    : "border-gray-200 bg-white text-gray-700 hover:border-[#0D1B8C]/40"
+                }`}
+              >
+                {l}
+              </button>
+            ))}
           </div>
-        );
-      })()}
+          {fields.hasFgts === "true" && (
+            <TextField label="Saldo estimado FGTS" fkey="fgtsBalance" placeholder="R$ 0,00" />
+          )}
+        </div>
 
-      <div>
-        <label className="block text-sm font-medium text-gray-700 mb-1">Corretor (opcional)</label>
-        <select
-          value={fields.brokerId}
-          onChange={(e) => setFields((f) => ({ ...f, brokerId: e.target.value }))}
-          data-testid="select-lead-broker"
-          className="w-full px-3 py-2.5 rounded-lg border border-gray-200 bg-white text-sm outline-none focus:border-[#0D1B8C] focus:ring-1 focus:ring-[#0D1B8C]/20 text-gray-700"
-        >
-          <option value="">Sem corretor</option>
-          {brokers.map((b) => (
-            <option key={b.id} value={String(b.id)}>{b.name}</option>
-          ))}
-        </select>
+        {/* Comprometimento de renda preview */}
+        {parseBRL(fields.income) > 0 && parseBRL(fields.propertyValue) > 0 && (() => {
+          const totalRenda = parseBRL(fields.income) + parseBRL(fields.informalIncome) * 0.7;
+          const comprometimento = Math.round((parseBRL(fields.propertyValue) / (totalRenda * 12)) * 100);
+          const ok = comprometimento <= 100;
+          return (
+            <div className={`flex items-center gap-2 px-3 py-2 rounded-lg text-xs ${ok ? "bg-green-50 text-green-700" : "bg-amber-50 text-amber-700"}`}>
+              <TrendingUp className="w-3.5 h-3.5 flex-shrink-0" />
+              Comprometimento de renda: <strong>{comprometimento}% da renda anual</strong>
+              {!ok && " — acima do limite Caixa (4,5×)"}
+            </div>
+          );
+        })()}
       </div>
+    );
 
+    if (step === 2) return (
+      <div className="space-y-3">
+        <div className="grid grid-cols-2 gap-3">
+          <TextField label="Valor do imóvel *" fkey="propertyValue" placeholder="R$ 0,00" />
+          <SelectField label="Tipo do imóvel *" fkey="propertyType" options={PROPERTY_TYPE_OPTIONS} />
+        </div>
+        <div className="grid grid-cols-2 gap-3">
+          <TextField label="Cidade do imóvel *" fkey="propertyCity" placeholder="São Paulo" />
+          <SelectField label="UF *" fkey="propertyState" options={BR_STATES.map((s) => ({ value: s, label: s }))} placeholder="UF" />
+        </div>
+        <div>
+          <label className="block text-sm font-medium text-gray-700 mb-1">Corretor responsável</label>
+          <select
+            value={fields.brokerId}
+            onChange={(e) => setField("brokerId", e.target.value)}
+            data-testid="select-lead-broker"
+            className="w-full px-3 py-2.5 rounded-lg border border-gray-200 bg-white text-sm outline-none focus:border-[#0D1B8C] focus:ring-1 focus:ring-[#0D1B8C]/20 text-gray-700"
+          >
+            <option value="">Sem corretor</option>
+            {brokers.map((b) => <option key={b.id} value={String(b.id)}>{b.name}</option>)}
+          </select>
+        </div>
+      </div>
+    );
+
+    if (step === 3 && needsSpouse) return (
+      <div className="space-y-3">
+        <div className="flex items-center gap-2 p-3 rounded-xl bg-blue-50 border border-blue-100">
+          <span className="text-xs text-blue-700">A Caixa exige dados do cônjuge para composição de renda no financiamento.</span>
+        </div>
+        <TextField label="Nome completo do cônjuge *" fkey="spouseName" placeholder="Maria da Silva" />
+        <div className="grid grid-cols-2 gap-3">
+          <TextField label="CPF do cônjuge" fkey="spouseCpf" placeholder="000.000.000-00" />
+          <TextField label="Data de nascimento" fkey="spouseBirthDate" type="date" />
+        </div>
+        <TextField label="Profissão do cônjuge" fkey="spouseProfession" placeholder="Ex: Professora, Enfermeira..." />
+        <TextField label="Renda mensal do cônjuge" fkey="spouseIncome" placeholder="R$ 0,00" />
+      </div>
+    );
+
+    return null;
+  };
+
+  const isLastStep = step === totalSteps - 1;
+
+  return (
+    <div className="space-y-4">
+      {/* Step indicator */}
+      <div className="flex items-center gap-1.5">
+        {Array.from({ length: totalSteps }).map((_, i) => (
+          <div key={i} className="flex-1 flex items-center gap-1.5">
+            <div
+              className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${
+                i <= step ? "bg-[#0D1B8C]" : "bg-gray-200"
+              }`}
+            />
+          </div>
+        ))}
+      </div>
+      <p className="text-xs text-gray-500">
+        Etapa {step + 1} de {totalSteps} — <span className="font-medium text-gray-700">{STEPS[step]}</span>
+      </p>
+
+      {/* Step content */}
+      {renderStep()}
+
+      {/* Navigation */}
       <div className="flex gap-3 pt-2 border-t border-gray-100">
         <button
           type="button"
-          onClick={onCancel}
+          onClick={step === 0 ? onCancel : prev}
           className="flex-1 py-2.5 rounded-xl text-sm font-medium border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
         >
-          Cancelar
+          {step === 0 ? "Cancelar" : "← Voltar"}
         </button>
         <button
-          type="submit"
+          type="button"
+          onClick={isLastStep ? handleSubmit : next}
           disabled={createLead.isPending}
-          data-testid="button-save-lead"
+          data-testid={isLastStep ? "button-save-lead" : `button-step-${step}-next`}
           className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-colors disabled:opacity-60"
           style={{ background: "#0D1B8C" }}
         >
-          {createLead.isPending ? "Calculando score..." : "Cadastrar Lead"}
+          {createLead.isPending ? "Calculando score..." : isLastStep ? "Calcular Score →" : "Próximo →"}
         </button>
       </div>
-    </form>
+    </div>
   );
 }
 

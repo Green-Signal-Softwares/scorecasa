@@ -4,7 +4,10 @@
  * Api
  * OpenAPI spec version: 1.0.0
  */
+import type { EmploymentType } from "./employmentType";
 import type { LeadStatus } from "./leadStatus";
+import type { MaritalStatus } from "./maritalStatus";
+import type { PropertyType } from "./propertyType";
 
 export interface Lead {
   id: number;
@@ -12,10 +15,31 @@ export interface Lead {
   cpf: string;
   email: string;
   phone: string;
-  /** Monthly income in BRL */
+  /** Date of birth YYYY-MM-DD */
+  birthDate?: string | null;
+  maritalStatus?: MaritalStatus | null;
+  profession?: string | null;
+  employmentType?: EmploymentType | null;
+  /** Months in current job */
+  employmentMonths?: number | null;
+  /** Monthly formal income in BRL */
   income: number;
+  /** Monthly informal/complementary income in BRL */
+  informalIncome?: number | null;
+  hasFgts?: boolean | null;
+  /** Estimated FGTS balance in BRL */
+  fgtsBalance?: number | null;
   /** Desired property value in BRL */
   propertyValue: number;
+  propertyType?: PropertyType | null;
+  propertyCity?: string | null;
+  /** Brazilian state abbreviation e.g. SP */
+  propertyState?: string | null;
+  spouseName?: string | null;
+  spouseCpf?: string | null;
+  spouseBirthDate?: string | null;
+  spouseProfession?: string | null;
+  spouseIncome?: number | null;
   status: LeadStatus;
   /** AI approval probability 0-100 */
   approvalChance: number;

@@ -519,6 +519,18 @@ components:
         lead:
           $ref: "#/components/schemas/Lead"
 
+    MaritalStatus:
+      type: string
+      enum: [solteiro, casado, divorciado, viuvo, uniao_estavel]
+
+    EmploymentType:
+      type: string
+      enum: [clt, autonomo, servidor_publico, empresario, aposentado, liberal, desempregado]
+
+    PropertyType:
+      type: string
+      enum: [novo, usado, construcao, terreno]
+
     Lead:
       type: object
       required: [id, name, cpf, email, phone, income, propertyValue, status, approvalChance, scoreCaixa, scoreMCMV, createdAt, updatedAt]
@@ -533,12 +545,65 @@ components:
           type: string
         phone:
           type: string
+        birthDate:
+          type: string
+          nullable: true
+          description: Date of birth YYYY-MM-DD
+        maritalStatus:
+          $ref: "#/components/schemas/MaritalStatus"
+          nullable: true
+        profession:
+          type: string
+          nullable: true
+        employmentType:
+          $ref: "#/components/schemas/EmploymentType"
+          nullable: true
+        employmentMonths:
+          type: integer
+          nullable: true
+          description: Months in current job
         income:
           type: number
-          description: Monthly income in BRL
+          description: Monthly formal income in BRL
+        informalIncome:
+          type: number
+          nullable: true
+          description: Monthly informal/complementary income in BRL
+        hasFgts:
+          type: boolean
+          nullable: true
+        fgtsBalance:
+          type: number
+          nullable: true
+          description: Estimated FGTS balance in BRL
         propertyValue:
           type: number
           description: Desired property value in BRL
+        propertyType:
+          $ref: "#/components/schemas/PropertyType"
+          nullable: true
+        propertyCity:
+          type: string
+          nullable: true
+        propertyState:
+          type: string
+          nullable: true
+          description: Brazilian state abbreviation e.g. SP
+        spouseName:
+          type: string
+          nullable: true
+        spouseCpf:
+          type: string
+          nullable: true
+        spouseBirthDate:
+          type: string
+          nullable: true
+        spouseProfession:
+          type: string
+          nullable: true
+        spouseIncome:
+          type: number
+          nullable: true
         status:
           type: string
           enum: [pending, analyzing, approved, rejected, in_progress]
@@ -579,10 +644,58 @@ components:
           type: string
         phone:
           type: string
+        birthDate:
+          type: string
+          nullable: true
+        maritalStatus:
+          $ref: "#/components/schemas/MaritalStatus"
+          nullable: true
+        profession:
+          type: string
+          nullable: true
+        employmentType:
+          $ref: "#/components/schemas/EmploymentType"
+          nullable: true
+        employmentMonths:
+          type: integer
+          nullable: true
         income:
           type: number
+        informalIncome:
+          type: number
+          nullable: true
+        hasFgts:
+          type: boolean
+          nullable: true
+        fgtsBalance:
+          type: number
+          nullable: true
         propertyValue:
           type: number
+        propertyType:
+          $ref: "#/components/schemas/PropertyType"
+          nullable: true
+        propertyCity:
+          type: string
+          nullable: true
+        propertyState:
+          type: string
+          nullable: true
+        spouseName:
+          type: string
+          nullable: true
+        spouseCpf:
+          type: string
+          nullable: true
+        spouseBirthDate:
+          type: string
+          nullable: true
+        spouseProfession:
+          type: string
+          nullable: true
+        spouseIncome:
+          type: number
+          nullable: true
         brokerId:
           type: integer
           nullable: true

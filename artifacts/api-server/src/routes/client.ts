@@ -61,37 +61,51 @@ router.put("/profile", requireClient, async (req, res) => {
     return;
   }
 
-  const { income, propertyValue, phone, name } = req.body as {
-    income?: number;
-    propertyValue?: number;
-    phone?: string;
-    name?: string;
-  };
+  const {
+    income, propertyValue, phone, name,
+    birthDate, profession, employmentType, informalIncome, maritalStatus,
+    propertyCity, propertyState,
+    spouseName, spouseCpf, spouseBirthDate, spouseProfession, spouseIncome,
+  } = req.body as Record<string, any>;
 
   const leadUpdate: Record<string, any> = { updatedAt: new Date() };
   if (typeof income === "number") leadUpdate.income = income;
   if (typeof propertyValue === "number") leadUpdate.propertyValue = propertyValue;
   if (typeof phone === "string") leadUpdate.phone = phone;
   if (typeof name === "string") leadUpdate.name = name;
+  if (typeof birthDate === "string" || birthDate === null) leadUpdate.birthDate = birthDate;
+  if (typeof profession === "string" || profession === null) leadUpdate.profession = profession;
+  if (typeof employmentType === "string" || employmentType === null) leadUpdate.employmentType = employmentType;
+  if (typeof informalIncome === "number" || informalIncome === null) leadUpdate.informalIncome = informalIncome;
+  if (typeof maritalStatus === "string" || maritalStatus === null) leadUpdate.maritalStatus = maritalStatus;
+  if (typeof propertyCity === "string" || propertyCity === null) leadUpdate.propertyCity = propertyCity;
+  if (typeof propertyState === "string" || propertyState === null) leadUpdate.propertyState = propertyState;
+  if (typeof spouseName === "string" || spouseName === null) leadUpdate.spouseName = spouseName;
+  if (typeof spouseCpf === "string" || spouseCpf === null) leadUpdate.spouseCpf = spouseCpf;
+  if (typeof spouseBirthDate === "string" || spouseBirthDate === null) leadUpdate.spouseBirthDate = spouseBirthDate;
+  if (typeof spouseProfession === "string" || spouseProfession === null) leadUpdate.spouseProfession = spouseProfession;
+  if (typeof spouseIncome === "number" || spouseIncome === null) leadUpdate.spouseIncome = spouseIncome;
 
-  if (typeof income === "number" || typeof propertyValue === "number") {
-    const [existing] = await db.select().from(leadsTable).where(eq(leadsTable.id, user.leadId)).limit(1);
-    if (existing) {
-      const inc = typeof income === "number" ? income : existing.income;
-      const pv = typeof propertyValue === "number" ? propertyValue : existing.propertyValue;
-      const ratio = pv / (inc * 12);
-      const maxRatio = 4.5;
-      const baseChance = Math.max(0, Math.min(100, 100 - (ratio / maxRatio) * 60));
-      const approvalChance = Math.round(Math.max(0, Math.min(100, baseChance + (Math.random() * 20 - 10))));
-      const scoreCaixa = Math.round(300 + (approvalChance / 100) * 550 + (Math.random() * 80 - 40));
-      const scoreMCMV = inc <= 8000 ? Math.round(600 + Math.random() * 250) : Math.round(300 + Math.random() * 200);
-      const clampedChance = Math.max(0, Math.min(100, approvalChance));
-      let recommendation = "";
-      if (clampedChance >= 70) recommendation = "Perfil com alta chance de aprovação. Recomendamos prosseguir com a análise completa.";
-      else if (clampedChance >= 50) recommendation = "Perfil com chances moderadas. Ajustando o comprometimento de renda, a aprovação pode ser garantida.";
-      else recommendation = "Perfil com chances baixas. Sugerimos rever o valor do imóvel ou aumentar a renda comprovada.";
-      Object.assign(leadUpdate, { approvalChance, scoreCaixa, scoreMCMV, aiRecommendation: recommendation });
-    }
+  const [existing] = await db.select().from(leadsTable).where(eq(leadsTable.id, user.leadId)).limit(1);
+  if (existing && (typeof income === "number" || typeof propertyValue === "number" || typeof informalIncome === "number")) {
+    const inc  = typeof income === "number" ? income : existing.income;
+    const pv   = typeof propertyValue === "number" ? propertyValue : existing.propertyValue;
+    const inf  = typeof informalIncome === "number" ? informalIncome : (existing.informalIncome ?? 0);
+    const sp   = typeof spouseIncome === "number" ? spouseIncome : (existing.spouseIncome ?? 0);
+    const totalInc = inc + inf * 0.7 + sp;
+    const ratio = pv / (totalInc * 12);
+    const maxRatio = 4.5;
+    let baseChance = Math.max(0, Math.min(100, 100 - (ratio / maxRatio) * 60));
+    const empType = typeof employmentType === "string" ? employmentType : existing.employmentType;
+    if (empType === "clt" || empType === "servidor_publico") baseChance += 8;
+    const approvalChance = Math.min(100, Math.max(0, Math.round(baseChance + (Math.random() * 10 - 5))));
+    const scoreCaixa = Math.min(1000, Math.max(300, Math.round(300 + (approvalChance / 100) * 550 + (Math.random() * 80 - 40))));
+    const scoreMCMV = inc <= 8000 ? Math.round(600 + Math.random() * 250) : Math.round(300 + Math.random() * 200);
+    let recommendation = "";
+    if (approvalChance >= 70) recommendation = "Perfil com alta chance de aprovação. Recomendamos prosseguir com a análise completa.";
+    else if (approvalChance >= 50) recommendation = "Perfil com chances moderadas. Ajustando o comprometimento de renda, a aprovação pode ser garantida.";
+    else recommendation = "Perfil com chances baixas. Sugerimos rever o valor do imóvel ou aumentar a renda comprovada.";
+    Object.assign(leadUpdate, { approvalChance, scoreCaixa, scoreMCMV: Math.min(1000, Math.max(0, scoreMCMV)), aiRecommendation: recommendation });
   }
 
   if (typeof name === "string") {

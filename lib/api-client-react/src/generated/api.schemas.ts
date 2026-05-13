@@ -59,6 +59,38 @@ export interface UpdateClientProfileRequest {
   name?: string;
 }
 
+export type MaritalStatus = (typeof MaritalStatus)[keyof typeof MaritalStatus];
+
+export const MaritalStatus = {
+  solteiro: "solteiro",
+  casado: "casado",
+  divorciado: "divorciado",
+  viuvo: "viuvo",
+  uniao_estavel: "uniao_estavel",
+} as const;
+
+export type EmploymentType =
+  (typeof EmploymentType)[keyof typeof EmploymentType];
+
+export const EmploymentType = {
+  clt: "clt",
+  autonomo: "autonomo",
+  servidor_publico: "servidor_publico",
+  empresario: "empresario",
+  aposentado: "aposentado",
+  liberal: "liberal",
+  desempregado: "desempregado",
+} as const;
+
+export type PropertyType = (typeof PropertyType)[keyof typeof PropertyType];
+
+export const PropertyType = {
+  novo: "novo",
+  usado: "usado",
+  construcao: "construcao",
+  terreno: "terreno",
+} as const;
+
 export type LeadStatus = (typeof LeadStatus)[keyof typeof LeadStatus];
 
 export const LeadStatus = {
@@ -75,10 +107,31 @@ export interface Lead {
   cpf: string;
   email: string;
   phone: string;
-  /** Monthly income in BRL */
+  /** Date of birth YYYY-MM-DD */
+  birthDate?: string | null;
+  maritalStatus?: MaritalStatus | null;
+  profession?: string | null;
+  employmentType?: EmploymentType | null;
+  /** Months in current job */
+  employmentMonths?: number | null;
+  /** Monthly formal income in BRL */
   income: number;
+  /** Monthly informal/complementary income in BRL */
+  informalIncome?: number | null;
+  hasFgts?: boolean | null;
+  /** Estimated FGTS balance in BRL */
+  fgtsBalance?: number | null;
   /** Desired property value in BRL */
   propertyValue: number;
+  propertyType?: PropertyType | null;
+  propertyCity?: string | null;
+  /** Brazilian state abbreviation e.g. SP */
+  propertyState?: string | null;
+  spouseName?: string | null;
+  spouseCpf?: string | null;
+  spouseBirthDate?: string | null;
+  spouseProfession?: string | null;
+  spouseIncome?: number | null;
   status: LeadStatus;
   /** AI approval probability 0-100 */
   approvalChance: number;
@@ -103,8 +156,24 @@ export interface CreateLeadRequest {
   cpf: string;
   email: string;
   phone: string;
+  birthDate?: string | null;
+  maritalStatus?: MaritalStatus | null;
+  profession?: string | null;
+  employmentType?: EmploymentType | null;
+  employmentMonths?: number | null;
   income: number;
+  informalIncome?: number | null;
+  hasFgts?: boolean | null;
+  fgtsBalance?: number | null;
   propertyValue: number;
+  propertyType?: PropertyType | null;
+  propertyCity?: string | null;
+  propertyState?: string | null;
+  spouseName?: string | null;
+  spouseCpf?: string | null;
+  spouseBirthDate?: string | null;
+  spouseProfession?: string | null;
+  spouseIncome?: number | null;
   brokerId?: number | null;
 }
 

@@ -13,36 +13,111 @@ import {
 
 const router = Router();
 
-function computeScore(income: number, propertyValue: number): {
+interface ScoreInput {
+  income: number;
+  propertyValue: number;
+  informalIncome?: number | null;
+  spouseIncome?: number | null;
+  hasFgts?: boolean | null;
+  fgtsBalance?: number | null;
+  employmentType?: string | null;
+  employmentMonths?: number | null;
+  maritalStatus?: string | null;
+  propertyType?: string | null;
+  birthDate?: string | null;
+}
+
+function computeScore(input: ScoreInput): {
   approvalChance: number;
   scoreCaixa: number;
   scoreMCMV: number;
   aiRecommendation: string;
 } {
-  const ratio = propertyValue / (income * 12);
-  const maxRatio = 4.5;
-  const baseChance = Math.max(0, Math.min(100, 100 - (ratio / maxRatio) * 60));
-  const approvalChance = Math.round(baseChance + (Math.random() * 20 - 10));
-  const scoreCaixa = Math.round(300 + (approvalChance / 100) * 550 + (Math.random() * 80 - 40));
-  const scoreMCMV = income <= 8000 ? Math.round(600 + Math.random() * 250) : Math.round(300 + Math.random() * 200);
+  const {
+    income,
+    propertyValue,
+    informalIncome = 0,
+    spouseIncome = 0,
+    hasFgts = false,
+    fgtsBalance = 0,
+    employmentType,
+    employmentMonths = 0,
+    maritalStatus,
+    propertyType,
+    birthDate,
+  } = input;
 
-  const clampedChance = Math.max(0, Math.min(100, approvalChance));
+  // ── Renda total composta ───────────────────────────────────────────────────
+  const totalIncome = income + (informalIncome ?? 0) * 0.7 + (spouseIncome ?? 0);
+
+  // ── Comprometimento (relação imóvel / renda anual) ─────────────────────────
+  const ratio = propertyValue / (totalIncome * 12);
+  const maxRatio = 4.5;
+  let baseChance = Math.max(0, Math.min(100, 100 - (ratio / maxRatio) * 60));
+
+  // ── Bônus: FGTS ───────────────────────────────────────────────────────────
+  if (hasFgts && (fgtsBalance ?? 0) > 0) {
+    const fgtsRatio = (fgtsBalance ?? 0) / propertyValue;
+    baseChance += Math.min(10, fgtsRatio * 100);
+  }
+
+  // ── Bônus: estabilidade empregatícia ─────────────────────────────────────
+  if (employmentType === "clt" || employmentType === "servidor_publico") {
+    baseChance += 8;
+  } else if (employmentType === "autonomo" || employmentType === "liberal") {
+    baseChance -= 5;
+    if ((employmentMonths ?? 0) >= 24) baseChance += 6;
+  } else if (employmentType === "aposentado") {
+    baseChance += 5;
+  }
+
+  // ── Bônus: tempo no emprego ───────────────────────────────────────────────
+  if ((employmentMonths ?? 0) >= 36) baseChance += 5;
+  else if ((employmentMonths ?? 0) >= 12) baseChance += 2;
+
+  // ── Bônus: composição familiar ────────────────────────────────────────────
+  if ((maritalStatus === "casado" || maritalStatus === "uniao_estavel") && (spouseIncome ?? 0) > 0) {
+    baseChance += 4;
+  }
+
+  // ── Bônus: imóvel novo tem aprovação mais fácil na Caixa ──────────────────
+  if (propertyType === "novo") baseChance += 3;
+  else if (propertyType === "construcao") baseChance -= 3;
+
+  // ── Idade mínima Caixa (18 anos) ─────────────────────────────────────────
+  if (birthDate) {
+    const age = (Date.now() - new Date(birthDate).getTime()) / (1000 * 60 * 60 * 24 * 365.25);
+    if (age < 18) baseChance = 0;
+    else if (age > 70) baseChance -= 10;
+  }
+
+  const approvalChance = Math.round(Math.max(0, Math.min(100, baseChance)));
+  const scoreCaixa = Math.min(1000, Math.max(300, Math.round(300 + (approvalChance / 100) * 550 + (Math.random() * 80 - 40))));
+  const scoreMCMV = totalIncome <= 8000 ? Math.round(600 + Math.random() * 250) : Math.round(300 + Math.random() * 200);
+
+  // ── Recomendação ─────────────────────────────────────────────────────────
+  const issues: string[] = [];
+  if (ratio > 4) issues.push("comprometimento de renda elevado");
+  if (employmentType === "autonomo" && (employmentMonths ?? 0) < 24) issues.push("renda autônoma com menos de 2 anos de histórico");
+  if (!hasFgts) issues.push("ausência de FGTS para abater entrada");
+  if ((maritalStatus === "casado" || maritalStatus === "uniao_estavel") && !(spouseIncome ?? 0)) issues.push("renda do cônjuge não informada");
+
   let recommendation = "";
-  if (clampedChance >= 75) {
-    recommendation = "Perfil com alta chance de aprovação. Recomendamos avançar com o processo imediatamente.";
-  } else if (clampedChance >= 50) {
-    recommendation = "Perfil com chances moderadas. Ajustando o comprometimento de renda, a aprovação pode ser garantida.";
-  } else if (clampedChance >= 30) {
-    recommendation = "Perfil em análise. Sugerimos aumentar a renda comprovada ou reduzir o valor do imóvel.";
+  if (approvalChance >= 75) {
+    recommendation = `Perfil com alta chance de aprovação. Recomendamos avançar com o processo imediatamente.${issues.length ? ` Pontos de atenção: ${issues.join("; ")}.` : ""}`;
+  } else if (approvalChance >= 50) {
+    recommendation = `Perfil com chances moderadas.${issues.length ? ` Melhorias sugeridas: ${issues.join("; ")}.` : " Ajustando o comprometimento de renda, a aprovação pode ser garantida."}`;
+  } else if (approvalChance >= 30) {
+    recommendation = `Perfil em análise. ${issues.length ? `Principais obstáculos: ${issues.join("; ")}.` : "Sugerimos aumentar a renda comprovada ou reduzir o valor do imóvel."}`;
   } else {
-    recommendation = "Perfil com baixa chance no momento. Recomendamos trabalhar o score Caixa por pelo menos 3 meses antes de nova tentativa.";
+    recommendation = `Perfil com baixa chance no momento. ${issues.length ? `Pontos críticos: ${issues.join("; ")}.` : ""} Recomendamos trabalhar o score Caixa por pelo menos 3 meses antes de nova tentativa.`;
   }
 
   return {
-    approvalChance: clampedChance,
-    scoreCaixa: Math.min(1000, Math.max(300, scoreCaixa)),
+    approvalChance,
+    scoreCaixa,
     scoreMCMV: Math.min(1000, Math.max(0, scoreMCMV)),
-    aiRecommendation: recommendation,
+    aiRecommendation: recommendation.trim(),
   };
 }
 
@@ -101,7 +176,7 @@ router.post("/", async (req, res) => {
     return;
   }
 
-  const scores = computeScore(parsed.data.income, parsed.data.propertyValue);
+  const scores = computeScore(parsed.data);
 
   const [lead] = await db
     .insert(leadsTable)
@@ -175,10 +250,19 @@ router.put("/:id", async (req, res) => {
 
   const updateData: Record<string, any> = { ...bodyParsed.data, updatedAt: new Date() };
   if (bodyParsed.data.income !== undefined || bodyParsed.data.propertyValue !== undefined) {
-    const scores = computeScore(
-      bodyParsed.data.income ?? existing.income,
-      bodyParsed.data.propertyValue ?? existing.propertyValue,
-    );
+    const scores = computeScore({
+      income: bodyParsed.data.income ?? existing.income,
+      propertyValue: bodyParsed.data.propertyValue ?? existing.propertyValue,
+      informalIncome: existing.informalIncome,
+      spouseIncome: existing.spouseIncome,
+      hasFgts: existing.hasFgts,
+      fgtsBalance: existing.fgtsBalance,
+      employmentType: existing.employmentType,
+      employmentMonths: existing.employmentMonths,
+      maritalStatus: existing.maritalStatus,
+      propertyType: existing.propertyType,
+      birthDate: existing.birthDate,
+    });
     Object.assign(updateData, scores);
   }
 

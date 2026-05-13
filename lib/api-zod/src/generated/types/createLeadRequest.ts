@@ -4,13 +4,32 @@
  * Api
  * OpenAPI spec version: 1.0.0
  */
+import type { EmploymentType } from "./employmentType";
+import type { MaritalStatus } from "./maritalStatus";
+import type { PropertyType } from "./propertyType";
 
 export interface CreateLeadRequest {
   name: string;
   cpf: string;
   email: string;
   phone: string;
+  birthDate?: string | null;
+  maritalStatus?: MaritalStatus | null;
+  profession?: string | null;
+  employmentType?: EmploymentType | null;
+  employmentMonths?: number | null;
   income: number;
+  informalIncome?: number | null;
+  hasFgts?: boolean | null;
+  fgtsBalance?: number | null;
   propertyValue: number;
+  propertyType?: PropertyType | null;
+  propertyCity?: string | null;
+  propertyState?: string | null;
+  spouseName?: string | null;
+  spouseCpf?: string | null;
+  spouseBirthDate?: string | null;
+  spouseProfession?: string | null;
+  spouseIncome?: number | null;
   brokerId?: number | null;
 }

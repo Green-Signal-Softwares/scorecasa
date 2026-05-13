@@ -75,8 +75,47 @@ export const GetClientProfileResponse = zod.object({
     cpf: zod.string(),
     email: zod.string(),
     phone: zod.string(),
-    income: zod.number().describe("Monthly income in BRL"),
+    birthDate: zod.string().nullish().describe("Date of birth YYYY-MM-DD"),
+    maritalStatus: zod
+      .enum(["solteiro", "casado", "divorciado", "viuvo", "uniao_estavel"])
+      .nullish(),
+    profession: zod.string().nullish(),
+    employmentType: zod
+      .enum([
+        "clt",
+        "autonomo",
+        "servidor_publico",
+        "empresario",
+        "aposentado",
+        "liberal",
+        "desempregado",
+      ])
+      .nullish(),
+    employmentMonths: zod.number().nullish().describe("Months in current job"),
+    income: zod.number().describe("Monthly formal income in BRL"),
+    informalIncome: zod
+      .number()
+      .nullish()
+      .describe("Monthly informal\/complementary income in BRL"),
+    hasFgts: zod.boolean().nullish(),
+    fgtsBalance: zod
+      .number()
+      .nullish()
+      .describe("Estimated FGTS balance in BRL"),
     propertyValue: zod.number().describe("Desired property value in BRL"),
+    propertyType: zod
+      .enum(["novo", "usado", "construcao", "terreno"])
+      .nullish(),
+    propertyCity: zod.string().nullish(),
+    propertyState: zod
+      .string()
+      .nullish()
+      .describe("Brazilian state abbreviation e.g. SP"),
+    spouseName: zod.string().nullish(),
+    spouseCpf: zod.string().nullish(),
+    spouseBirthDate: zod.string().nullish(),
+    spouseProfession: zod.string().nullish(),
+    spouseIncome: zod.number().nullish(),
     status: zod.enum([
       "pending",
       "analyzing",
@@ -120,8 +159,47 @@ export const UpdateClientProfileResponse = zod.object({
     cpf: zod.string(),
     email: zod.string(),
     phone: zod.string(),
-    income: zod.number().describe("Monthly income in BRL"),
+    birthDate: zod.string().nullish().describe("Date of birth YYYY-MM-DD"),
+    maritalStatus: zod
+      .enum(["solteiro", "casado", "divorciado", "viuvo", "uniao_estavel"])
+      .nullish(),
+    profession: zod.string().nullish(),
+    employmentType: zod
+      .enum([
+        "clt",
+        "autonomo",
+        "servidor_publico",
+        "empresario",
+        "aposentado",
+        "liberal",
+        "desempregado",
+      ])
+      .nullish(),
+    employmentMonths: zod.number().nullish().describe("Months in current job"),
+    income: zod.number().describe("Monthly formal income in BRL"),
+    informalIncome: zod
+      .number()
+      .nullish()
+      .describe("Monthly informal\/complementary income in BRL"),
+    hasFgts: zod.boolean().nullish(),
+    fgtsBalance: zod
+      .number()
+      .nullish()
+      .describe("Estimated FGTS balance in BRL"),
     propertyValue: zod.number().describe("Desired property value in BRL"),
+    propertyType: zod
+      .enum(["novo", "usado", "construcao", "terreno"])
+      .nullish(),
+    propertyCity: zod.string().nullish(),
+    propertyState: zod
+      .string()
+      .nullish()
+      .describe("Brazilian state abbreviation e.g. SP"),
+    spouseName: zod.string().nullish(),
+    spouseCpf: zod.string().nullish(),
+    spouseBirthDate: zod.string().nullish(),
+    spouseProfession: zod.string().nullish(),
+    spouseIncome: zod.number().nullish(),
     status: zod.enum([
       "pending",
       "analyzing",
@@ -220,8 +298,50 @@ export const GetLeadsResponse = zod.object({
       cpf: zod.string(),
       email: zod.string(),
       phone: zod.string(),
-      income: zod.number().describe("Monthly income in BRL"),
+      birthDate: zod.string().nullish().describe("Date of birth YYYY-MM-DD"),
+      maritalStatus: zod
+        .enum(["solteiro", "casado", "divorciado", "viuvo", "uniao_estavel"])
+        .nullish(),
+      profession: zod.string().nullish(),
+      employmentType: zod
+        .enum([
+          "clt",
+          "autonomo",
+          "servidor_publico",
+          "empresario",
+          "aposentado",
+          "liberal",
+          "desempregado",
+        ])
+        .nullish(),
+      employmentMonths: zod
+        .number()
+        .nullish()
+        .describe("Months in current job"),
+      income: zod.number().describe("Monthly formal income in BRL"),
+      informalIncome: zod
+        .number()
+        .nullish()
+        .describe("Monthly informal\/complementary income in BRL"),
+      hasFgts: zod.boolean().nullish(),
+      fgtsBalance: zod
+        .number()
+        .nullish()
+        .describe("Estimated FGTS balance in BRL"),
       propertyValue: zod.number().describe("Desired property value in BRL"),
+      propertyType: zod
+        .enum(["novo", "usado", "construcao", "terreno"])
+        .nullish(),
+      propertyCity: zod.string().nullish(),
+      propertyState: zod
+        .string()
+        .nullish()
+        .describe("Brazilian state abbreviation e.g. SP"),
+      spouseName: zod.string().nullish(),
+      spouseCpf: zod.string().nullish(),
+      spouseBirthDate: zod.string().nullish(),
+      spouseProfession: zod.string().nullish(),
+      spouseIncome: zod.number().nullish(),
       status: zod.enum([
         "pending",
         "analyzing",
@@ -254,8 +374,36 @@ export const CreateLeadBody = zod.object({
   cpf: zod.string(),
   email: zod.string(),
   phone: zod.string(),
+  birthDate: zod.string().nullish(),
+  maritalStatus: zod
+    .enum(["solteiro", "casado", "divorciado", "viuvo", "uniao_estavel"])
+    .nullish(),
+  profession: zod.string().nullish(),
+  employmentType: zod
+    .enum([
+      "clt",
+      "autonomo",
+      "servidor_publico",
+      "empresario",
+      "aposentado",
+      "liberal",
+      "desempregado",
+    ])
+    .nullish(),
+  employmentMonths: zod.number().nullish(),
   income: zod.number(),
+  informalIncome: zod.number().nullish(),
+  hasFgts: zod.boolean().nullish(),
+  fgtsBalance: zod.number().nullish(),
   propertyValue: zod.number(),
+  propertyType: zod.enum(["novo", "usado", "construcao", "terreno"]).nullish(),
+  propertyCity: zod.string().nullish(),
+  propertyState: zod.string().nullish(),
+  spouseName: zod.string().nullish(),
+  spouseCpf: zod.string().nullish(),
+  spouseBirthDate: zod.string().nullish(),
+  spouseProfession: zod.string().nullish(),
+  spouseIncome: zod.number().nullish(),
   brokerId: zod.number().nullish(),
 });
 
@@ -272,8 +420,42 @@ export const GetLeadResponse = zod.object({
   cpf: zod.string(),
   email: zod.string(),
   phone: zod.string(),
-  income: zod.number().describe("Monthly income in BRL"),
+  birthDate: zod.string().nullish().describe("Date of birth YYYY-MM-DD"),
+  maritalStatus: zod
+    .enum(["solteiro", "casado", "divorciado", "viuvo", "uniao_estavel"])
+    .nullish(),
+  profession: zod.string().nullish(),
+  employmentType: zod
+    .enum([
+      "clt",
+      "autonomo",
+      "servidor_publico",
+      "empresario",
+      "aposentado",
+      "liberal",
+      "desempregado",
+    ])
+    .nullish(),
+  employmentMonths: zod.number().nullish().describe("Months in current job"),
+  income: zod.number().describe("Monthly formal income in BRL"),
+  informalIncome: zod
+    .number()
+    .nullish()
+    .describe("Monthly informal\/complementary income in BRL"),
+  hasFgts: zod.boolean().nullish(),
+  fgtsBalance: zod.number().nullish().describe("Estimated FGTS balance in BRL"),
   propertyValue: zod.number().describe("Desired property value in BRL"),
+  propertyType: zod.enum(["novo", "usado", "construcao", "terreno"]).nullish(),
+  propertyCity: zod.string().nullish(),
+  propertyState: zod
+    .string()
+    .nullish()
+    .describe("Brazilian state abbreviation e.g. SP"),
+  spouseName: zod.string().nullish(),
+  spouseCpf: zod.string().nullish(),
+  spouseBirthDate: zod.string().nullish(),
+  spouseProfession: zod.string().nullish(),
+  spouseIncome: zod.number().nullish(),
   status: zod.enum([
     "pending",
     "analyzing",
@@ -316,8 +498,42 @@ export const UpdateLeadResponse = zod.object({
   cpf: zod.string(),
   email: zod.string(),
   phone: zod.string(),
-  income: zod.number().describe("Monthly income in BRL"),
+  birthDate: zod.string().nullish().describe("Date of birth YYYY-MM-DD"),
+  maritalStatus: zod
+    .enum(["solteiro", "casado", "divorciado", "viuvo", "uniao_estavel"])
+    .nullish(),
+  profession: zod.string().nullish(),
+  employmentType: zod
+    .enum([
+      "clt",
+      "autonomo",
+      "servidor_publico",
+      "empresario",
+      "aposentado",
+      "liberal",
+      "desempregado",
+    ])
+    .nullish(),
+  employmentMonths: zod.number().nullish().describe("Months in current job"),
+  income: zod.number().describe("Monthly formal income in BRL"),
+  informalIncome: zod
+    .number()
+    .nullish()
+    .describe("Monthly informal\/complementary income in BRL"),
+  hasFgts: zod.boolean().nullish(),
+  fgtsBalance: zod.number().nullish().describe("Estimated FGTS balance in BRL"),
   propertyValue: zod.number().describe("Desired property value in BRL"),
+  propertyType: zod.enum(["novo", "usado", "construcao", "terreno"]).nullish(),
+  propertyCity: zod.string().nullish(),
+  propertyState: zod
+    .string()
+    .nullish()
+    .describe("Brazilian state abbreviation e.g. SP"),
+  spouseName: zod.string().nullish(),
+  spouseCpf: zod.string().nullish(),
+  spouseBirthDate: zod.string().nullish(),
+  spouseProfession: zod.string().nullish(),
+  spouseIncome: zod.number().nullish(),
   status: zod.enum([
     "pending",
     "analyzing",

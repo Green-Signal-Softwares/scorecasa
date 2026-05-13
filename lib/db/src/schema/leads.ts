@@ -1,15 +1,51 @@
-import { pgTable, serial, text, timestamp, integer, real } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, integer, real, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
 export const leadsTable = pgTable("leads", {
   id: serial("id").primaryKey(),
+
+  // ── Identificação ───────────────────────────────────────────
   name: text("name").notNull(),
   cpf: text("cpf").notNull(),
   email: text("email").notNull(),
   phone: text("phone").notNull(),
+
+  // ── Dados pessoais (Caixa) ──────────────────────────────────
+  birthDate: text("birth_date"),
+  maritalStatus: text("marital_status", {
+    enum: ["solteiro", "casado", "divorciado", "viuvo", "uniao_estavel"],
+  }),
+  profession: text("profession"),
+  employmentType: text("employment_type", {
+    enum: ["clt", "autonomo", "servidor_publico", "empresario", "aposentado", "liberal", "desempregado"],
+  }),
+  employmentMonths: integer("employment_months"),
+
+  // ── Renda ────────────────────────────────────────────────────
   income: real("income").notNull(),
+  informalIncome: real("informal_income"),
+
+  // ── FGTS ─────────────────────────────────────────────────────
+  hasFgts: boolean("has_fgts"),
+  fgtsBalance: real("fgts_balance"),
+
+  // ── Imóvel ───────────────────────────────────────────────────
   propertyValue: real("property_value").notNull(),
+  propertyType: text("property_type", {
+    enum: ["novo", "usado", "construcao", "terreno"],
+  }),
+  propertyCity: text("property_city"),
+  propertyState: text("property_state"),
+
+  // ── Cônjuge / composição familiar ────────────────────────────
+  spouseName: text("spouse_name"),
+  spouseCpf: text("spouse_cpf"),
+  spouseBirthDate: text("spouse_birth_date"),
+  spouseProfession: text("spouse_profession"),
+  spouseIncome: real("spouse_income"),
+
+  // ── Score / status ───────────────────────────────────────────
   status: text("status", {
     enum: ["pending", "analyzing", "approved", "rejected", "in_progress"],
   }).notNull().default("pending"),
@@ -22,6 +58,15 @@ export const leadsTable = pgTable("leads", {
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });
 
-export const insertLeadSchema = createInsertSchema(leadsTable).omit({ id: true, createdAt: true, updatedAt: true, approvalChance: true, scoreCaixa: true, scoreMCMV: true, aiRecommendation: true });
+export const insertLeadSchema = createInsertSchema(leadsTable).omit({
+  id: true,
+  createdAt: true,
+  updatedAt: true,
+  approvalChance: true,
+  scoreCaixa: true,
+  scoreMCMV: true,
+  aiRecommendation: true,
+});
+
 export type InsertLead = z.infer<typeof insertLeadSchema>;
 export type Lead = typeof leadsTable.$inferSelect;

@@ -1,0 +1,472 @@
+import { useState, useEffect } from "react";
+import { useLocation } from "wouter";
+import { useGetMe, getGetMeQueryKey, useGetClientProfile, getGetClientProfileQueryKey } from "@workspace/api-client-react";
+import { useQueryClient } from "@tanstack/react-query";
+import { ClientLayout } from "@/components/layout/ClientLayout";
+import { useToast } from "@/hooks/use-toast";
+
+// ── Helpers ──────────────────────────────────────────────────────────────────
+
+function maskCPF(v: string) {
+  const d = v.replace(/\D/g, "").slice(0, 11);
+  if (d.length <= 3) return d;
+  if (d.length <= 6) return `${d.slice(0, 3)}.${d.slice(3)}`;
+  if (d.length <= 9) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`;
+  return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
+}
+
+function maskBRL(v: string) {
+  const d = v.replace(/\D/g, "");
+  if (!d) return "";
+  return (parseInt(d, 10) / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+function parseBRL(v: string) {
+  return parseFloat(v.replace(/\D/g, "")) / 100 || 0;
+}
+
+function brlFromNumber(n: number | null | undefined) {
+  if (!n) return "";
+  return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
+}
+
+const MARITAL_OPTIONS = [
+  { value: "solteiro",      label: "Solteiro(a)" },
+  { value: "casado",        label: "Casado(a)" },
+  { value: "uniao_estavel", label: "União Estável" },
+  { value: "divorciado",    label: "Divorciado(a)" },
+  { value: "viuvo",         label: "Viúvo(a)" },
+];
+
+const BR_STATES = [
+  "AC","AL","AM","AP","BA","CE","DF","ES","GO","MA","MG","MS","MT","PA",
+  "PB","PE","PI","PR","RJ","RN","RO","RR","RS","SC","SE","SP","TO",
+];
+
+// ── Components ────────────────────────────────────────────────────────────────
+
+function Field({
+  label, value, onChange, placeholder, type = "text", readOnly = false, error, hint,
+}: {
+  label: string; value: string; onChange?: (v: string) => void;
+  placeholder?: string; type?: string; readOnly?: boolean; error?: string; hint?: string;
+}) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      <input
+        type={type}
+        value={value}
+        readOnly={readOnly}
+        onChange={(e) => onChange?.(e.target.value)}
+        placeholder={placeholder}
+        className={`w-full px-3 py-2.5 rounded-lg border text-sm outline-none transition-colors ${
+          readOnly ? "bg-gray-50 text-gray-400 border-gray-200 cursor-default" :
+          error ? "border-red-400 bg-red-50" :
+          "border-gray-200 bg-white focus:border-[#6B21A8] focus:ring-1 focus:ring-[#6B21A8]/20"
+        }`}
+      />
+      {hint && !error && <p className="text-xs text-gray-400 mt-1">{hint}</p>}
+      {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
+    </div>
+  );
+}
+
+function SelectField({
+  label, value, onChange, options, placeholder,
+}: {
+  label: string; value: string; onChange: (v: string) => void;
+  options: { value: string; label: string }[]; placeholder?: string;
+}) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      <select
+        value={value}
+        onChange={(e) => onChange(e.target.value)}
+        className="w-full px-3 py-2.5 rounded-lg border border-gray-200 bg-white text-sm outline-none focus:border-[#6B21A8] focus:ring-1 focus:ring-[#6B21A8]/20 text-gray-700"
+      >
+        <option value="">{placeholder ?? "Selecione..."}</option>
+        {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
+      </select>
+    </div>
+  );
+}
+
+function RadioGroup({
+  label, value, onChange, options,
+}: {
+  label: string; value: string; onChange: (v: string) => void;
+  options: { value: string; label: string }[];
+}) {
+  return (
+    <div>
+      <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
+      <div className="flex gap-4">
+        {options.map((o) => (
+          <label key={o.value} className="flex items-center gap-2 cursor-pointer">
+            <input
+              type="radio"
+              value={o.value}
+              checked={value === o.value}
+              onChange={() => onChange(o.value)}
+              className="w-4 h-4 accent-[#6B21A8]"
+            />
+            <span className="text-sm text-gray-700">{o.label}</span>
+          </label>
+        ))}
+      </div>
+    </div>
+  );
+}
+
+// ── Page ──────────────────────────────────────────────────────────────────────
+
+export function ClientMeusDados() {
+  const [, setLocation] = useLocation();
+  const { toast } = useToast();
+  const queryClient = useQueryClient();
+
+  const { data: me, isLoading: loadingMe } = useGetMe({
+    query: { queryKey: getGetMeQueryKey(), retry: false, staleTime: 60_000 },
+  });
+
+  useEffect(() => {
+    if (!loadingMe && me && me.role !== "client") setLocation("/dashboard");
+    if (!loadingMe && !me) setLocation("/login");
+  }, [loadingMe, me, setLocation]);
+
+  const { data: profile, isLoading } = useGetClientProfile({
+    query: { queryKey: getGetClientProfileQueryKey(), staleTime: 30_000 },
+  });
+
+  // ── Form state ─────────────────────────────────────────────────────────────
+
+  const [tab, setTab] = useState<"dados" | "conta">("dados");
+  const [saving, setSaving] = useState(false);
+  const [errors, setErrors] = useState<Record<string, string>>({});
+
+  const [form, setForm] = useState({
+    name: "", cpf: "",
+    birthDate: "", cidade: "", cidadeImovel: "", profissao: "",
+    carteiraAssinada: "", income: "", informalIncome: "", maritalStatus: "",
+    propertyValue: "", propertyState: "",
+    spouseCpf: "", spouseName: "", spouseBirthDate: "", spouseCidade: "",
+    spouseProfissao: "", spouseIncome: "", spouseInformalIncome: "",
+  });
+
+  useEffect(() => {
+    if (!profile) return;
+    const l = profile.lead as any;
+    setForm({
+      name: profile.user.name ?? "",
+      cpf: l.cpf ? maskCPF(l.cpf) : "",
+      birthDate: l.birthDate ?? "",
+      cidade: l.propertyCity ?? "",
+      cidadeImovel: l.propertyCity ?? "",
+      profissao: l.profession ?? "",
+      carteiraAssinada: l.employmentType === "clt" || l.employmentType === "servidor_publico" ? "sim" : l.employmentType ? "nao" : "",
+      income: brlFromNumber(l.income),
+      informalIncome: brlFromNumber(l.informalIncome),
+      maritalStatus: l.maritalStatus ?? "",
+      propertyValue: brlFromNumber(l.propertyValue),
+      propertyState: l.propertyState ?? "",
+      spouseCpf: l.spouseCpf ? maskCPF(l.spouseCpf) : "",
+      spouseName: l.spouseName ?? "",
+      spouseBirthDate: l.spouseBirthDate ?? "",
+      spouseCidade: "",
+      spouseProfissao: l.spouseProfession ?? "",
+      spouseIncome: brlFromNumber(l.spouseIncome),
+      spouseInformalIncome: "",
+    });
+  }, [profile]);
+
+  const setField = (key: keyof typeof form) => (val: string) =>
+    setForm((f) => ({ ...f, [key]: val }));
+
+  const setBRL = (key: keyof typeof form) => (raw: string) =>
+    setForm((f) => ({ ...f, [key]: maskBRL(raw) }));
+
+  const needsSpouse = form.maritalStatus === "casado" || form.maritalStatus === "uniao_estavel";
+
+  const validate = () => {
+    const e: Record<string, string> = {};
+    if (!form.name.trim() || form.name.trim().length < 2) e.name = "Nome obrigatório";
+    return e;
+  };
+
+  const handleSave = async () => {
+    const errs = validate();
+    if (Object.keys(errs).length > 0) { setErrors(errs); return; }
+
+    setSaving(true);
+    try {
+      const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const body: Record<string, any> = {
+        name: form.name.trim(),
+        birthDate: form.birthDate || null,
+        profession: form.profissao.trim() || null,
+        employmentType: form.carteiraAssinada === "sim" ? "clt" : form.carteiraAssinada === "nao" ? "autonomo" : null,
+        income: parseBRL(form.income) || undefined,
+        informalIncome: parseBRL(form.informalIncome) || null,
+        maritalStatus: form.maritalStatus || null,
+        propertyValue: parseBRL(form.propertyValue) || undefined,
+        propertyCity: form.cidadeImovel.trim() || null,
+        propertyState: form.propertyState || null,
+      };
+
+      if (needsSpouse) {
+        body.spouseName = form.spouseName.trim() || null;
+        body.spouseCpf = form.spouseCpf.replace(/\D/g, "") || null;
+        body.spouseBirthDate = form.spouseBirthDate || null;
+        body.spouseProfession = form.spouseProfissao.trim() || null;
+        body.spouseIncome = parseBRL(form.spouseIncome) || null;
+      } else {
+        body.spouseName = null;
+        body.spouseCpf = null;
+        body.spouseBirthDate = null;
+        body.spouseProfession = null;
+        body.spouseIncome = null;
+      }
+
+      const resp = await fetch(`${BASE}/api/client/profile`, {
+        method: "PUT",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(body),
+      });
+
+      if (!resp.ok) throw new Error("Erro ao salvar");
+
+      await queryClient.invalidateQueries({ queryKey: getGetClientProfileQueryKey() });
+      toast({ title: "Dados salvos com sucesso!" });
+    } catch {
+      toast({ title: "Erro ao salvar", description: "Tente novamente." });
+    } finally {
+      setSaving(false);
+    }
+  };
+
+  if (loadingMe || isLoading || !me || me.role !== "client") {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "#07113A" }}>
+        <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+      </div>
+    );
+  }
+
+  return (
+    <ClientLayout userName={me.name} activePage="meus-dados">
+      {/* Tabs */}
+      <div className="flex gap-0 mb-6 border-b border-gray-200">
+        {[
+          { key: "dados" as const, label: "Meus dados" },
+          { key: "conta" as const, label: "Conta e segurança" },
+        ].map((t) => (
+          <button
+            key={t.key}
+            onClick={() => setTab(t.key)}
+            className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
+              tab === t.key
+                ? "border-[#6B21A8] text-[#6B21A8]"
+                : "border-transparent text-gray-500 hover:text-gray-700"
+            }`}
+          >
+            {t.label}
+          </button>
+        ))}
+      </div>
+
+      {tab === "conta" && (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
+          <p className="text-sm text-gray-500">Gerenciamento de senha em breve.</p>
+        </div>
+      )}
+
+      {tab === "dados" && (
+        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5">
+          {/* Row 1: CPF + Nome Receita Federal */}
+          <div className="grid sm:grid-cols-2 gap-4">
+            <Field
+              label="CPF / CNPJ"
+              value={form.cpf}
+              readOnly
+            />
+            <div>
+              <label className="block text-sm font-medium text-gray-700 mb-1">Nome (Receita Federal)</label>
+              <input
+                type="text"
+                readOnly
+                placeholder="Preenchido automaticamente após consulta à base da Receita Federal"
+                className="w-full px-3 py-2.5 rounded-lg border border-gray-200 bg-gray-50 text-xs text-gray-400 outline-none cursor-default"
+              />
+              <p className="text-xs text-gray-400 mt-1">Este campo será preenchido quando a integração com a Receita Federal estiver disponível.</p>
+            </div>
+          </div>
+
+          {/* Row 2: Nome completo + Data de nascimento */}
+          <div className="grid sm:grid-cols-2 gap-4">
+            <Field
+              label="Nome completo *"
+              value={form.name}
+              onChange={setField("name")}
+              placeholder="Seu nome completo"
+              error={errors.name}
+            />
+            <Field
+              label="Data de nascimento"
+              value={form.birthDate}
+              onChange={setField("birthDate")}
+              type="date"
+              hint="Opcional. Mínimo 18 anos se informada."
+            />
+          </div>
+
+          {/* Row 3: Cidade de moradia + Cidade do imóvel */}
+          <div className="grid sm:grid-cols-2 gap-4">
+            <Field
+              label="Cidade de moradia"
+              value={form.cidade}
+              onChange={setField("cidade")}
+              placeholder="Selecione..."
+            />
+            <Field
+              label="Cidade do imóvel"
+              value={form.cidadeImovel}
+              onChange={setField("cidadeImovel")}
+              placeholder="Selecione..."
+            />
+          </div>
+
+          {/* Row 4: Profissão + Carteira assinada */}
+          <div className="grid sm:grid-cols-2 gap-4">
+            <Field
+              label="Profissão"
+              value={form.profissao}
+              onChange={setField("profissao")}
+              placeholder="Sua profissão"
+            />
+            <RadioGroup
+              label="Tem ou já teve mais de 3 anos de carteira assinada?"
+              value={form.carteiraAssinada}
+              onChange={setField("carteiraAssinada")}
+              options={[{ value: "sim", label: "Sim" }, { value: "nao", label: "Não" }]}
+            />
+          </div>
+
+          {/* Row 5: Renda formal + Renda informal */}
+          <div className="grid sm:grid-cols-2 gap-4">
+            <Field
+              label="Renda formal (R$)"
+              value={form.income}
+              onChange={setBRL("income")}
+              placeholder="0,00"
+            />
+            <Field
+              label="Renda informal (R$)"
+              value={form.informalIncome}
+              onChange={setBRL("informalIncome")}
+              placeholder="0,00"
+            />
+          </div>
+
+          {/* Row 6: Estado civil */}
+          <div className="grid sm:grid-cols-2 gap-4">
+            <SelectField
+              label="Estado civil"
+              value={form.maritalStatus}
+              onChange={setField("maritalStatus")}
+              options={MARITAL_OPTIONS}
+            />
+            <SelectField
+              label="UF do imóvel"
+              value={form.propertyState}
+              onChange={setField("propertyState")}
+              options={BR_STATES.map((s) => ({ value: s, label: s }))}
+              placeholder="UF"
+            />
+          </div>
+
+          {/* ── Dados do cônjuge ─────────────────────────────────────── */}
+          {needsSpouse && (
+            <div className="rounded-xl border border-gray-200 bg-gray-50 p-5 space-y-4">
+              <p className="text-sm font-semibold text-gray-700">Dados do cônjuge</p>
+
+              <div className="grid sm:grid-cols-2 gap-4">
+                <Field
+                  label="CPF do cônjuge *"
+                  value={form.spouseCpf}
+                  onChange={(v) => setForm((f) => ({ ...f, spouseCpf: maskCPF(v) }))}
+                  placeholder="000.000.000-00"
+                />
+                <Field
+                  label="Nome do cônjuge *"
+                  value={form.spouseName}
+                  onChange={setField("spouseName")}
+                  placeholder="Nome completo"
+                />
+              </div>
+
+              <div className="grid sm:grid-cols-2 gap-4">
+                <Field
+                  label="Data de nascimento *"
+                  value={form.spouseBirthDate}
+                  onChange={setField("spouseBirthDate")}
+                  type="date"
+                />
+                <Field
+                  label="Cidade de moradia *"
+                  value={form.spouseCidade}
+                  onChange={setField("spouseCidade")}
+                  placeholder="Selecione..."
+                />
+              </div>
+
+              <Field
+                label="Profissão *"
+                value={form.spouseProfissao}
+                onChange={setField("spouseProfissao")}
+                placeholder="Profissão do cônjuge"
+              />
+
+              <div className="grid sm:grid-cols-2 gap-4">
+                <Field
+                  label="Renda formal (R$)"
+                  value={form.spouseIncome}
+                  onChange={setBRL("spouseIncome")}
+                  placeholder="0,00"
+                />
+                <Field
+                  label="Renda informal (R$)"
+                  value={form.spouseInformalIncome}
+                  onChange={setBRL("spouseInformalIncome")}
+                  placeholder="0,00"
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Actions */}
+          <div className="flex gap-3 pt-2 border-t border-gray-100">
+            <button
+              type="button"
+              onClick={() => setLocation("/portal")}
+              className="px-5 py-2.5 rounded-xl text-sm font-medium border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
+            >
+              Voltar
+            </button>
+            <button
+              type="button"
+              onClick={handleSave}
+              disabled={saving}
+              className="px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition-colors disabled:opacity-60"
+              style={{ background: "#6B21A8" }}
+            >
+              {saving ? "Salvando..." : "Salvar alterações"}
+            </button>
+          </div>
+        </div>
+      )}
+    </ClientLayout>
+  );
+}

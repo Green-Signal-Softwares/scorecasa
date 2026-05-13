@@ -12,6 +12,7 @@ import { Ranking } from "@/pages/Ranking";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ClientPortal } from "@/pages/ClientPortal";
 import { ClientRegister } from "@/pages/ClientRegister";
+import { ClientMeusDados } from "@/pages/ClientMeusDados";
 
 const queryClient = new QueryClient();
 
@@ -21,6 +22,7 @@ function Router() {
       <Route path="/" component={Login} />
       <Route path="/login" component={Login} />
       <Route path="/cadastro" component={ClientRegister} />
+      <Route path="/portal/meus-dados" component={ClientMeusDados} />
       <Route path="/portal" component={ClientPortal} />
       <Route path="/:rest*">
         {() => (
