@@ -18,6 +18,7 @@ const queryClient = new QueryClient();
 function Router() {
   return (
     <Switch>
+      <Route path="/" component={Login} />
       <Route path="/login" component={Login} />
       <Route path="/cadastro" component={ClientRegister} />
       <Route path="/portal" component={ClientPortal} />
@@ -25,7 +26,6 @@ function Router() {
         {() => (
           <AppLayout>
             <Switch>
-              <Route path="/" component={Dashboard} />
               <Route path="/dashboard" component={Dashboard} />
               <Route path="/leads/:id">
                 {(params) => <LeadDetails key={params?.id} />}

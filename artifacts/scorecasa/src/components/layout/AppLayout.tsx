@@ -33,7 +33,14 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   if (!isAuthenticated) {
-    return null;
+    return (
+      <div className="flex h-screen items-center justify-center" style={{ background: "#07113A" }}>
+        <div className="flex flex-col items-center gap-4">
+          <ScoreCasaIcon size={44} />
+          <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+        </div>
+      </div>
+    );
   }
 
   const handleLogout = () => {
