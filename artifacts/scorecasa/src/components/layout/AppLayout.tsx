@@ -1,8 +1,9 @@
 import { useLocation, Link } from "wouter";
 import { LayoutDashboard, Users, UserCheck, Trophy, LogOut, CheckCircle, Menu, X } from "lucide-react";
 import { useState } from "react";
-import { useLogout, useGetMe } from "@workspace/api-client-react";
+import { useLogout } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { useRequireAuth } from "@/hooks/use-auth";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -16,6 +17,24 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const [mobileOpen, setMobileOpen] = useState(false);
   const logout = useLogout();
   const queryClient = useQueryClient();
+  const { isLoading, isAuthenticated } = useRequireAuth();
+
+  if (isLoading) {
+    return (
+      <div className="flex h-screen items-center justify-center" style={{ background: "#07113A" }}>
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "#10A65A" }}>
+            <CheckCircle className="w-6 h-6 text-white" />
+          </div>
+          <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+        </div>
+      </div>
+    );
+  }
+
+  if (!isAuthenticated) {
+    return null;
+  }
 
   const handleLogout = () => {
     logout.mutate(undefined, {

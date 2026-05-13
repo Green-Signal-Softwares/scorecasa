@@ -8,6 +8,7 @@ import { CheckCircle, Lock, Mail, TrendingUp, Shield, Zap } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
+import { useRedirectIfAuthenticated } from "@/hooks/use-auth";
 
 const loginSchema = z.object({
   email: z.string().email("Email inválido"),
@@ -20,7 +21,7 @@ export function Login() {
   const [, setLocation] = useLocation();
   const login = useLogin();
   const queryClient = useQueryClient();
-
+  const { isLoading: checkingAuth } = useRedirectIfAuthenticated();
   const form = useForm<LoginForm>({
     resolver: zodResolver(loginSchema),
     defaultValues: { email: "", password: "" },
@@ -40,6 +41,19 @@ export function Login() {
       }
     );
   };
+
+  if (checkingAuth) {
+    return (
+      <div className="min-h-screen flex items-center justify-center" style={{ background: "#07113A" }}>
+        <div className="flex flex-col items-center gap-4">
+          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "#10A65A" }}>
+            <CheckCircle className="w-6 h-6 text-white" />
+          </div>
+          <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+        </div>
+      </div>
+    );
+  }
 
   return (
     <div className="min-h-screen flex" style={{ background: "#07113A" }}>
