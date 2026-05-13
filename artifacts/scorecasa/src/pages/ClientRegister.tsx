@@ -1,6 +1,7 @@
 import { useState } from "react";
 import { useLocation, Link } from "wouter";
-import { CheckCircle, Eye, EyeOff, ArrowRight, Building2 } from "lucide-react";
+import { Eye, EyeOff, ArrowRight, Building2 } from "lucide-react";
+import { ScoreCasaLogo, ScoreCasaWordmark } from "@/components/ScoreCasaLogo";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { getGetMeQueryKey } from "@workspace/api-client-react";
@@ -145,12 +146,7 @@ export function ClientRegister() {
     <div className="min-h-screen flex" style={{ background: "#07113A" }}>
       {/* Left panel */}
       <div className="hidden lg:flex lg:w-2/5 flex-col justify-between p-10">
-        <div className="flex items-center gap-2">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "#10A65A" }}>
-            <CheckCircle className="w-5 h-5 text-white" />
-          </div>
-          <span className="text-white font-bold text-lg">ScoreCasa</span>
-        </div>
+        <ScoreCasaLogo variant="light" size="md" />
 
         <div>
           <h1 className="text-4xl font-bold text-white leading-tight mb-4">
@@ -185,11 +181,8 @@ export function ClientRegister() {
       {/* Right panel - form */}
       <div className="flex-1 flex items-center justify-center p-6" style={{ background: "#F4F6FB" }}>
         <div className="w-full max-w-md">
-          <div className="lg:hidden flex items-center gap-2 mb-6">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "#10A65A" }}>
-              <CheckCircle className="w-4 h-4 text-white" />
-            </div>
-            <span className="font-bold text-lg" style={{ color: "#07113A" }}>ScoreCasa</span>
+          <div className="lg:hidden flex justify-center mb-6">
+            <ScoreCasaWordmark variant="dark" size="md" />
           </div>
 
           <div className="bg-white rounded-2xl shadow-lg p-8">

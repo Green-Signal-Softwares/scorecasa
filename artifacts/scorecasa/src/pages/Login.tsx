@@ -4,7 +4,8 @@ import { z } from "zod";
 import { useLocation } from "wouter";
 import { useLogin } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { CheckCircle, Lock, Mail, TrendingUp, Shield, Zap } from "lucide-react";
+import { Lock, Mail, TrendingUp, Shield, Zap } from "lucide-react";
+import { ScoreCasaLogo, ScoreCasaIcon, ScoreCasaWordmark } from "@/components/ScoreCasaLogo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
@@ -47,9 +48,7 @@ export function Login() {
     return (
       <div className="min-h-screen flex items-center justify-center" style={{ background: "#07113A" }}>
         <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "#10A65A" }}>
-            <CheckCircle className="w-6 h-6 text-white" />
-          </div>
+          <ScoreCasaIcon size={48} />
           <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin" />
         </div>
       </div>
@@ -60,18 +59,7 @@ export function Login() {
     <div className="min-h-screen flex" style={{ background: "#07113A" }}>
       {/* Left: Branding */}
       <div className="hidden lg:flex flex-col justify-between w-1/2 p-12" style={{ background: "#07113A" }}>
-        <div className="flex items-center gap-3">
-          <div
-            className="w-10 h-10 rounded-xl flex items-center justify-center"
-            style={{ background: "#10A65A" }}
-          >
-            <CheckCircle className="w-6 h-6 text-white" />
-          </div>
-          <div>
-            <div className="text-white font-bold text-2xl tracking-tight">ScoreCasa</div>
-            <div className="text-xs" style={{ color: "#10A65A" }}>Inteligência de Crédito Imobiliário</div>
-          </div>
-        </div>
+        <ScoreCasaLogo variant="light" size="md" />
 
         <div>
           <h1 className="text-4xl font-bold text-white leading-tight mb-4">
@@ -110,14 +98,8 @@ export function Login() {
       <div className="flex-1 flex items-center justify-center p-6" style={{ background: "#F2F4F7" }}>
         <div className="w-full max-w-md">
           {/* Mobile logo */}
-          <div className="flex items-center gap-2 mb-8 lg:hidden justify-center">
-            <div
-              className="w-9 h-9 rounded-xl flex items-center justify-center"
-              style={{ background: "#10A65A" }}
-            >
-              <CheckCircle className="w-5 h-5 text-white" />
-            </div>
-            <span className="text-2xl font-bold" style={{ color: "#07113A" }}>ScoreCasa</span>
+          <div className="flex justify-center mb-8 lg:hidden">
+            <ScoreCasaLogo variant="dark" size="md" />
           </div>
 
           <div className="bg-white rounded-2xl shadow-lg p-8">

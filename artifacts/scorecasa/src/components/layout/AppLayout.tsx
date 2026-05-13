@@ -1,10 +1,11 @@
 import { useLocation, Link } from "wouter";
-import { LayoutDashboard, Users, UserCheck, Trophy, LogOut, CheckCircle, Menu, X } from "lucide-react";
+import { LayoutDashboard, Users, UserCheck, Trophy, LogOut, Menu, X } from "lucide-react";
 import { useState } from "react";
 import { useLogout } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRequireBrokerAuth } from "@/hooks/use-auth";
 import { NotificationBell } from "./NotificationBell";
+import { ScoreCasaIcon, ScoreCasaWordmark } from "@/components/ScoreCasaLogo";
 
 const navItems = [
   { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
@@ -24,9 +25,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     return (
       <div className="flex h-screen items-center justify-center" style={{ background: "#07113A" }}>
         <div className="flex flex-col items-center gap-4">
-          <div className="w-10 h-10 rounded-xl flex items-center justify-center" style={{ background: "#10A65A" }}>
-            <CheckCircle className="w-6 h-6 text-white" />
-          </div>
+          <ScoreCasaIcon size={44} />
           <div className="w-6 h-6 border-2 border-white/20 border-t-white rounded-full animate-spin" />
         </div>
       </div>
@@ -51,13 +50,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
       <div className="px-4 py-6">
         <div className="flex items-center justify-between">
           <div className="flex items-center gap-2">
-            <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "#10A65A" }}>
-              <CheckCircle className="w-5 h-5 text-white" />
-            </div>
-            <div>
-              <div className="text-white font-bold text-lg leading-none tracking-tight">ScoreCasa</div>
-              <div className="text-xs leading-none mt-0.5" style={{ color: "#10A65A" }}>Inteligência de Crédito</div>
-            </div>
+            <ScoreCasaIcon size={34} />
+            <ScoreCasaWordmark variant="light" size="sm" />
           </div>
           <NotificationBell />
         </div>
@@ -140,8 +134,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
             <Menu className="w-5 h-5" />
           </button>
           <div className="flex items-center gap-2">
-            <CheckCircle className="w-5 h-5" style={{ color: "#10A65A" }} />
-            <span className="font-bold text-foreground">ScoreCasa</span>
+            <ScoreCasaIcon size={28} />
+            <ScoreCasaWordmark variant="dark" size="sm" />
           </div>
         </div>
 

@@ -1,4 +1,5 @@
-import { CheckCircle, LogOut, User } from "lucide-react";
+import { LogOut, User } from "lucide-react";
+import { ScoreCasaIcon, ScoreCasaWordmark } from "@/components/ScoreCasaLogo";
 import { useLogout } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useLocation } from "wouter";
@@ -28,10 +29,8 @@ export function ClientLayout({ children, userName }: ClientLayoutProps) {
       <header className="sticky top-0 z-10 border-b border-white/10 shadow-sm" style={{ background: "#07113A" }}>
         <div className="max-w-4xl mx-auto px-4 sm:px-6 flex items-center justify-between h-14">
           <div className="flex items-center gap-2">
-            <div className="w-7 h-7 rounded-lg flex items-center justify-center" style={{ background: "#10A65A" }}>
-              <CheckCircle className="w-4 h-4 text-white" />
-            </div>
-            <span className="text-white font-bold text-base tracking-tight">ScoreCasa</span>
+            <ScoreCasaIcon size={30} />
+            <ScoreCasaWordmark variant="light" size="sm" />
           </div>
 
           <div className="flex items-center gap-3">
