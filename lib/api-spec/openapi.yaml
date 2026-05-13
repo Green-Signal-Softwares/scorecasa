@@ -1,36 +1,660 @@
 openapi: 3.1.0
 info:
-  # Do not change the title, if the title changes, the import paths will be broken
-  title: Api
-  version: 0.1.0
-  description: API specification
+  title: API
+  version: 1.0.0
 servers:
   - url: /api
-    description: Base API path
-tags:
-  - name: health
-    description: Health operations
+
 paths:
   /healthz:
     get:
       operationId: healthCheck
-      tags: [health]
       summary: Health check
-      description: Returns server health status
+      tags: [health]
       responses:
         "200":
-          description: Healthy
+          description: OK
           content:
             application/json:
               schema:
                 $ref: "#/components/schemas/HealthStatus"
+
+  /auth/login:
+    post:
+      operationId: login
+      summary: Login with email and password
+      tags: [auth]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LoginRequest"
+      responses:
+        "200":
+          description: Login successful
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/AuthResult"
+        "401":
+          description: Invalid credentials
+
+  /auth/logout:
+    post:
+      operationId: logout
+      summary: Logout current user
+      tags: [auth]
+      responses:
+        "200":
+          description: Logged out
+
+  /auth/me:
+    get:
+      operationId: getMe
+      summary: Get current user
+      tags: [auth]
+      responses:
+        "200":
+          description: Current user
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/User"
+        "401":
+          description: Unauthorized
+
+  /dashboard:
+    get:
+      operationId: getDashboard
+      summary: Get dashboard summary stats
+      tags: [dashboard]
+      responses:
+        "200":
+          description: Dashboard stats
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/DashboardStats"
+
+  /leads:
+    get:
+      operationId: getLeads
+      summary: List all leads
+      tags: [leads]
+      parameters:
+        - name: status
+          in: query
+          schema:
+            type: string
+            enum: [pending, analyzing, approved, rejected, in_progress]
+        - name: search
+          in: query
+          schema:
+            type: string
+        - name: page
+          in: query
+          schema:
+            type: integer
+            default: 1
+        - name: limit
+          in: query
+          schema:
+            type: integer
+            default: 20
+      responses:
+        "200":
+          description: List of leads
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/LeadList"
+    post:
+      operationId: createLead
+      summary: Create a new lead
+      tags: [leads]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateLeadRequest"
+      responses:
+        "201":
+          description: Lead created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lead"
+
+  /leads/{id}:
+    get:
+      operationId: getLead
+      summary: Get lead by ID
+      tags: [leads]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Lead details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lead"
+        "404":
+          description: Lead not found
+    put:
+      operationId: updateLead
+      summary: Update a lead
+      tags: [leads]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateLeadRequest"
+      responses:
+        "200":
+          description: Lead updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Lead"
+    delete:
+      operationId: deleteLead
+      summary: Delete a lead
+      tags: [leads]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "204":
+          description: Lead deleted
+
+  /brokers:
+    get:
+      operationId: getBrokers
+      summary: List all brokers/correspondents
+      tags: [brokers]
+      parameters:
+        - name: search
+          in: query
+          schema:
+            type: string
+      responses:
+        "200":
+          description: List of brokers
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Broker"
+    post:
+      operationId: createBroker
+      summary: Create a new broker
+      tags: [brokers]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateBrokerRequest"
+      responses:
+        "201":
+          description: Broker created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Broker"
+
+  /brokers/{id}:
+    get:
+      operationId: getBroker
+      summary: Get broker by ID
+      tags: [brokers]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Broker details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Broker"
+    put:
+      operationId: updateBroker
+      summary: Update a broker
+      tags: [brokers]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateBrokerRequest"
+      responses:
+        "200":
+          description: Broker updated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Broker"
+
+  /leads/{id}/score:
+    get:
+      operationId: getLeadScore
+      summary: Get AI credit score analysis for a lead
+      tags: [leads]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema:
+            type: integer
+      responses:
+        "200":
+          description: Score details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/CreditScore"
+
+  /funnel:
+    get:
+      operationId: getApprovalFunnel
+      summary: Get approval funnel data
+      tags: [dashboard]
+      responses:
+        "200":
+          description: Approval funnel stages
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/ApprovalFunnel"
+
+  /ranking/brokers:
+    get:
+      operationId: getBrokerRanking
+      summary: Get broker performance ranking
+      tags: [dashboard]
+      responses:
+        "200":
+          description: Broker ranking
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/BrokerRanking"
+
+  /ranking/leads:
+    get:
+      operationId: getLeadRanking
+      summary: Get top leads ranked by approval chance
+      tags: [dashboard]
+      responses:
+        "200":
+          description: Lead ranking
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/LeadRanking"
+
 components:
   schemas:
     HealthStatus:
       type: object
+      required: [status]
       properties:
         status:
           type: string
-      required:
-        - status
+          enum: [ok]
 
+    LoginRequest:
+      type: object
+      required: [email, password]
+      properties:
+        email:
+          type: string
+          format: email
+        password:
+          type: string
+
+    AuthResult:
+      type: object
+      required: [user]
+      properties:
+        user:
+          $ref: "#/components/schemas/User"
+
+    User:
+      type: object
+      required: [id, name, email, role]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        role:
+          type: string
+          enum: [admin, broker, analyst]
+        avatarUrl:
+          type: string
+          nullable: true
+
+    Lead:
+      type: object
+      required: [id, name, cpf, email, phone, income, propertyValue, status, approvalChance, scoreCaixa, scoreMCMV, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        cpf:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        income:
+          type: number
+          description: Monthly income in BRL
+        propertyValue:
+          type: number
+          description: Desired property value in BRL
+        status:
+          type: string
+          enum: [pending, analyzing, approved, rejected, in_progress]
+        approvalChance:
+          type: number
+          description: AI approval probability 0-100
+        scoreCaixa:
+          type: integer
+          description: Caixa Econômica credit score
+        scoreMCMV:
+          type: integer
+          description: Minha Casa Minha Vida eligibility score
+        brokerId:
+          type: integer
+          nullable: true
+        brokerName:
+          type: string
+          nullable: true
+        aiRecommendation:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateLeadRequest:
+      type: object
+      required: [name, cpf, email, phone, income, propertyValue]
+      properties:
+        name:
+          type: string
+        cpf:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        income:
+          type: number
+        propertyValue:
+          type: number
+        brokerId:
+          type: integer
+          nullable: true
+
+    UpdateLeadRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        income:
+          type: number
+        propertyValue:
+          type: number
+        status:
+          type: string
+          enum: [pending, analyzing, approved, rejected, in_progress]
+        brokerId:
+          type: integer
+          nullable: true
+
+    LeadList:
+      type: object
+      required: [data, total, page, limit]
+      properties:
+        data:
+          type: array
+          items:
+            $ref: "#/components/schemas/Lead"
+        total:
+          type: integer
+        page:
+          type: integer
+        limit:
+          type: integer
+
+    Broker:
+      type: object
+      required: [id, name, email, phone, creci, status, totalLeads, approvedLeads, createdAt]
+      properties:
+        id:
+          type: integer
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        creci:
+          type: string
+          description: CRECI broker registration number
+        status:
+          type: string
+          enum: [active, inactive]
+        totalLeads:
+          type: integer
+        approvedLeads:
+          type: integer
+        approvalRate:
+          type: number
+        createdAt:
+          type: string
+          format: date-time
+
+    CreateBrokerRequest:
+      type: object
+      required: [name, email, phone, creci]
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        creci:
+          type: string
+
+    UpdateBrokerRequest:
+      type: object
+      properties:
+        name:
+          type: string
+        email:
+          type: string
+        phone:
+          type: string
+        status:
+          type: string
+          enum: [active, inactive]
+
+    CreditScore:
+      type: object
+      required: [leadId, overallScore, approvalChance, scoreCaixa, scoreMCMV, factors, recommendation]
+      properties:
+        leadId:
+          type: integer
+        overallScore:
+          type: integer
+          description: Overall credit score 0-1000
+        approvalChance:
+          type: number
+          description: AI approval probability 0-100
+        scoreCaixa:
+          type: integer
+        scoreMCMV:
+          type: integer
+        factors:
+          type: array
+          items:
+            $ref: "#/components/schemas/ScoreFactor"
+        recommendation:
+          type: string
+        eligibleBanks:
+          type: array
+          items:
+            type: string
+
+    ScoreFactor:
+      type: object
+      required: [name, impact, description]
+      properties:
+        name:
+          type: string
+        impact:
+          type: string
+          enum: [positive, negative, neutral]
+        description:
+          type: string
+        value:
+          type: string
+          nullable: true
+
+    DashboardStats:
+      type: object
+      required: [totalLeads, approvedLeads, pendingLeads, rejectedLeads, averageApprovalChance, averageScore, monthlyApprovals, conversionRate]
+      properties:
+        totalLeads:
+          type: integer
+        approvedLeads:
+          type: integer
+        pendingLeads:
+          type: integer
+        rejectedLeads:
+          type: integer
+        averageApprovalChance:
+          type: number
+        averageScore:
+          type: number
+        monthlyApprovals:
+          type: array
+          items:
+            $ref: "#/components/schemas/MonthlyData"
+        conversionRate:
+          type: number
+
+    MonthlyData:
+      type: object
+      required: [month, approvals, leads]
+      properties:
+        month:
+          type: string
+        approvals:
+          type: integer
+        leads:
+          type: integer
+
+    ApprovalFunnel:
+      type: object
+      required: [stages]
+      properties:
+        stages:
+          type: array
+          items:
+            $ref: "#/components/schemas/FunnelStage"
+
+    FunnelStage:
+      type: object
+      required: [name, count, percentage]
+      properties:
+        name:
+          type: string
+        count:
+          type: integer
+        percentage:
+          type: number
+
+    BrokerRanking:
+      type: object
+      required: [rank, brokerId, brokerName, approvedLeads, totalLeads, approvalRate, volume]
+      properties:
+        rank:
+          type: integer
+        brokerId:
+          type: integer
+        brokerName:
+          type: string
+        approvedLeads:
+          type: integer
+        totalLeads:
+          type: integer
+        approvalRate:
+          type: number
+        volume:
+          type: number
+          description: Total approved property value in BRL
+
+    LeadRanking:
+      type: object
+      required: [rank, leadId, leadName, approvalChance, scoreCaixa, status]
+      properties:
+        rank:
+          type: integer
+        leadId:
+          type: integer
+        leadName:
+          type: string
+        approvalChance:
+          type: number
+        scoreCaixa:
+          type: integer
+        status:
+          type: string

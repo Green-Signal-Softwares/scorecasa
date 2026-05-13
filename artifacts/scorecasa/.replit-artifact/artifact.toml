@@ -1,0 +1,31 @@
+kind = "web"
+previewPath = "/"
+title = "ScoreCasa"
+version = "1.0.0"
+id = "artifacts/scorecasa"
+router = "path"
+
+[[integratedSkills]]
+name = "react-vite"
+version = "1.0.0"
+
+[[services]]
+name = "web"
+paths = [ "/" ]
+localPort = 19500
+
+[services.development]
+run = "pnpm --filter @workspace/scorecasa run dev"
+
+[services.production]
+build = [ "pnpm", "--filter", "@workspace/scorecasa", "run", "build" ]
+publicDir = "artifacts/scorecasa/dist/public"
+serve = "static"
+
+[[services.production.rewrites]]
+from = "/*"
+to = "/index.html"
+
+[services.env]
+PORT = "19500"
+BASE_PATH = "/"
