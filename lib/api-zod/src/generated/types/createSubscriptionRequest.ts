@@ -15,5 +15,8 @@ export interface CreateSubscriptionRequest {
   plan: CreateSubscriptionRequestPlan;
   status?: CreateSubscriptionRequestStatus;
   billingDay?: number;
+  marketplaceAddon?: boolean;
+  marketplacePropertyLimit?: number;
+  marketplaceAddonPrice?: number;
   notes?: string;
 }

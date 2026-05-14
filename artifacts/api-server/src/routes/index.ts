@@ -10,6 +10,8 @@ import notificationsRouter from "./notifications";
 import clientRouter from "./client";
 import propertiesRouter from "./properties";
 import subscriptionsRouter from "./subscriptions";
+import ratingsRouter from "./ratings";
+import salesHistoryRouter from "./sales-history";
 
 const router: IRouter = Router();
 
@@ -24,5 +26,7 @@ router.use("/notifications", notificationsRouter);
 router.use("/client", clientRouter);
 router.use("/properties", propertiesRouter);
 router.use("/subscriptions", subscriptionsRouter);
+router.use("/ratings", ratingsRouter);
+router.use("/sales-history", salesHistoryRouter);
 
 export default router;

@@ -11,6 +11,8 @@ import { Brokers } from "@/pages/Brokers";
 import { Ranking } from "@/pages/Ranking";
 import { Imoveis } from "@/pages/Imoveis";
 import { Financeiro } from "@/pages/Financeiro";
+import { Historico } from "@/pages/Historico";
+import { Avaliacoes } from "@/pages/Avaliacoes";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ClientPortal } from "@/pages/ClientPortal";
 import { ClientRegister } from "@/pages/ClientRegister";
@@ -79,6 +81,22 @@ function Router() {
         {() => (
           <AppLayout>
             <Financeiro />
+          </AppLayout>
+        )}
+      </Route>
+
+      <Route path="/historico">
+        {() => (
+          <AppLayout>
+            <Historico />
+          </AppLayout>
+        )}
+      </Route>
+
+      <Route path="/avaliacoes">
+        {() => (
+          <AppLayout>
+            <Avaliacoes />
           </AppLayout>
         )}
       </Route>

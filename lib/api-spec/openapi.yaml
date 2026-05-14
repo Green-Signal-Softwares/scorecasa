@@ -389,6 +389,147 @@ paths:
               schema:
                 $ref: "#/components/schemas/Subscription"
 
+  /ratings/me:
+    get:
+      operationId: getMyRatings
+      summary: Get ratings received by current user
+      tags: [ratings]
+      responses:
+        "200":
+          description: Ratings summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RatingSummary"
+
+  /ratings/user/{userId}:
+    get:
+      operationId: getRatingsByUser
+      summary: Get ratings received by a specific user
+      tags: [ratings]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Ratings summary
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/RatingSummary"
+
+  /ratings:
+    post:
+      operationId: createRating
+      summary: Create a rating for a broker or correspondent
+      tags: [ratings]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateRatingRequest"
+      responses:
+        "201":
+          description: Rating created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Rating"
+
+  /sales-history/me:
+    get:
+      operationId: getMySalesHistory
+      summary: Get my sales/contract history
+      tags: [salesHistory]
+      responses:
+        "200":
+          description: Sales history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SaleHistory"
+
+  /sales-history/user/{userId}:
+    get:
+      operationId: getSalesHistoryByUser
+      summary: Get sales history for a specific user
+      tags: [salesHistory]
+      parameters:
+        - name: userId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Sales history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SaleHistory"
+
+  /sales-history:
+    get:
+      operationId: getAllSalesHistory
+      summary: Admin — all sales history
+      tags: [salesHistory]
+      responses:
+        "200":
+          description: All sales history
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/SaleHistory"
+    post:
+      operationId: createSale
+      summary: Create a sale/contract record
+      tags: [salesHistory]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSaleRequest"
+      responses:
+        "201":
+          description: Sale created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SaleHistory"
+
+  /sales-history/{id}:
+    patch:
+      operationId: updateSale
+      summary: Advance sale stage or update details
+      tags: [salesHistory]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSaleRequest"
+      responses:
+        "200":
+          description: Updated sale
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/SaleHistory"
+
   /dashboard:
     get:
       operationId: getDashboard
@@ -1556,7 +1697,7 @@ components:
           type: string
         plan:
           type: string
-          enum: [client, corretor, correspondent]
+          enum: [individual, corretor_50, corretor_200, corretor_enterprise, correspondent_50, correspondent_200, correspondent_enterprise, client, corretor, correspondent]
         status:
           type: string
           enum: [trial, active, overdue, cancelled, inactive]
@@ -1564,6 +1705,15 @@ components:
           type: number
         billingDay:
           type: integer
+        marketplaceAddon:
+          type: boolean
+          nullable: true
+        marketplacePropertyLimit:
+          type: integer
+          nullable: true
+        marketplaceAddonPrice:
+          type: number
+          nullable: true
         trialEndsAt:
           type: string
           format: date-time
@@ -1604,12 +1754,18 @@ components:
           type: string
         plan:
           type: string
-          enum: [client, corretor, correspondent]
+          enum: [individual, corretor_50, corretor_200, corretor_enterprise, correspondent_50, correspondent_200, correspondent_enterprise, client, corretor, correspondent]
         status:
           type: string
           enum: [trial, active, overdue, cancelled, inactive]
         billingDay:
           type: integer
+        marketplaceAddon:
+          type: boolean
+        marketplacePropertyLimit:
+          type: integer
+        marketplaceAddonPrice:
+          type: number
         notes:
           type: string
 
@@ -1618,16 +1774,211 @@ components:
       properties:
         plan:
           type: string
-          enum: [client, corretor, correspondent]
+          enum: [individual, corretor_50, corretor_200, corretor_enterprise, correspondent_50, correspondent_200, correspondent_enterprise, client, corretor, correspondent]
         status:
           type: string
           enum: [trial, active, overdue, cancelled, inactive]
         billingDay:
           type: integer
+        marketplaceAddon:
+          type: boolean
+        marketplacePropertyLimit:
+          type: integer
+        marketplaceAddonPrice:
+          type: number
         lastPaymentAt:
           type: string
           format: date-time
         nextDueAt:
+          type: string
+          format: date-time
+        notes:
+          type: string
+
+    Rating:
+      type: object
+      required: [id, fromUserId, fromUserName, toUserId, toUserName, toUserRole, stars, createdAt]
+      properties:
+        id:
+          type: integer
+        fromUserId:
+          type: integer
+        fromUserName:
+          type: string
+        toUserId:
+          type: integer
+        toUserName:
+          type: string
+        toUserRole:
+          type: string
+          enum: [broker, correspondent]
+        leadId:
+          type: integer
+          nullable: true
+        propertyTitle:
+          type: string
+          nullable: true
+        stars:
+          type: integer
+          minimum: 1
+          maximum: 5
+        comment:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+
+    RatingSummary:
+      type: object
+      required: [ratings, average, total]
+      properties:
+        ratings:
+          type: array
+          items:
+            $ref: "#/components/schemas/Rating"
+        average:
+          type: number
+        total:
+          type: integer
+
+    CreateRatingRequest:
+      type: object
+      required: [toUserId, toUserName, toUserRole, stars]
+      properties:
+        toUserId:
+          type: integer
+        toUserName:
+          type: string
+        toUserRole:
+          type: string
+          enum: [broker, correspondent]
+        leadId:
+          type: integer
+        propertyTitle:
+          type: string
+        stars:
+          type: integer
+          minimum: 1
+          maximum: 5
+        comment:
+          type: string
+
+    SaleHistory:
+      type: object
+      required: [id, userId, userName, userRole, clientName, propertyTitle, propertyValue, stage, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        userName:
+          type: string
+        userRole:
+          type: string
+        clientId:
+          type: integer
+          nullable: true
+        clientName:
+          type: string
+        leadId:
+          type: integer
+          nullable: true
+        propertyTitle:
+          type: string
+        propertyValue:
+          type: number
+        propertyCity:
+          type: string
+          nullable: true
+        bankName:
+          type: string
+          nullable: true
+        financedValue:
+          type: number
+          nullable: true
+        stage:
+          type: string
+          enum: [approved, engineering, compliance, contract_signed, keys_delivered]
+        approvedAt:
+          type: string
+          format: date-time
+          nullable: true
+        engineeringAt:
+          type: string
+          format: date-time
+          nullable: true
+        complianceAt:
+          type: string
+          format: date-time
+          nullable: true
+        contractSignedAt:
+          type: string
+          format: date-time
+          nullable: true
+        keysDeliveredAt:
+          type: string
+          format: date-time
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateSaleRequest:
+      type: object
+      required: [clientName, propertyTitle, propertyValue]
+      properties:
+        clientName:
+          type: string
+        clientId:
+          type: integer
+        leadId:
+          type: integer
+        propertyTitle:
+          type: string
+        propertyValue:
+          type: number
+        propertyCity:
+          type: string
+        bankName:
+          type: string
+        financedValue:
+          type: number
+        stage:
+          type: string
+          enum: [approved, engineering, compliance, contract_signed, keys_delivered]
+        notes:
+          type: string
+
+    UpdateSaleRequest:
+      type: object
+      properties:
+        stage:
+          type: string
+          enum: [approved, engineering, compliance, contract_signed, keys_delivered]
+        bankName:
+          type: string
+        financedValue:
+          type: number
+        approvedAt:
+          type: string
+          format: date-time
+        engineeringAt:
+          type: string
+          format: date-time
+        complianceAt:
+          type: string
+          format: date-time
+        contractSignedAt:
+          type: string
+          format: date-time
+        keysDeliveredAt:
           type: string
           format: date-time
         notes:

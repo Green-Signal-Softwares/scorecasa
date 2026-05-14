@@ -25,6 +25,8 @@ import type {
   CreateBrokerRequest,
   CreateLeadRequest,
   CreatePropertyRequest,
+  CreateRatingRequest,
+  CreateSaleRequest,
   CreateSubscriptionRequest,
   CreditScore,
   DashboardStats,
@@ -41,13 +43,17 @@ import type {
   MarkNotificationRead200,
   NotificationsResult,
   Property,
+  Rating,
+  RatingSummary,
   RegisterRequest,
+  SaleHistory,
   Subscription,
   TogglePropertyInterest200,
   UpdateBrokerRequest,
   UpdateClientProfileRequest,
   UpdateLeadRequest,
   UpdatePropertyRequest,
+  UpdateSaleRequest,
   UpdateSubscriptionRequest,
   User,
 } from "./api.schemas";
@@ -1778,6 +1784,667 @@ export const useUpdateSubscription = <
   TContext
 > => {
   return useMutation(getUpdateSubscriptionMutationOptions(options));
+};
+
+/**
+ * @summary Get ratings received by current user
+ */
+export const getGetMyRatingsUrl = () => {
+  return `/api/ratings/me`;
+};
+
+export const getMyRatings = async (
+  options?: RequestInit,
+): Promise<RatingSummary> => {
+  return customFetch<RatingSummary>(getGetMyRatingsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetMyRatingsQueryKey = () => {
+  return [`/api/ratings/me`] as const;
+};
+
+export const getGetMyRatingsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMyRatings>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMyRatings>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetMyRatingsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getMyRatings>>> = ({
+    signal,
+  }) => getMyRatings({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMyRatings>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMyRatingsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMyRatings>>
+>;
+export type GetMyRatingsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get ratings received by current user
+ */
+
+export function useGetMyRatings<
+  TData = Awaited<ReturnType<typeof getMyRatings>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMyRatings>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMyRatingsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get ratings received by a specific user
+ */
+export const getGetRatingsByUserUrl = (userId: number) => {
+  return `/api/ratings/user/${userId}`;
+};
+
+export const getRatingsByUser = async (
+  userId: number,
+  options?: RequestInit,
+): Promise<RatingSummary> => {
+  return customFetch<RatingSummary>(getGetRatingsByUserUrl(userId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetRatingsByUserQueryKey = (userId: number) => {
+  return [`/api/ratings/user/${userId}`] as const;
+};
+
+export const getGetRatingsByUserQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRatingsByUser>>,
+  TError = ErrorType<unknown>,
+>(
+  userId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRatingsByUser>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetRatingsByUserQueryKey(userId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getRatingsByUser>>
+  > = ({ signal }) => getRatingsByUser(userId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!userId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getRatingsByUser>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetRatingsByUserQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getRatingsByUser>>
+>;
+export type GetRatingsByUserQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get ratings received by a specific user
+ */
+
+export function useGetRatingsByUser<
+  TData = Awaited<ReturnType<typeof getRatingsByUser>>,
+  TError = ErrorType<unknown>,
+>(
+  userId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRatingsByUser>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetRatingsByUserQueryOptions(userId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a rating for a broker or correspondent
+ */
+export const getCreateRatingUrl = () => {
+  return `/api/ratings`;
+};
+
+export const createRating = async (
+  createRatingRequest: CreateRatingRequest,
+  options?: RequestInit,
+): Promise<Rating> => {
+  return customFetch<Rating>(getCreateRatingUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createRatingRequest),
+  });
+};
+
+export const getCreateRatingMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createRating>>,
+    TError,
+    { data: BodyType<CreateRatingRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createRating>>,
+  TError,
+  { data: BodyType<CreateRatingRequest> },
+  TContext
+> => {
+  const mutationKey = ["createRating"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createRating>>,
+    { data: BodyType<CreateRatingRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createRating(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateRatingMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createRating>>
+>;
+export type CreateRatingMutationBody = BodyType<CreateRatingRequest>;
+export type CreateRatingMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Create a rating for a broker or correspondent
+ */
+export const useCreateRating = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createRating>>,
+    TError,
+    { data: BodyType<CreateRatingRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createRating>>,
+  TError,
+  { data: BodyType<CreateRatingRequest> },
+  TContext
+> => {
+  return useMutation(getCreateRatingMutationOptions(options));
+};
+
+/**
+ * @summary Get my sales/contract history
+ */
+export const getGetMySalesHistoryUrl = () => {
+  return `/api/sales-history/me`;
+};
+
+export const getMySalesHistory = async (
+  options?: RequestInit,
+): Promise<SaleHistory[]> => {
+  return customFetch<SaleHistory[]>(getGetMySalesHistoryUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetMySalesHistoryQueryKey = () => {
+  return [`/api/sales-history/me`] as const;
+};
+
+export const getGetMySalesHistoryQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMySalesHistory>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMySalesHistory>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetMySalesHistoryQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getMySalesHistory>>
+  > = ({ signal }) => getMySalesHistory({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMySalesHistory>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMySalesHistoryQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMySalesHistory>>
+>;
+export type GetMySalesHistoryQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get my sales/contract history
+ */
+
+export function useGetMySalesHistory<
+  TData = Awaited<ReturnType<typeof getMySalesHistory>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMySalesHistory>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMySalesHistoryQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Get sales history for a specific user
+ */
+export const getGetSalesHistoryByUserUrl = (userId: number) => {
+  return `/api/sales-history/user/${userId}`;
+};
+
+export const getSalesHistoryByUser = async (
+  userId: number,
+  options?: RequestInit,
+): Promise<SaleHistory[]> => {
+  return customFetch<SaleHistory[]>(getGetSalesHistoryByUserUrl(userId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetSalesHistoryByUserQueryKey = (userId: number) => {
+  return [`/api/sales-history/user/${userId}`] as const;
+};
+
+export const getGetSalesHistoryByUserQueryOptions = <
+  TData = Awaited<ReturnType<typeof getSalesHistoryByUser>>,
+  TError = ErrorType<unknown>,
+>(
+  userId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getSalesHistoryByUser>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetSalesHistoryByUserQueryKey(userId);
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getSalesHistoryByUser>>
+  > = ({ signal }) =>
+    getSalesHistoryByUser(userId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!userId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getSalesHistoryByUser>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetSalesHistoryByUserQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getSalesHistoryByUser>>
+>;
+export type GetSalesHistoryByUserQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Get sales history for a specific user
+ */
+
+export function useGetSalesHistoryByUser<
+  TData = Awaited<ReturnType<typeof getSalesHistoryByUser>>,
+  TError = ErrorType<unknown>,
+>(
+  userId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getSalesHistoryByUser>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetSalesHistoryByUserQueryOptions(userId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Admin — all sales history
+ */
+export const getGetAllSalesHistoryUrl = () => {
+  return `/api/sales-history`;
+};
+
+export const getAllSalesHistory = async (
+  options?: RequestInit,
+): Promise<SaleHistory[]> => {
+  return customFetch<SaleHistory[]>(getGetAllSalesHistoryUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetAllSalesHistoryQueryKey = () => {
+  return [`/api/sales-history`] as const;
+};
+
+export const getGetAllSalesHistoryQueryOptions = <
+  TData = Awaited<ReturnType<typeof getAllSalesHistory>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getAllSalesHistory>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetAllSalesHistoryQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getAllSalesHistory>>
+  > = ({ signal }) => getAllSalesHistory({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getAllSalesHistory>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetAllSalesHistoryQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getAllSalesHistory>>
+>;
+export type GetAllSalesHistoryQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Admin — all sales history
+ */
+
+export function useGetAllSalesHistory<
+  TData = Awaited<ReturnType<typeof getAllSalesHistory>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getAllSalesHistory>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetAllSalesHistoryQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Create a sale/contract record
+ */
+export const getCreateSaleUrl = () => {
+  return `/api/sales-history`;
+};
+
+export const createSale = async (
+  createSaleRequest: CreateSaleRequest,
+  options?: RequestInit,
+): Promise<SaleHistory> => {
+  return customFetch<SaleHistory>(getCreateSaleUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(createSaleRequest),
+  });
+};
+
+export const getCreateSaleMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createSale>>,
+    TError,
+    { data: BodyType<CreateSaleRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof createSale>>,
+  TError,
+  { data: BodyType<CreateSaleRequest> },
+  TContext
+> => {
+  const mutationKey = ["createSale"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof createSale>>,
+    { data: BodyType<CreateSaleRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return createSale(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type CreateSaleMutationResult = NonNullable<
+  Awaited<ReturnType<typeof createSale>>
+>;
+export type CreateSaleMutationBody = BodyType<CreateSaleRequest>;
+export type CreateSaleMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Create a sale/contract record
+ */
+export const useCreateSale = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof createSale>>,
+    TError,
+    { data: BodyType<CreateSaleRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof createSale>>,
+  TError,
+  { data: BodyType<CreateSaleRequest> },
+  TContext
+> => {
+  return useMutation(getCreateSaleMutationOptions(options));
+};
+
+/**
+ * @summary Advance sale stage or update details
+ */
+export const getUpdateSaleUrl = (id: number) => {
+  return `/api/sales-history/${id}`;
+};
+
+export const updateSale = async (
+  id: number,
+  updateSaleRequest: UpdateSaleRequest,
+  options?: RequestInit,
+): Promise<SaleHistory> => {
+  return customFetch<SaleHistory>(getUpdateSaleUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateSaleRequest),
+  });
+};
+
+export const getUpdateSaleMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateSale>>,
+    TError,
+    { id: number; data: BodyType<UpdateSaleRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateSale>>,
+  TError,
+  { id: number; data: BodyType<UpdateSaleRequest> },
+  TContext
+> => {
+  const mutationKey = ["updateSale"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateSale>>,
+    { id: number; data: BodyType<UpdateSaleRequest> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateSale(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateSaleMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateSale>>
+>;
+export type UpdateSaleMutationBody = BodyType<UpdateSaleRequest>;
+export type UpdateSaleMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Advance sale stage or update details
+ */
+export const useUpdateSale = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateSale>>,
+    TError,
+    { id: number; data: BodyType<UpdateSaleRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateSale>>,
+  TError,
+  { id: number; data: BodyType<UpdateSaleRequest> },
+  TContext
+> => {
+  return useMutation(getUpdateSaleMutationOptions(options));
 };
 
 /**

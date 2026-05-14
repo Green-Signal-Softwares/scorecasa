@@ -573,6 +573,13 @@ export type SubscriptionPlan =
   (typeof SubscriptionPlan)[keyof typeof SubscriptionPlan];
 
 export const SubscriptionPlan = {
+  individual: "individual",
+  corretor_50: "corretor_50",
+  corretor_200: "corretor_200",
+  corretor_enterprise: "corretor_enterprise",
+  correspondent_50: "correspondent_50",
+  correspondent_200: "correspondent_200",
+  correspondent_enterprise: "correspondent_enterprise",
   client: "client",
   corretor: "corretor",
   correspondent: "correspondent",
@@ -599,6 +606,9 @@ export interface Subscription {
   status: SubscriptionStatus;
   priceMonthly: number;
   billingDay: number;
+  marketplaceAddon?: boolean | null;
+  marketplacePropertyLimit?: number | null;
+  marketplaceAddonPrice?: number | null;
   trialEndsAt?: string | null;
   lastPaymentAt?: string | null;
   nextDueAt?: string | null;
@@ -612,6 +622,13 @@ export type CreateSubscriptionRequestPlan =
   (typeof CreateSubscriptionRequestPlan)[keyof typeof CreateSubscriptionRequestPlan];
 
 export const CreateSubscriptionRequestPlan = {
+  individual: "individual",
+  corretor_50: "corretor_50",
+  corretor_200: "corretor_200",
+  corretor_enterprise: "corretor_enterprise",
+  correspondent_50: "correspondent_50",
+  correspondent_200: "correspondent_200",
+  correspondent_enterprise: "correspondent_enterprise",
   client: "client",
   corretor: "corretor",
   correspondent: "correspondent",
@@ -636,6 +653,9 @@ export interface CreateSubscriptionRequest {
   plan: CreateSubscriptionRequestPlan;
   status?: CreateSubscriptionRequestStatus;
   billingDay?: number;
+  marketplaceAddon?: boolean;
+  marketplacePropertyLimit?: number;
+  marketplaceAddonPrice?: number;
   notes?: string;
 }
 
@@ -643,6 +663,13 @@ export type UpdateSubscriptionRequestPlan =
   (typeof UpdateSubscriptionRequestPlan)[keyof typeof UpdateSubscriptionRequestPlan];
 
 export const UpdateSubscriptionRequestPlan = {
+  individual: "individual",
+  corretor_50: "corretor_50",
+  corretor_200: "corretor_200",
+  corretor_enterprise: "corretor_enterprise",
+  correspondent_50: "correspondent_50",
+  correspondent_200: "correspondent_200",
+  correspondent_enterprise: "correspondent_enterprise",
   client: "client",
   corretor: "corretor",
   correspondent: "correspondent",
@@ -663,8 +690,147 @@ export interface UpdateSubscriptionRequest {
   plan?: UpdateSubscriptionRequestPlan;
   status?: UpdateSubscriptionRequestStatus;
   billingDay?: number;
+  marketplaceAddon?: boolean;
+  marketplacePropertyLimit?: number;
+  marketplaceAddonPrice?: number;
   lastPaymentAt?: string;
   nextDueAt?: string;
+  notes?: string;
+}
+
+export type RatingToUserRole =
+  (typeof RatingToUserRole)[keyof typeof RatingToUserRole];
+
+export const RatingToUserRole = {
+  broker: "broker",
+  correspondent: "correspondent",
+} as const;
+
+export interface Rating {
+  id: number;
+  fromUserId: number;
+  fromUserName: string;
+  toUserId: number;
+  toUserName: string;
+  toUserRole: RatingToUserRole;
+  leadId?: number | null;
+  propertyTitle?: string | null;
+  /**
+   * @minimum 1
+   * @maximum 5
+   */
+  stars: number;
+  comment?: string | null;
+  createdAt: string;
+}
+
+export interface RatingSummary {
+  ratings: Rating[];
+  average: number;
+  total: number;
+}
+
+export type CreateRatingRequestToUserRole =
+  (typeof CreateRatingRequestToUserRole)[keyof typeof CreateRatingRequestToUserRole];
+
+export const CreateRatingRequestToUserRole = {
+  broker: "broker",
+  correspondent: "correspondent",
+} as const;
+
+export interface CreateRatingRequest {
+  toUserId: number;
+  toUserName: string;
+  toUserRole: CreateRatingRequestToUserRole;
+  leadId?: number;
+  propertyTitle?: string;
+  /**
+   * @minimum 1
+   * @maximum 5
+   */
+  stars: number;
+  comment?: string;
+}
+
+export type SaleHistoryStage =
+  (typeof SaleHistoryStage)[keyof typeof SaleHistoryStage];
+
+export const SaleHistoryStage = {
+  approved: "approved",
+  engineering: "engineering",
+  compliance: "compliance",
+  contract_signed: "contract_signed",
+  keys_delivered: "keys_delivered",
+} as const;
+
+export interface SaleHistory {
+  id: number;
+  userId: number;
+  userName: string;
+  userRole: string;
+  clientId?: number | null;
+  clientName: string;
+  leadId?: number | null;
+  propertyTitle: string;
+  propertyValue: number;
+  propertyCity?: string | null;
+  bankName?: string | null;
+  financedValue?: number | null;
+  stage: SaleHistoryStage;
+  approvedAt?: string | null;
+  engineeringAt?: string | null;
+  complianceAt?: string | null;
+  contractSignedAt?: string | null;
+  keysDeliveredAt?: string | null;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CreateSaleRequestStage =
+  (typeof CreateSaleRequestStage)[keyof typeof CreateSaleRequestStage];
+
+export const CreateSaleRequestStage = {
+  approved: "approved",
+  engineering: "engineering",
+  compliance: "compliance",
+  contract_signed: "contract_signed",
+  keys_delivered: "keys_delivered",
+} as const;
+
+export interface CreateSaleRequest {
+  clientName: string;
+  clientId?: number;
+  leadId?: number;
+  propertyTitle: string;
+  propertyValue: number;
+  propertyCity?: string;
+  bankName?: string;
+  financedValue?: number;
+  stage?: CreateSaleRequestStage;
+  notes?: string;
+}
+
+export type UpdateSaleRequestStage =
+  (typeof UpdateSaleRequestStage)[keyof typeof UpdateSaleRequestStage];
+
+export const UpdateSaleRequestStage = {
+  approved: "approved",
+  engineering: "engineering",
+  compliance: "compliance",
+  contract_signed: "contract_signed",
+  keys_delivered: "keys_delivered",
+} as const;
+
+export interface UpdateSaleRequest {
+  stage?: UpdateSaleRequestStage;
+  bankName?: string;
+  financedValue?: number;
+  approvedAt?: string;
+  engineeringAt?: string;
+  complianceAt?: string;
+  contractSignedAt?: string;
+  keysDeliveredAt?: string;
   notes?: string;
 }
 

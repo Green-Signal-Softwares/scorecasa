@@ -1,5 +1,5 @@
 import { useLocation, Link } from "wouter";
-import { LayoutDashboard, Users, UserCheck, Trophy, LogOut, Menu, X, Building2, CreditCard, Settings } from "lucide-react";
+import { LayoutDashboard, Users, UserCheck, Trophy, LogOut, Menu, X, Building2, CreditCard, ClipboardList, Star } from "lucide-react";
 import { useState } from "react";
 import { useLogout, useGetMe } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -18,20 +18,34 @@ const ROLE_LABELS: Record<string, { label: string; color: string; bg: string }> 
 // Nav items per role
 function getNavItems(role: string) {
   const base = [
-    { href: "/dashboard", label: "Dashboard",  icon: LayoutDashboard },
-    { href: "/leads",     label: "Leads",       icon: Users },
-    { href: "/imoveis",   label: "Imóveis",     icon: Building2 },
+    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/leads",     label: "Leads",     icon: Users },
+    { href: "/imoveis",   label: "Imóveis",   icon: Building2 },
   ];
 
   if (["admin", "analyst"].includes(role)) {
     base.push(
-      { href: "/brokers",    label: "Corretores", icon: UserCheck },
-      { href: "/ranking",    label: "Ranking",    icon: Trophy },
+      { href: "/brokers", label: "Corretores", icon: UserCheck },
+      { href: "/ranking", label: "Ranking",    icon: Trophy },
     );
   }
 
   if (["broker", "correspondent"].includes(role)) {
-    base.push({ href: "/ranking", label: "Ranking", icon: Trophy });
+    base.push(
+      { href: "/ranking",    label: "Ranking",    icon: Trophy },
+      { href: "/historico",  label: "Histórico",  icon: ClipboardList },
+      { href: "/avaliacoes", label: "Avaliações", icon: Star },
+    );
+  }
+
+  if (role === "admin") {
+    base.push(
+      { href: "/historico",  label: "Histórico",  icon: ClipboardList },
+    );
+  }
+
+  if (role === "client") {
+    base.push({ href: "/avaliacoes", label: "Avaliações", icon: Star });
   }
 
   base.push({ href: "/financeiro", label: "Financeiro", icon: CreditCard });

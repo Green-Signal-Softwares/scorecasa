@@ -17,6 +17,9 @@ export interface Subscription {
   status: SubscriptionStatus;
   priceMonthly: number;
   billingDay: number;
+  marketplaceAddon?: boolean | null;
+  marketplacePropertyLimit?: number | null;
+  marketplaceAddonPrice?: number | null;
   trialEndsAt?: Date | null;
   lastPaymentAt?: Date | null;
   nextDueAt?: Date | null;

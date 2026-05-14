@@ -1,56 +1,164 @@
-import { pgTable, serial, text, timestamp, integer, real } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, integer, real, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
 
-// ── Planos disponíveis ────────────────────────────────────────────────────────
-export const PLANS = {
-  client: {
-    id: "client",
-    name: "Plano Cliente",
+// ── Tiers de plano ────────────────────────────────────────────────────────────
+export const PLAN_TIERS = {
+  individual: {
+    id: "individual",
+    label: "Plano Individual",
+    role: "client" as const,
     priceMonthly: 29.90,
-    description: "Acesso ao portal do cliente, análise de crédito, GPS de aprovação e consulta de imóveis",
+    leadLimit: null,
+    enterprise: false,
+    color: "#10A65A",
+    bgLight: "#F0FDF4",
+    description: "Acesso ao portal do cliente, análise de crédito e GPS de aprovação",
     features: [
       "Portal do cliente completo",
       "Análise de crédito com IA",
       "GPS de aprovação personalizado",
       "Catálogo de imóveis",
-      "Acompanhamento de processo",
+      "Acompanhamento do processo",
       "Relatório PDF de crédito",
     ],
   },
-  corretor: {
-    id: "corretor",
-    name: "Plano Corretor",
-    priceMonthly: 99.90,
-    description: "Gestão completa de leads, cadastro de imóveis, análise de crédito e ranking",
+  corretor_50: {
+    id: "corretor_50",
+    label: "Corretor — até 50 leads",
+    role: "broker" as const,
+    priceMonthly: 199.00,
+    leadLimit: 50,
+    enterprise: false,
+    color: "#0D1B8C",
+    bgLight: "#EEF2FF",
+    description: "Gestão de até 50 leads em andamento, análise de crédito e ranking",
     features: [
-      "Gestão ilimitada de leads",
-      "Cadastro de imóveis no catálogo",
+      "Até 50 leads em andamento",
       "Análise de crédito avançada",
-      "Comparativo de bancos",
+      "Comparativo de 8 bancos",
       "Ranking de aprovações",
       "Dashboard de performance",
       "Exportação de relatórios PDF",
+      "Histórico de vendas efetivas",
+      "Avaliações de clientes",
+    ],
+  },
+  corretor_200: {
+    id: "corretor_200",
+    label: "Corretor — até 200 leads",
+    role: "broker" as const,
+    priceMonthly: 499.00,
+    leadLimit: 200,
+    enterprise: false,
+    color: "#0D1B8C",
+    bgLight: "#EEF2FF",
+    description: "Gestão de até 200 leads em andamento com todos os recursos",
+    features: [
+      "Até 200 leads em andamento",
+      "Tudo do plano Corretor 50",
+      "Relatórios avançados de performance",
+      "Suporte prioritário",
       "Notificações em tempo real",
     ],
   },
-  correspondent: {
-    id: "correspondent",
-    name: "Plano Correspondente",
-    priceMonthly: 199.90,
-    description: "Solução completa para correspondentes bancários com multi-corretores e relatórios avançados",
+  corretor_enterprise: {
+    id: "corretor_enterprise",
+    label: "Corretor — Empresarial",
+    role: "broker" as const,
+    priceMonthly: 0,
+    leadLimit: null,
+    enterprise: true,
+    color: "#0D1B8C",
+    bgLight: "#EEF2FF",
+    description: "Acima de 200 leads em andamento — necessário análise",
     features: [
-      "Tudo do Plano Corretor",
-      "Gerenciamento de múltiplos corretores",
+      "Leads ilimitados",
+      "Tudo do plano Corretor 200",
+      "Gerente de conta dedicado",
+      "Integração personalizada",
+      "Contrato sob medida",
+    ],
+  },
+  correspondent_50: {
+    id: "correspondent_50",
+    label: "Correspondente — até 50 leads",
+    role: "correspondent" as const,
+    priceMonthly: 299.00,
+    leadLimit: 50,
+    enterprise: false,
+    color: "#7C3AED",
+    bgLight: "#F5F3FF",
+    description: "Gestão completa do processo bancário para até 50 operações",
+    features: [
+      "Até 50 leads em andamento",
+      "Gestão de documentação bancária",
+      "Acompanhamento aprovação→chaves",
+      "Etapas: aprovação, engenharia, conformidade, contrato",
+      "Histórico de contratos assinados",
+      "Avaliações de clientes",
+      "Análise de crédito avançada",
+    ],
+  },
+  correspondent_200: {
+    id: "correspondent_200",
+    label: "Correspondente — até 200 leads",
+    role: "correspondent" as const,
+    priceMonthly: 599.00,
+    leadLimit: 200,
+    enterprise: false,
+    color: "#7C3AED",
+    bgLight: "#F5F3FF",
+    description: "Gestão completa para até 200 operações com suporte prioritário",
+    features: [
+      "Até 200 leads em andamento",
+      "Tudo do plano Correspondente 50",
       "Relatórios financeiros avançados",
-      "Acesso à API (futuro)",
-      "Painel de correspondente bancário",
+      "Painel multi-corretores",
       "Suporte prioritário",
-      "Integração Open Finance",
-      "Análise de portfólio",
+    ],
+  },
+  correspondent_enterprise: {
+    id: "correspondent_enterprise",
+    label: "Correspondente — Empresarial",
+    role: "correspondent" as const,
+    priceMonthly: 0,
+    leadLimit: null,
+    enterprise: true,
+    color: "#7C3AED",
+    bgLight: "#F5F3FF",
+    description: "Acima de 200 leads em andamento — necessário análise",
+    features: [
+      "Operações ilimitadas",
+      "Tudo do plano Correspondente 200",
+      "Gerente de conta dedicado",
+      "Integração personalizada com bancos",
+      "Contrato sob medida",
     ],
   },
 } as const;
+
+export type PlanTierId = keyof typeof PLAN_TIERS;
+
+// ── Add-ons marketplace (para corretores) ─────────────────────────────────────
+export const MARKETPLACE_ADDONS = {
+  marketplace_10: {
+    id: "marketplace_10",
+    label: "Marketplace — até 10 imóveis",
+    priceMonthly: 99.00,
+    propertyLimit: 10,
+    description: "Divulgue até 10 imóveis no marketplace ScoreCasa",
+  },
+  marketplace_50: {
+    id: "marketplace_50",
+    label: "Marketplace — até 50 imóveis",
+    priceMonthly: 199.00,
+    propertyLimit: 50,
+    description: "Divulgue até 50 imóveis no marketplace ScoreCasa",
+  },
+} as const;
+
+export type MarketplaceAddonId = keyof typeof MARKETPLACE_ADDONS;
 
 // ── Tabela de assinaturas ─────────────────────────────────────────────────────
 export const subscriptionsTable = pgTable("subscriptions", {
@@ -60,13 +168,27 @@ export const subscriptionsTable = pgTable("subscriptions", {
   userEmail: text("user_email").notNull(),
   userRole: text("user_role").notNull(),
 
-  plan: text("plan", { enum: ["client", "corretor", "correspondent"] }).notNull(),
+  plan: text("plan", {
+    enum: [
+      "individual",
+      "corretor_50", "corretor_200", "corretor_enterprise",
+      "correspondent_50", "correspondent_200", "correspondent_enterprise",
+      // legacy values kept for backward compat
+      "client", "corretor", "correspondent",
+    ],
+  }).notNull(),
+
   status: text("status", {
     enum: ["trial", "active", "overdue", "cancelled", "inactive"],
   }).notNull().default("trial"),
 
   priceMonthly: real("price_monthly").notNull(),
   billingDay: integer("billing_day").notNull().default(1),
+
+  // Marketplace add-on
+  marketplaceAddon: boolean("marketplace_addon").default(false),
+  marketplacePropertyLimit: integer("marketplace_property_limit"),
+  marketplaceAddonPrice: real("marketplace_addon_price"),
 
   trialEndsAt: timestamp("trial_ends_at"),
   lastPaymentAt: timestamp("last_payment_at"),

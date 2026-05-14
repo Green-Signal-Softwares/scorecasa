@@ -645,10 +645,24 @@ export const GetMySubscriptionResponse = zod.object({
   userName: zod.string(),
   userEmail: zod.string(),
   userRole: zod.string(),
-  plan: zod.enum(["client", "corretor", "correspondent"]),
+  plan: zod.enum([
+    "individual",
+    "corretor_50",
+    "corretor_200",
+    "corretor_enterprise",
+    "correspondent_50",
+    "correspondent_200",
+    "correspondent_enterprise",
+    "client",
+    "corretor",
+    "correspondent",
+  ]),
   status: zod.enum(["trial", "active", "overdue", "cancelled", "inactive"]),
   priceMonthly: zod.number(),
   billingDay: zod.number(),
+  marketplaceAddon: zod.boolean().nullish(),
+  marketplacePropertyLimit: zod.number().nullish(),
+  marketplaceAddonPrice: zod.number().nullish(),
   trialEndsAt: zod.coerce.date().nullish(),
   lastPaymentAt: zod.coerce.date().nullish(),
   nextDueAt: zod.coerce.date().nullish(),
@@ -667,10 +681,24 @@ export const GetAllSubscriptionsResponseItem = zod.object({
   userName: zod.string(),
   userEmail: zod.string(),
   userRole: zod.string(),
-  plan: zod.enum(["client", "corretor", "correspondent"]),
+  plan: zod.enum([
+    "individual",
+    "corretor_50",
+    "corretor_200",
+    "corretor_enterprise",
+    "correspondent_50",
+    "correspondent_200",
+    "correspondent_enterprise",
+    "client",
+    "corretor",
+    "correspondent",
+  ]),
   status: zod.enum(["trial", "active", "overdue", "cancelled", "inactive"]),
   priceMonthly: zod.number(),
   billingDay: zod.number(),
+  marketplaceAddon: zod.boolean().nullish(),
+  marketplacePropertyLimit: zod.number().nullish(),
+  marketplaceAddonPrice: zod.number().nullish(),
   trialEndsAt: zod.coerce.date().nullish(),
   lastPaymentAt: zod.coerce.date().nullish(),
   nextDueAt: zod.coerce.date().nullish(),
@@ -691,11 +719,25 @@ export const CreateSubscriptionBody = zod.object({
   userName: zod.string(),
   userEmail: zod.string(),
   userRole: zod.string(),
-  plan: zod.enum(["client", "corretor", "correspondent"]),
+  plan: zod.enum([
+    "individual",
+    "corretor_50",
+    "corretor_200",
+    "corretor_enterprise",
+    "correspondent_50",
+    "correspondent_200",
+    "correspondent_enterprise",
+    "client",
+    "corretor",
+    "correspondent",
+  ]),
   status: zod
     .enum(["trial", "active", "overdue", "cancelled", "inactive"])
     .optional(),
   billingDay: zod.number().optional(),
+  marketplaceAddon: zod.boolean().optional(),
+  marketplacePropertyLimit: zod.number().optional(),
+  marketplaceAddonPrice: zod.number().optional(),
   notes: zod.string().optional(),
 });
 
@@ -707,11 +749,27 @@ export const UpdateSubscriptionParams = zod.object({
 });
 
 export const UpdateSubscriptionBody = zod.object({
-  plan: zod.enum(["client", "corretor", "correspondent"]).optional(),
+  plan: zod
+    .enum([
+      "individual",
+      "corretor_50",
+      "corretor_200",
+      "corretor_enterprise",
+      "correspondent_50",
+      "correspondent_200",
+      "correspondent_enterprise",
+      "client",
+      "corretor",
+      "correspondent",
+    ])
+    .optional(),
   status: zod
     .enum(["trial", "active", "overdue", "cancelled", "inactive"])
     .optional(),
   billingDay: zod.number().optional(),
+  marketplaceAddon: zod.boolean().optional(),
+  marketplacePropertyLimit: zod.number().optional(),
+  marketplaceAddonPrice: zod.number().optional(),
   lastPaymentAt: zod.coerce.date().optional(),
   nextDueAt: zod.coerce.date().optional(),
   notes: zod.string().optional(),
@@ -723,14 +781,293 @@ export const UpdateSubscriptionResponse = zod.object({
   userName: zod.string(),
   userEmail: zod.string(),
   userRole: zod.string(),
-  plan: zod.enum(["client", "corretor", "correspondent"]),
+  plan: zod.enum([
+    "individual",
+    "corretor_50",
+    "corretor_200",
+    "corretor_enterprise",
+    "correspondent_50",
+    "correspondent_200",
+    "correspondent_enterprise",
+    "client",
+    "corretor",
+    "correspondent",
+  ]),
   status: zod.enum(["trial", "active", "overdue", "cancelled", "inactive"]),
   priceMonthly: zod.number(),
   billingDay: zod.number(),
+  marketplaceAddon: zod.boolean().nullish(),
+  marketplacePropertyLimit: zod.number().nullish(),
+  marketplaceAddonPrice: zod.number().nullish(),
   trialEndsAt: zod.coerce.date().nullish(),
   lastPaymentAt: zod.coerce.date().nullish(),
   nextDueAt: zod.coerce.date().nullish(),
   cancelledAt: zod.coerce.date().nullish(),
+  notes: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Get ratings received by current user
+ */
+export const getMyRatingsResponseRatingsItemStarsMax = 5;
+
+export const GetMyRatingsResponse = zod.object({
+  ratings: zod.array(
+    zod.object({
+      id: zod.number(),
+      fromUserId: zod.number(),
+      fromUserName: zod.string(),
+      toUserId: zod.number(),
+      toUserName: zod.string(),
+      toUserRole: zod.enum(["broker", "correspondent"]),
+      leadId: zod.number().nullish(),
+      propertyTitle: zod.string().nullish(),
+      stars: zod.number().min(1).max(getMyRatingsResponseRatingsItemStarsMax),
+      comment: zod.string().nullish(),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
+  average: zod.number(),
+  total: zod.number(),
+});
+
+/**
+ * @summary Get ratings received by a specific user
+ */
+export const GetRatingsByUserParams = zod.object({
+  userId: zod.coerce.number(),
+});
+
+export const getRatingsByUserResponseRatingsItemStarsMax = 5;
+
+export const GetRatingsByUserResponse = zod.object({
+  ratings: zod.array(
+    zod.object({
+      id: zod.number(),
+      fromUserId: zod.number(),
+      fromUserName: zod.string(),
+      toUserId: zod.number(),
+      toUserName: zod.string(),
+      toUserRole: zod.enum(["broker", "correspondent"]),
+      leadId: zod.number().nullish(),
+      propertyTitle: zod.string().nullish(),
+      stars: zod
+        .number()
+        .min(1)
+        .max(getRatingsByUserResponseRatingsItemStarsMax),
+      comment: zod.string().nullish(),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
+  average: zod.number(),
+  total: zod.number(),
+});
+
+/**
+ * @summary Create a rating for a broker or correspondent
+ */
+export const createRatingBodyStarsMax = 5;
+
+export const CreateRatingBody = zod.object({
+  toUserId: zod.number(),
+  toUserName: zod.string(),
+  toUserRole: zod.enum(["broker", "correspondent"]),
+  leadId: zod.number().optional(),
+  propertyTitle: zod.string().optional(),
+  stars: zod.number().min(1).max(createRatingBodyStarsMax),
+  comment: zod.string().optional(),
+});
+
+/**
+ * @summary Get my sales/contract history
+ */
+export const GetMySalesHistoryResponseItem = zod.object({
+  id: zod.number(),
+  userId: zod.number(),
+  userName: zod.string(),
+  userRole: zod.string(),
+  clientId: zod.number().nullish(),
+  clientName: zod.string(),
+  leadId: zod.number().nullish(),
+  propertyTitle: zod.string(),
+  propertyValue: zod.number(),
+  propertyCity: zod.string().nullish(),
+  bankName: zod.string().nullish(),
+  financedValue: zod.number().nullish(),
+  stage: zod.enum([
+    "approved",
+    "engineering",
+    "compliance",
+    "contract_signed",
+    "keys_delivered",
+  ]),
+  approvedAt: zod.coerce.date().nullish(),
+  engineeringAt: zod.coerce.date().nullish(),
+  complianceAt: zod.coerce.date().nullish(),
+  contractSignedAt: zod.coerce.date().nullish(),
+  keysDeliveredAt: zod.coerce.date().nullish(),
+  notes: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+export const GetMySalesHistoryResponse = zod.array(
+  GetMySalesHistoryResponseItem,
+);
+
+/**
+ * @summary Get sales history for a specific user
+ */
+export const GetSalesHistoryByUserParams = zod.object({
+  userId: zod.coerce.number(),
+});
+
+export const GetSalesHistoryByUserResponseItem = zod.object({
+  id: zod.number(),
+  userId: zod.number(),
+  userName: zod.string(),
+  userRole: zod.string(),
+  clientId: zod.number().nullish(),
+  clientName: zod.string(),
+  leadId: zod.number().nullish(),
+  propertyTitle: zod.string(),
+  propertyValue: zod.number(),
+  propertyCity: zod.string().nullish(),
+  bankName: zod.string().nullish(),
+  financedValue: zod.number().nullish(),
+  stage: zod.enum([
+    "approved",
+    "engineering",
+    "compliance",
+    "contract_signed",
+    "keys_delivered",
+  ]),
+  approvedAt: zod.coerce.date().nullish(),
+  engineeringAt: zod.coerce.date().nullish(),
+  complianceAt: zod.coerce.date().nullish(),
+  contractSignedAt: zod.coerce.date().nullish(),
+  keysDeliveredAt: zod.coerce.date().nullish(),
+  notes: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+export const GetSalesHistoryByUserResponse = zod.array(
+  GetSalesHistoryByUserResponseItem,
+);
+
+/**
+ * @summary Admin — all sales history
+ */
+export const GetAllSalesHistoryResponseItem = zod.object({
+  id: zod.number(),
+  userId: zod.number(),
+  userName: zod.string(),
+  userRole: zod.string(),
+  clientId: zod.number().nullish(),
+  clientName: zod.string(),
+  leadId: zod.number().nullish(),
+  propertyTitle: zod.string(),
+  propertyValue: zod.number(),
+  propertyCity: zod.string().nullish(),
+  bankName: zod.string().nullish(),
+  financedValue: zod.number().nullish(),
+  stage: zod.enum([
+    "approved",
+    "engineering",
+    "compliance",
+    "contract_signed",
+    "keys_delivered",
+  ]),
+  approvedAt: zod.coerce.date().nullish(),
+  engineeringAt: zod.coerce.date().nullish(),
+  complianceAt: zod.coerce.date().nullish(),
+  contractSignedAt: zod.coerce.date().nullish(),
+  keysDeliveredAt: zod.coerce.date().nullish(),
+  notes: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+export const GetAllSalesHistoryResponse = zod.array(
+  GetAllSalesHistoryResponseItem,
+);
+
+/**
+ * @summary Create a sale/contract record
+ */
+export const CreateSaleBody = zod.object({
+  clientName: zod.string(),
+  clientId: zod.number().optional(),
+  leadId: zod.number().optional(),
+  propertyTitle: zod.string(),
+  propertyValue: zod.number(),
+  propertyCity: zod.string().optional(),
+  bankName: zod.string().optional(),
+  financedValue: zod.number().optional(),
+  stage: zod
+    .enum([
+      "approved",
+      "engineering",
+      "compliance",
+      "contract_signed",
+      "keys_delivered",
+    ])
+    .optional(),
+  notes: zod.string().optional(),
+});
+
+/**
+ * @summary Advance sale stage or update details
+ */
+export const UpdateSaleParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateSaleBody = zod.object({
+  stage: zod
+    .enum([
+      "approved",
+      "engineering",
+      "compliance",
+      "contract_signed",
+      "keys_delivered",
+    ])
+    .optional(),
+  bankName: zod.string().optional(),
+  financedValue: zod.number().optional(),
+  approvedAt: zod.coerce.date().optional(),
+  engineeringAt: zod.coerce.date().optional(),
+  complianceAt: zod.coerce.date().optional(),
+  contractSignedAt: zod.coerce.date().optional(),
+  keysDeliveredAt: zod.coerce.date().optional(),
+  notes: zod.string().optional(),
+});
+
+export const UpdateSaleResponse = zod.object({
+  id: zod.number(),
+  userId: zod.number(),
+  userName: zod.string(),
+  userRole: zod.string(),
+  clientId: zod.number().nullish(),
+  clientName: zod.string(),
+  leadId: zod.number().nullish(),
+  propertyTitle: zod.string(),
+  propertyValue: zod.number(),
+  propertyCity: zod.string().nullish(),
+  bankName: zod.string().nullish(),
+  financedValue: zod.number().nullish(),
+  stage: zod.enum([
+    "approved",
+    "engineering",
+    "compliance",
+    "contract_signed",
+    "keys_delivered",
+  ]),
+  approvedAt: zod.coerce.date().nullish(),
+  engineeringAt: zod.coerce.date().nullish(),
+  complianceAt: zod.coerce.date().nullish(),
+  contractSignedAt: zod.coerce.date().nullish(),
+  keysDeliveredAt: zod.coerce.date().nullish(),
   notes: zod.string().nullish(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),

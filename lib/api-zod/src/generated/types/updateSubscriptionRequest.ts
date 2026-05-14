@@ -11,6 +11,9 @@ export interface UpdateSubscriptionRequest {
   plan?: UpdateSubscriptionRequestPlan;
   status?: UpdateSubscriptionRequestStatus;
   billingDay?: number;
+  marketplaceAddon?: boolean;
+  marketplacePropertyLimit?: number;
+  marketplaceAddonPrice?: number;
   lastPaymentAt?: Date;
   nextDueAt?: Date;
   notes?: string;
