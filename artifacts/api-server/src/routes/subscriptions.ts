@@ -18,11 +18,14 @@ function formatSub(s: any) {
 }
 
 const ALL_PLANS = [
-  "individual",
+  // Estrutura atual
+  "free", "individual", "plus",
+  "corretor", "imobiliaria", "enterprise",
+  "bank_connect",
+  // Legacy
   "corretor_50", "corretor_200", "corretor_enterprise",
   "correspondent_50", "correspondent_200", "correspondent_enterprise",
-  // legacy
-  "client", "corretor", "correspondent",
+  "client", "correspondent",
 ] as const;
 
 const CreateSubBody = z.object({
@@ -54,8 +57,14 @@ const UpdateSubBody = z.object({
 function getPlanPrice(planId: string): number {
   const tier = PLAN_TIERS[planId as keyof typeof PLAN_TIERS];
   if (tier) return tier.priceMonthly;
-  // legacy fallback
-  const legacy: Record<string, number> = { client: 29.90, corretor: 199, correspondent: 299 };
+  // Legacy fallback (assinaturas criadas antes da nova estrutura de planos —
+  // mantém o preço histórico para não distorcer cobranças/MRR de assinaturas antigas)
+  const legacy: Record<string, number> = {
+    client: 29.90,
+    corretor_50: 199.00, corretor_200: 499.00, corretor_enterprise: 0,
+    correspondent: 299.00,
+    correspondent_50: 299.00, correspondent_200: 599.00, correspondent_enterprise: 0,
+  };
   return legacy[planId] ?? 0;
 }
 

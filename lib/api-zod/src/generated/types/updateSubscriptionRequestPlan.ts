@@ -9,7 +9,13 @@ export type UpdateSubscriptionRequestPlan =
   (typeof UpdateSubscriptionRequestPlan)[keyof typeof UpdateSubscriptionRequestPlan];
 
 export const UpdateSubscriptionRequestPlan = {
+  free: "free",
   individual: "individual",
+  plus: "plus",
+  corretor: "corretor",
+  imobiliaria: "imobiliaria",
+  enterprise: "enterprise",
+  bank_connect: "bank_connect",
   corretor_50: "corretor_50",
   corretor_200: "corretor_200",
   corretor_enterprise: "corretor_enterprise",
@@ -17,6 +23,5 @@ export const UpdateSubscriptionRequestPlan = {
   correspondent_200: "correspondent_200",
   correspondent_enterprise: "correspondent_enterprise",
   client: "client",
-  corretor: "corretor",
   correspondent: "correspondent",
 } as const;

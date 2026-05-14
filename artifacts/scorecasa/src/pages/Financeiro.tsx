@@ -8,32 +8,62 @@ import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@
 import {
   CreditCard, CheckCircle, Clock, AlertCircle, XCircle,
   TrendingUp, Users, DollarSign, Crown, Shield, Zap, Store,
-  ChevronDown, ChevronUp, Phone,
+  ChevronDown, ChevronUp, Phone, Sparkles, Building2, Landmark, Briefcase, User,
 } from "lucide-react";
 
-// ── Tiers de planos ────────────────────────────────────────────────────────────
+// ── Tiers de planos (estrutura oficial 2026) ──────────────────────────────────
 const PLAN_TIERS = {
+  // ── Cliente final ──
+  free: {
+    id: "free", label: "Free", group: "individual",
+    role: "client", priceMonthly: 0, leadLimit: null, enterprise: false,
+    color: "#6B7280", bg: "#F3F4F6", icon: User,
+    description: "Entrada gratuita ao ecossistema ScoreCasa",
+    features: [
+      "Simulação básica de financiamento",
+      "Score básico ScoreCasa",
+      "Até 3 análises de crédito por mês",
+      "Visualização limitada do marketplace",
+    ],
+  },
   individual: {
     id: "individual", label: "Individual", group: "individual",
     role: "client", priceMonthly: 29.90, leadLimit: null, enterprise: false,
     color: "#10A65A", bg: "#F0FDF4", icon: Shield,
-    description: "Portal do cliente com análise de crédito e GPS de aprovação",
+    description: "IA completa, Open Finance e marketplace ilimitado",
     features: [
-      "Portal do cliente completo",
-      "Análise de crédito com IA",
-      "GPS de aprovação personalizado",
-      "Catálogo de imóveis",
-      "Acompanhamento do processo",
-      "Relatório PDF de crédito",
+      "IA completa de previsão de aprovação",
+      "Monitoramento contínuo do score",
+      "Imóveis ilimitados no marketplace",
+      "Open Finance integrado",
+      "Score avançado ScoreCasa",
+      "Notificações em tempo real",
+      "Prioridade na análise",
     ],
   },
-  corretor_50: {
-    id: "corretor_50", label: "Corretor — até 50 leads", group: "corretor",
-    role: "broker", priceMonthly: 199.00, leadLimit: 50, enterprise: false,
-    color: "#0D1B8C", bg: "#EEF2FF", icon: TrendingUp,
-    description: "Gestão de até 50 leads, análise de crédito e ranking",
+  plus: {
+    id: "plus", label: "Plus", group: "individual",
+    role: "client", priceMonthly: 59.90, leadLimit: null, enterprise: false,
+    color: "#0D9488", bg: "#F0FDFA", icon: Sparkles,
+    description: "Personal financeiro imobiliário — para quem quer realmente aprovar",
     features: [
-      "Até 50 leads em andamento",
+      "Tudo do plano Individual",
+      "Consultoria com IA dedicada",
+      "Plano de aprovação personalizado",
+      "Acompanhamento da evolução do score",
+      "Metas financeiras inteligentes",
+      "Suporte prioritário",
+      "Recomendações automáticas",
+      "Alertas de crédito em tempo real",
+    ],
+  },
+  // ── Corretor / Imobiliária ──
+  corretor: {
+    id: "corretor", label: "Corretor", group: "corretor",
+    role: "broker", priceMonthly: 297.00, leadLimit: null, enterprise: false,
+    color: "#0D1B8C", bg: "#EEF2FF", icon: Briefcase,
+    description: "Gestão profissional de leads e comparativo entre bancos",
+    features: [
       "Análise de crédito avançada",
       "Comparativo de 8 bancos",
       "Ranking de aprovações",
@@ -43,77 +73,62 @@ const PLAN_TIERS = {
       "Avaliações de clientes ⭐",
     ],
   },
-  corretor_200: {
-    id: "corretor_200", label: "Corretor — até 200 leads", group: "corretor",
-    role: "broker", priceMonthly: 499.00, leadLimit: 200, enterprise: false,
-    color: "#0D1B8C", bg: "#EEF2FF", icon: TrendingUp,
-    description: "Gestão de até 200 leads com todos os recursos",
+  imobiliaria: {
+    id: "imobiliaria", label: "Imobiliária", group: "corretor",
+    role: "broker", priceMonthly: 697.00, leadLimit: null, enterprise: false,
+    color: "#4338CA", bg: "#EEF2FF", icon: Building2,
+    description: "Gestão multi-corretores com painel completo da imobiliária",
     features: [
-      "Até 200 leads em andamento",
-      "Tudo do plano Corretor 50",
-      "Relatórios avançados de performance",
+      "Tudo do plano Corretor",
+      "Painel multi-corretores",
+      "Gestão de equipe e permissões",
+      "Relatórios consolidados da imobiliária",
+      "Vitrine de imóveis incluída",
       "Suporte prioritário",
       "Notificações em tempo real",
     ],
   },
-  corretor_enterprise: {
-    id: "corretor_enterprise", label: "Corretor — Empresarial", group: "corretor",
-    role: "broker", priceMonthly: 0, leadLimit: null, enterprise: true,
-    color: "#0D1B8C", bg: "#EEF2FF", icon: TrendingUp,
-    description: "Acima de 200 leads em andamento — necessário análise",
+  enterprise: {
+    id: "enterprise", label: "Enterprise", group: "corretor",
+    role: "broker", priceMonthly: 1497.00, leadLimit: null, enterprise: false,
+    color: "#6D28D9", bg: "#F5F3FF", icon: Crown,
+    description: "Operação em escala com SLA dedicado e integração customizada",
     features: [
-      "Leads ilimitados",
-      "Tudo do plano Corretor 200",
-      "Gerente de conta dedicado",
-      "Integração personalizada",
-      "Contrato sob medida",
-    ],
-  },
-  correspondent_50: {
-    id: "correspondent_50", label: "Correspondente — até 50 leads", group: "correspondent",
-    role: "correspondent", priceMonthly: 299.00, leadLimit: 50, enterprise: false,
-    color: "#7C3AED", bg: "#F5F3FF", icon: Crown,
-    description: "Gestão completa do processo bancário para até 50 operações",
-    features: [
-      "Até 50 leads em andamento",
-      "Gestão de documentação bancária",
-      "Acompanhamento aprovação → chaves",
-      "Etapas: aprovação, engenharia, conformidade, contrato",
-      "Histórico de contratos assinados",
-      "Avaliações de clientes ⭐",
-      "Análise de crédito avançada",
-    ],
-  },
-  correspondent_200: {
-    id: "correspondent_200", label: "Correspondente — até 200 leads", group: "correspondent",
-    role: "correspondent", priceMonthly: 599.00, leadLimit: 200, enterprise: false,
-    color: "#7C3AED", bg: "#F5F3FF", icon: Crown,
-    description: "Gestão completa para até 200 operações com suporte prioritário",
-    features: [
-      "Até 200 leads em andamento",
-      "Tudo do Correspondente 50",
-      "Relatórios financeiros avançados",
-      "Painel multi-corretores",
-      "Suporte prioritário",
-    ],
-  },
-  correspondent_enterprise: {
-    id: "correspondent_enterprise", label: "Correspondente — Empresarial", group: "correspondent",
-    role: "correspondent", priceMonthly: 0, leadLimit: null, enterprise: true,
-    color: "#7C3AED", bg: "#F5F3FF", icon: Crown,
-    description: "Acima de 200 operações — necessário análise",
-    features: [
+      "Tudo do plano Imobiliária",
       "Operações ilimitadas",
-      "Tudo do Correspondente 200",
       "Gerente de conta dedicado",
-      "Integração personalizada com bancos",
+      "API e integração personalizada",
+      "Onboarding com time ScoreCasa",
+      "SLA dedicado",
+      "White-label parcial",
+    ],
+  },
+  // ── Correspondente / Banking ──
+  bank_connect: {
+    id: "bank_connect", label: "Bank Connect", group: "correspondent",
+    role: "correspondent", priceMonthly: 2497.00, leadLimit: null, enterprise: false,
+    color: "#7C3AED", bg: "#F5F3FF", icon: Landmark,
+    description: "Integração direta com Caixa, bancos privados e originação completa",
+    features: [
+      "ScoreCasa Conectado (extensão Chrome)",
+      "Espelhamento Caixa Aqui + bancos privados",
+      "Esteira completa: aprovação → engenharia → conformidade → contrato",
+      "Gestão de documentação bancária",
+      "Originação de financiamento",
+      "Painel multi-correspondentes",
+      "Gerente de conta bancária dedicado",
       "Contrato sob medida",
     ],
   },
-  // legacy compat
-  client:        { id: "client",        label: "Individual",           group: "individual",   role: "client",        priceMonthly: 29.90,  leadLimit: null, enterprise: false, color: "#10A65A", bg: "#F0FDF4", icon: Shield,    description: "", features: [] },
-  corretor:      { id: "corretor",      label: "Corretor",             group: "corretor",     role: "broker",        priceMonthly: 199.00, leadLimit: 50,   enterprise: false, color: "#0D1B8C", bg: "#EEF2FF", icon: TrendingUp, description: "", features: [] },
-  correspondent: { id: "correspondent", label: "Correspondente",       group: "correspondent",role: "correspondent", priceMonthly: 299.00, leadLimit: 50,   enterprise: false, color: "#7C3AED", bg: "#F5F3FF", icon: Crown,      description: "", features: [] },
+  // ── Legacy (mantidos para compat com assinaturas antigas) ──
+  client:                   { id: "client",                   label: "Individual (legado)",      group: "individual",   role: "client",        priceMonthly: 29.90,  leadLimit: null, enterprise: false, color: "#10A65A", bg: "#F0FDF4", icon: Shield,     description: "", features: [] },
+  corretor_50:              { id: "corretor_50",              label: "Corretor 50 (legado)",     group: "corretor",     role: "broker",        priceMonthly: 199.00, leadLimit: 50,   enterprise: false, color: "#0D1B8C", bg: "#EEF2FF", icon: TrendingUp, description: "", features: [] },
+  corretor_200:             { id: "corretor_200",             label: "Corretor 200 (legado)",    group: "corretor",     role: "broker",        priceMonthly: 499.00, leadLimit: 200,  enterprise: false, color: "#0D1B8C", bg: "#EEF2FF", icon: TrendingUp, description: "", features: [] },
+  corretor_enterprise:      { id: "corretor_enterprise",      label: "Corretor Emp. (legado)",   group: "corretor",     role: "broker",        priceMonthly: 0,      leadLimit: null, enterprise: true,  color: "#0D1B8C", bg: "#EEF2FF", icon: TrendingUp, description: "", features: [] },
+  correspondent:            { id: "correspondent",            label: "Correspondente (legado)",  group: "correspondent",role: "correspondent", priceMonthly: 299.00, leadLimit: 50,   enterprise: false, color: "#7C3AED", bg: "#F5F3FF", icon: Crown,      description: "", features: [] },
+  correspondent_50:         { id: "correspondent_50",         label: "Corresp. 50 (legado)",     group: "correspondent",role: "correspondent", priceMonthly: 299.00, leadLimit: 50,   enterprise: false, color: "#7C3AED", bg: "#F5F3FF", icon: Crown,      description: "", features: [] },
+  correspondent_200:        { id: "correspondent_200",        label: "Corresp. 200 (legado)",    group: "correspondent",role: "correspondent", priceMonthly: 599.00, leadLimit: 200,  enterprise: false, color: "#7C3AED", bg: "#F5F3FF", icon: Crown,      description: "", features: [] },
+  correspondent_enterprise: { id: "correspondent_enterprise", label: "Corresp. Emp. (legado)",   group: "correspondent",role: "correspondent", priceMonthly: 0,      leadLimit: null, enterprise: true,  color: "#7C3AED", bg: "#F5F3FF", icon: Crown,      description: "", features: [] },
 } as const;
 
 type PlanId = keyof typeof PLAN_TIERS;
@@ -298,16 +313,21 @@ function MarketplaceAddonSection({ sub }: { sub: any }) {
   );
 }
 
-// ── Tabela de planos: Corretor / Correspondente ────────────────────────────────
-function PartnerPlansTable({ group, currentPlanId }: { group: "corretor" | "correspondent"; currentPlanId?: string }) {
-  const tiers = Object.values(PLAN_TIERS).filter((t) => t.group === group && t.id !== "corretor" && t.id !== "correspondent");
-  const color = group === "corretor" ? "#0D1B8C" : "#7C3AED";
-  const bgLight = group === "corretor" ? "#EEF2FF" : "#F5F3FF";
-  const title = group === "corretor" ? "Planos Corretor" : "Planos Correspondente";
+// ── Tabela de planos: Individual / Corretor / Correspondente ──────────────────
+const LEGACY_PLAN_IDS = new Set([
+  "client", "corretor_50", "corretor_200", "corretor_enterprise",
+  "correspondent", "correspondent_50", "correspondent_200", "correspondent_enterprise",
+]);
+
+function PartnerPlansTable({ group, currentPlanId }: { group: "individual" | "corretor" | "correspondent"; currentPlanId?: string }) {
+  const tiers = Object.values(PLAN_TIERS).filter((t) => t.group === group && !LEGACY_PLAN_IDS.has(t.id));
+  const color = group === "corretor" ? "#0D1B8C" : group === "correspondent" ? "#7C3AED" : "#10A65A";
+  const bgLight = group === "corretor" ? "#EEF2FF" : group === "correspondent" ? "#F5F3FF" : "#F0FDF4";
+  const title = group === "corretor" ? "Planos Corretor / Imobiliária" : group === "correspondent" ? "Planos Correspondente" : "Planos Individuais";
 
   const correspondentNote = group === "correspondent" ? (
     <div className="mt-3 p-3 rounded-xl text-xs leading-relaxed" style={{ background: bgLight, color }}>
-      <strong>Incluso nos planos Correspondente:</strong> gestão completa de documentação exigida pelo banco, acompanhamento de todas as etapas do financiamento habitacional (aprovação de crédito, vistoria de engenharia, análise de conformidade e assinatura de contrato) até a entrega das chaves ao cliente.
+      <strong>Incluso no Bank Connect:</strong> gestão completa de documentação exigida pelo banco, acompanhamento de todas as etapas do financiamento habitacional (aprovação de crédito, vistoria de engenharia, análise de conformidade e assinatura de contrato) até a entrega das chaves ao cliente.
     </div>
   ) : null;
 
@@ -317,11 +337,11 @@ function PartnerPlansTable({ group, currentPlanId }: { group: "corretor" | "corr
     </div>
   ) : null;
 
-  const setupFeeNote = (
+  const setupFeeNote = group !== "individual" ? (
     <div className="mt-3 p-3 rounded-xl text-xs leading-relaxed border" style={{ borderColor: color, color }}>
       <strong>Implantação / setup do sistema</strong> a partir de <strong>R$ 590,00</strong> (obrigatório na contratação). Valores ajustados de acordo com o projeto. Consulte nossa equipe comercial.
     </div>
-  );
+  ) : null;
 
   return (
     <div>
@@ -347,9 +367,9 @@ function IndividualView({ role }: { role: string }) {
   const { data: me } = useGetMe({});
 
   const defaultPlanMap: Record<string, PlanId> = {
-    client: "individual", broker: "corretor_50", correspondent: "correspondent_50",
+    client: "free", broker: "corretor", correspondent: "bank_connect",
   };
-  const myDefaultPlan = defaultPlanMap[role] ?? "individual";
+  const myDefaultPlan = defaultPlanMap[role] ?? "free";
   const currentPlanId = (sub as any)?.plan as PlanId | undefined;
   const displayPlan = PLAN_TIERS[currentPlanId ?? myDefaultPlan] ?? PLAN_TIERS.individual;
   const Icon = displayPlan.icon;
@@ -378,7 +398,9 @@ function IndividualView({ role }: { role: string }) {
     return <div className="flex justify-center py-20"><div className="w-8 h-8 border-2 border-[#0D1B8C] border-t-transparent rounded-full animate-spin" /></div>;
   }
 
-  const groupMap: Record<string, "corretor" | "correspondent"> = { broker: "corretor", correspondent: "correspondent" };
+  const groupMap: Record<string, "individual" | "corretor" | "correspondent"> = {
+    client: "individual", broker: "corretor", correspondent: "correspondent",
+  };
   const partnerGroup = groupMap[role];
 
   return (
@@ -477,12 +499,6 @@ function IndividualView({ role }: { role: string }) {
 
         {/* Right — plan comparison */}
         <div className="lg:col-span-2">
-          {role === "client" && (
-            <div>
-              <div className="text-sm font-bold mb-3 text-[#07113A]">Plano Individual</div>
-              <TierCard tier={PLAN_TIERS.individual} isCurrent={true} />
-            </div>
-          )}
           {partnerGroup && (
             <PartnerPlansTable group={partnerGroup} currentPlanId={currentPlanId} />
           )}

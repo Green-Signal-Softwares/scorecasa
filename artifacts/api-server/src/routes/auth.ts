@@ -44,7 +44,7 @@ router.post("/register", async (req, res) => {
 
   // Resolve and validate plan against role
   const planId: PlanTierId = (plan ??
-    (role === "client" ? "individual" : role === "broker" ? "corretor_50" : "correspondent_50")) as PlanTierId;
+    (role === "client" ? "free" : role === "broker" ? "corretor" : "bank_connect")) as PlanTierId;
   const planTier = PLAN_TIERS[planId];
   if (!planTier || planTier.role !== role) {
     res.status(400).json({ error: "Plan does not match the selected profile" });
