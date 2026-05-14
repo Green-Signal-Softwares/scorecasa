@@ -195,8 +195,11 @@ router.post("/", async (req, res) => {
       0
     );
 
+    const credoresList = (parsed.cadin?.credores ?? [])
+      .map((c: { sigla: string; nome: string }) => c.sigla + " - " + c.nome)
+      .join("; ") || "N/A";
     const cadinText = parsed.cadin?.temOcorrencia
-      ? `CADIN: ${parsed.cadin.contratosApos30Dias ?? 0} contrato(s) em atraso acima de 30 dias. Credor(es): ${(parsed.cadin.credores ?? []).map((c: { sigla: string; nome: string }) => `${c.sigla} – ${c.nome}`).join("; ") || "N/A"}`
+      ? "CADIN: " + (parsed.cadin.contratosApos30Dias ?? 0) + " contrato(s) em atraso acima de 30 dias. Credor(es): " + credoresList
       : null;
 
     res.json({
@@ -295,8 +298,11 @@ Regras:
       0
     );
 
+    const credoresList = (parsed.cadin?.credores ?? [])
+      .map((c: { sigla: string; nome: string }) => c.sigla + " - " + c.nome)
+      .join("; ") || "N/A";
     const cadinText = parsed.cadin?.temOcorrencia
-      ? `CADIN: ${parsed.cadin.contratosApos30Dias ?? 0} contrato(s) em atraso acima de 30 dias. Credor(es): ${(parsed.cadin.credores ?? []).map((c: { sigla: string; nome: string }) => `${c.sigla} – ${c.nome}`).join("; ") || "N/A"}`
+      ? "CADIN: " + (parsed.cadin.contratosApos30Dias ?? 0) + " contrato(s) em atraso acima de 30 dias. Credor(es): " + credoresList
       : null;
 
     res.json({
