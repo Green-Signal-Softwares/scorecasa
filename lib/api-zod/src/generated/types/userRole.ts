@@ -12,4 +12,5 @@ export const UserRole = {
   broker: "broker",
   analyst: "analyst",
   client: "client",
+  correspondent: "correspondent",
 } as const;

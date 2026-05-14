@@ -17,6 +17,7 @@ import { Historico } from "@/pages/Historico";
 import { Avaliacoes } from "@/pages/Avaliacoes";
 import { Processos } from "@/pages/Processos";
 import { ProcessDetails } from "@/pages/ProcessDetails";
+import { ScoreCasaConectado } from "@/pages/ScoreCasaConectado";
 import { Termos } from "@/pages/Termos";
 import { Privacidade } from "@/pages/Privacidade";
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -47,6 +48,21 @@ function StaffOnly({ children }: { children: ReactNode }) {
     else if (me.role === "client") setLocation("/portal");
   }, [isLoading, me, setLocation]);
   if (isLoading || !me || me.role === "client") return <FullscreenLoader />;
+  return <>{children}</>;
+}
+
+function CorrespondentOnly({ children }: { children: ReactNode }) {
+  const [, setLocation] = useLocation();
+  const { data: me, isLoading } = useGetMe({
+    query: { queryKey: getGetMeQueryKey(), retry: false, staleTime: 60_000 },
+  });
+  useEffect(() => {
+    if (isLoading) return;
+    if (!me) setLocation("/login");
+    else if (me.role === "client") setLocation("/portal");
+    else if ((me.role as string) !== "correspondent") setLocation("/dashboard");
+  }, [isLoading, me, setLocation]);
+  if (isLoading || !me || (me.role as string) !== "correspondent") return <FullscreenLoader />;
   return <>{children}</>;
 }
 
@@ -170,6 +186,16 @@ function Router() {
               <Processos />
             </AppLayout>
           </StaffOnly>
+        )}
+      </Route>
+
+      <Route path="/conectado">
+        {() => (
+          <CorrespondentOnly>
+            <AppLayout>
+              <ScoreCasaConectado />
+            </AppLayout>
+          </CorrespondentOnly>
         )}
       </Route>
 

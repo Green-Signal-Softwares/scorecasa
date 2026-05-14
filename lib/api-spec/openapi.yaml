@@ -1001,7 +1001,7 @@ components:
           type: string
         role:
           type: string
-          enum: [admin, broker, analyst, client]
+          enum: [admin, broker, analyst, client, correspondent]
         avatarUrl:
           type: string
           nullable: true
