@@ -208,7 +208,10 @@ function formatCurrency(value: string) {
   return (parseInt(n, 10) / 100).toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
 }
 function parseCurrency(value: string): number {
-  return parseFloat(value.replace(/\D/g, "")) / 100;
+  const digits = value.replace(/\D/g, "");
+  if (!digits) return 0;
+  const n = parseInt(digits, 10) / 100;
+  return Number.isFinite(n) ? n : 0;
 }
 function brl(n: number) {
   return n.toLocaleString("pt-BR", { style: "currency", currency: "BRL" });
