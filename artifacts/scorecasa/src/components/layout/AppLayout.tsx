@@ -99,8 +99,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   }
 
   const handleLogout = () => {
+    setMobileOpen(false);
     logout.mutate(undefined, {
-      onSuccess: () => {
+      onSettled: () => {
         queryClient.clear();
         setLocation("/login");
       },

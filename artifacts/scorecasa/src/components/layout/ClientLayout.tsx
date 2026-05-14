@@ -31,8 +31,9 @@ export function ClientLayout({ children, userName, activePage }: ClientLayoutPro
   const queryClient = useQueryClient();
 
   const handleLogout = () => {
+    setMobileOpen(false);
     logout.mutate(undefined, {
-      onSuccess: () => {
+      onSettled: () => {
         queryClient.clear();
         setLocation("/login");
       },
