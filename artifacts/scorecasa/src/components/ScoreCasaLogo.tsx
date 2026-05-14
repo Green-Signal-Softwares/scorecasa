@@ -1,4 +1,4 @@
-import scorecasaIconUrl from "@assets/4_1778776494430.png";
+import scorecasaIconUrl from "@assets/image_1778778122241.png";
 
 interface ScoreCasaIconProps {
   size?: number;
