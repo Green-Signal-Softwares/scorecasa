@@ -27,6 +27,7 @@ import { ClientRegister } from "@/pages/ClientRegister";
 import { ClientMeusDados } from "@/pages/ClientMeusDados";
 import { ClientSimulador } from "@/pages/ClientSimulador";
 import { ClientImoveis } from "@/pages/ClientImoveis";
+import RecuperarSenha from "@/pages/RecuperarSenha";
 
 const queryClient = new QueryClient();
 
@@ -72,6 +73,7 @@ function Router() {
     <Switch>
       <Route path="/" component={Login} />
       <Route path="/login" component={Login} />
+      <Route path="/recuperar-senha" component={RecuperarSenha} />
       <Route path="/cadastro" component={ClientRegister} />
       <Route path="/correspondente" component={Correspondente} />
       <Route path="/termos" component={Termos} />
