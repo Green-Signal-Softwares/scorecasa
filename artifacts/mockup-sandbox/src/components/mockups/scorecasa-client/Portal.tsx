@@ -6,10 +6,12 @@ import {
   Menu,
   X,
   Bell,
+  Calculator,
 } from "lucide-react";
 
 const NAV_ITEMS = [
   { key: "dashboard", label: "Dashboard", icon: LayoutDashboard },
+  { key: "simulador", label: "Simulador", icon: Calculator },
   { key: "meus-dados", label: "Meus dados", icon: Users },
 ] as const;
 

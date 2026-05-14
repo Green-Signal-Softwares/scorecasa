@@ -21,6 +21,7 @@ import { AppLayout } from "@/components/layout/AppLayout";
 import { ClientPortal } from "@/pages/ClientPortal";
 import { ClientRegister } from "@/pages/ClientRegister";
 import { ClientMeusDados } from "@/pages/ClientMeusDados";
+import { ClientSimulador } from "@/pages/ClientSimulador";
 
 const queryClient = new QueryClient();
 
@@ -55,6 +56,7 @@ function Router() {
       <Route path="/termos" component={Termos} />
       <Route path="/privacidade" component={Privacidade} />
       <Route path="/portal/meus-dados" component={ClientMeusDados} />
+      <Route path="/portal/simulador" component={ClientSimulador} />
       <Route path="/portal" component={ClientPortal} />
 
       <Route path="/leads/:id">

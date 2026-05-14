@@ -1,5 +1,5 @@
 import { useLocation, Link } from "wouter";
-import { LogOut, LayoutDashboard, Users, Menu, X } from "lucide-react";
+import { LogOut, LayoutDashboard, Users, Menu, X, Calculator } from "lucide-react";
 import { useState } from "react";
 import { useLogout } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -9,7 +9,7 @@ import { ScoreCasaIcon, ScoreCasaWordmark } from "@/components/ScoreCasaLogo";
 interface ClientLayoutProps {
   children: React.ReactNode;
   userName?: string;
-  activePage?: "dashboard" | "meus-dados";
+  activePage?: "dashboard" | "simulador" | "meus-dados";
 }
 
 const NAV_ITEMS: Array<{
@@ -19,6 +19,7 @@ const NAV_ITEMS: Array<{
   icon: typeof LayoutDashboard;
 }> = [
   { key: "dashboard",  href: "/portal",            label: "Dashboard",   icon: LayoutDashboard },
+  { key: "simulador",  href: "/portal/simulador",  label: "Simulador",   icon: Calculator },
   { key: "meus-dados", href: "/portal/meus-dados", label: "Meus dados",  icon: Users },
 ];
 
