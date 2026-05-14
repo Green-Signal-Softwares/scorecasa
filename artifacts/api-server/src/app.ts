@@ -35,8 +35,8 @@ app.use(
 );
 
 app.use(cookieParser(process.env.SESSION_SECRET ?? "scorecasa_secret"));
-app.use(express.json());
-app.use(express.urlencoded({ extended: true }));
+app.use(express.json({ limit: "25mb" }));
+app.use(express.urlencoded({ extended: true, limit: "25mb" }));
 
 app.use((req, res, next) => {
   const sessionCookie = req.signedCookies?.session;

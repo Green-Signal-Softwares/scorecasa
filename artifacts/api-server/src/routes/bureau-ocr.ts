@@ -101,13 +101,28 @@ router.post("/", async (req, res) => {
   }
 
   const mime = mimeType ?? "image/png";
-  const dataUrl = "data:" + mime + ";base64," + imageBase64;
+  const isPdf = mime === "application/pdf" || mime === "application/x-pdf";
+  const dataUrl = "data:" + (isPdf ? "application/pdf" : mime) + ";base64," + imageBase64;
   const isBcb = docType === "bcb";
+
+  // PDFs use the OpenAI `file` content type; images use `image_url`.
+  const docPart: any = isPdf
+    ? {
+        type: "file",
+        file: {
+          filename: isBcb ? "bcb-registrato.pdf" : "cca-caixa.pdf",
+          file_data: dataUrl,
+        },
+      }
+    : {
+        type: "image_url",
+        image_url: { url: dataUrl, detail: "high" },
+      };
 
   try {
     const response = await openai.chat.completions.create({
       model: "gpt-5.1",
-      max_completion_tokens: 2048,
+      max_completion_tokens: 4096,
       messages: [
         {
           role: "user",
@@ -116,13 +131,10 @@ router.post("/", async (req, res) => {
               type: "text",
               text: isBcb ? BCB_PROMPT : CCA_PROMPT,
             },
-            {
-              type: "image_url",
-              image_url: { url: dataUrl, detail: "high" },
-            },
+            docPart,
           ],
         },
-      ],
+      ] as any,
     });
 
     const raw = response.choices[0]?.message?.content ?? "{}";
