@@ -4,7 +4,7 @@ import { z } from "zod";
 import { useLocation } from "wouter";
 import { useLogin } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Lock, Mail } from "lucide-react";
+import { Lock, Mail, Workflow, ShieldCheck, Building2, ArrowRight } from "lucide-react";
 import { ScoreCasaLogo, ScoreCasaIcon } from "@/components/ScoreCasaLogo";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -79,39 +79,49 @@ export function Login() {
             className="text-5xl font-bold leading-tight mb-5"
             style={{ fontFamily: "Poppins, sans-serif", color: "#FFFFFF" }}
           >
-            Inteligência para<br />
-            <span style={{ color: "#10A65A" }}>aprovar mais.</span>
+            Aprovações de crédito<br />
+            <span style={{ color: "#10A65A" }}>de forma rápida.</span>
           </h1>
 
           <p
-            className="text-lg leading-relaxed max-w-sm"
-            style={{ color: "rgba(255,255,255,0.65)", fontFamily: "Poppins, sans-serif", fontWeight: 400 }}
+            className="text-base leading-relaxed max-w-md"
+            style={{ color: "rgba(255,255,255,0.7)", fontFamily: "Poppins, sans-serif", fontWeight: 400 }}
           >
-            Análise preditiva de crédito imobiliário com IA para corretores e correspondentes bancários.
+            Gerencie aprovações de crédito, receba notificações de processos em andamento em tempo real e conte com uma integração direta com todos os bancos.
           </p>
 
-          {/* Feature pills */}
-          <div className="mt-10 flex flex-wrap gap-3">
+          {/* Bullets — fluxo correspondente */}
+          <ul className="mt-8 space-y-3 max-w-md">
             {[
-              "Score proprietário com IA",
-              "Open Finance integrado",
-              "Múltiplos bancos",
-              "Ranking de leads",
-            ].map((feat) => (
-              <span
-                key={feat}
-                className="text-xs px-3 py-1.5 rounded-full font-medium"
-                style={{
-                  background: "rgba(16,166,90,0.18)",
-                  color: "#10A65A",
-                  border: "1px solid rgba(16,166,90,0.3)",
-                  fontFamily: "Poppins, sans-serif",
-                }}
+              { icon: Workflow,    label: "Esteira de processos com fluxo de aprovação" },
+              { icon: ShieldCheck, label: "Controle de acessos e produtividade" },
+              { icon: Building2,   label: "Integração com a Caixa e bancos privados" },
+            ].map((b) => (
+              <li
+                key={b.label}
+                className="flex items-start gap-3"
+                style={{ color: "rgba(255,255,255,0.85)", fontFamily: "Poppins, sans-serif" }}
               >
-                {feat}
-              </span>
+                <span
+                  className="w-7 h-7 rounded-md flex items-center justify-center flex-shrink-0"
+                  style={{ background: "rgba(16,166,90,0.18)", color: "#86EFAC" }}
+                >
+                  <b.icon className="w-4 h-4" />
+                </span>
+                <span className="text-sm pt-1">{b.label}</span>
+              </li>
             ))}
-          </div>
+          </ul>
+
+          <a
+            href="/correspondente"
+            className="mt-8 inline-flex items-center gap-2 text-sm font-semibold transition-opacity hover:opacity-80"
+            style={{ color: "#10A65A", fontFamily: "Poppins, sans-serif" }}
+            data-testid="link-correspondente"
+          >
+            Conheça o perfil Correspondente
+            <ArrowRight className="w-4 h-4" />
+          </a>
         </div>
 
         {/* Green wave bottom — matches brand pack icon style */}
