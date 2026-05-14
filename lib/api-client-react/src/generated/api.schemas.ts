@@ -417,10 +417,16 @@ export interface LeadRanking {
 
 export interface Notification {
   id: number;
-  leadId: number;
-  leadName: string;
-  previousStatus: string;
-  newStatus: string;
+  /** Tipo da notificação. Ex.: lead_status, property_interest. */
+  type: string;
+  /** Usuário-alvo. Null = broadcast para staff. */
+  userId?: number | null;
+  leadId?: number | null;
+  leadName?: string | null;
+  previousStatus?: string | null;
+  newStatus?: string | null;
+  propertyId?: number | null;
+  propertyTitle?: string | null;
   message: string;
   isRead: boolean;
   createdAt: string;

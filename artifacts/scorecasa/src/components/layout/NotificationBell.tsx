@@ -48,7 +48,7 @@ export function NotificationBell() {
     if (unreadCount > prevUnreadRef.current && prevUnreadRef.current !== 0) {
       const newest = notifications.find((n) => !n.isRead);
       if (newest) {
-        const icon = STATUS_ICONS[newest.newStatus] ?? "🔔";
+        const icon = (newest.newStatus && STATUS_ICONS[newest.newStatus]) || (newest.type === "property_interest" ? "🏠" : "🔔");
         toast({ title: `${icon} ${newest.message}` });
       }
     }
@@ -140,7 +140,7 @@ export function NotificationBell() {
                   onClick={() => !n.isRead && handleMarkOne(n.id)}
                 >
                   <span className="text-base flex-shrink-0 mt-0.5">
-                    {STATUS_ICONS[n.newStatus] ?? "🔔"}
+                    {(n.newStatus && STATUS_ICONS[n.newStatus]) || (n.type === "property_interest" ? "🏠" : "🔔")}
                   </span>
                   <div className="flex-1 min-w-0">
                     <p className="text-white text-xs font-medium leading-snug">{n.message}</p>

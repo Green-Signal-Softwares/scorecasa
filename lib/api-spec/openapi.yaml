@@ -1461,18 +1461,35 @@ components:
 
     Notification:
       type: object
-      required: [id, leadId, leadName, previousStatus, newStatus, message, isRead, createdAt]
+      required: [id, type, message, isRead, createdAt]
       properties:
         id:
           type: integer
+        type:
+          type: string
+          description: "Tipo da notificação. Ex.: lead_status, property_interest."
+        userId:
+          type: integer
+          nullable: true
+          description: "Usuário-alvo. Null = broadcast para staff."
         leadId:
           type: integer
+          nullable: true
         leadName:
           type: string
+          nullable: true
         previousStatus:
           type: string
+          nullable: true
         newStatus:
           type: string
+          nullable: true
+        propertyId:
+          type: integer
+          nullable: true
+        propertyTitle:
+          type: string
+          nullable: true
         message:
           type: string
         isRead:

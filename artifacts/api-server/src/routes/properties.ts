@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, propertiesTable, propertyInterestsTable, usersTable, subscriptionsTable } from "@workspace/db";
+import { db, propertiesTable, propertyInterestsTable, usersTable, subscriptionsTable, notificationsTable } from "@workspace/db";
 import { eq, and, gte, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 
@@ -196,10 +196,29 @@ router.post("/:id/interest", requireAuth, async (req, res) => {
   if (existing) {
     await db.delete(propertyInterestsTable).where(eq(propertyInterestsTable.id, existing.id));
     res.json({ interested: false });
-  } else {
-    await db.insert(propertyInterestsTable).values({ propertyId, userId, status: "interested" });
-    res.json({ interested: true });
+    return;
   }
+
+  await db.insert(propertyInterestsTable).values({ propertyId, userId, status: "interested" });
+
+  // Notificar o corretor dono do imóvel.
+  const [property] = await db.select().from(propertiesTable).where(eq(propertiesTable.id, propertyId)).limit(1);
+  const [interestedUser] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+
+  if (property?.brokerId && interestedUser) {
+    const propTitle = property.title ?? "imóvel";
+    const where = [property.neighborhood, property.city].filter(Boolean).join(", ");
+    const locationSuffix = where ? ` em ${where}` : "";
+    await db.insert(notificationsTable).values({
+      type: "property_interest",
+      userId: property.brokerId,
+      propertyId: property.id,
+      propertyTitle: propTitle,
+      message: `${interestedUser.name} demonstrou interesse no imóvel "${propTitle}"${locationSuffix}.`,
+    });
+  }
+
+  res.json({ interested: true });
 });
 
 export default router;

@@ -383,10 +383,19 @@ export const GetNotificationsResponse = zod.object({
   notifications: zod.array(
     zod.object({
       id: zod.number(),
-      leadId: zod.number(),
-      leadName: zod.string(),
-      previousStatus: zod.string(),
-      newStatus: zod.string(),
+      type: zod
+        .string()
+        .describe("Tipo da notificação. Ex.: lead_status, property_interest."),
+      userId: zod
+        .number()
+        .nullish()
+        .describe("Usuário-alvo. Null = broadcast para staff."),
+      leadId: zod.number().nullish(),
+      leadName: zod.string().nullish(),
+      previousStatus: zod.string().nullish(),
+      newStatus: zod.string().nullish(),
+      propertyId: zod.number().nullish(),
+      propertyTitle: zod.string().nullish(),
       message: zod.string(),
       isRead: zod.boolean(),
       createdAt: zod.coerce.date(),
