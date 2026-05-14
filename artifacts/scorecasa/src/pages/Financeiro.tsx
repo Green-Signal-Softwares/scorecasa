@@ -1,5 +1,6 @@
 import { useState } from "react";
 import { useGetMe, useGetAllSubscriptions, useCreateSubscription, useUpdateSubscription, useGetMySubscription } from "@workspace/api-client-react";
+import { useLocation } from "wouter";
 import { getGetAllSubscriptionsQueryKey, getGetMySubscriptionQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -201,40 +202,95 @@ function TierCard({ tier, isCurrent }: { tier: (typeof PLAN_TIERS)[PlanId]; isCu
 // ── Seção add-on marketplace ───────────────────────────────────────────────────
 function MarketplaceAddonSection({ sub }: { sub: any }) {
   const hasAddon = sub?.marketplaceAddon;
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+  const [, setLocation] = useLocation();
+  const updateSub = useUpdateSubscription();
+
+  function handleContract(addon: { propertyLimit: number; priceMonthly: number; label: string }) {
+    if (!sub?.id) {
+      toast({ title: "Ative seu plano antes de contratar a Vitrine.", variant: "destructive" });
+      return;
+    }
+    updateSub.mutate({
+      id: sub.id,
+      data: {
+        marketplaceAddon: true,
+        marketplacePropertyLimit: addon.propertyLimit,
+        marketplaceAddonPrice: addon.priceMonthly,
+      },
+    }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getGetMySubscriptionQueryKey() });
+        toast({ title: "Vitrine de Imóveis contratada!", description: `${addon.label} · ${formatBRL(addon.priceMonthly)}/mês. Aba Imóveis liberada.` });
+        setTimeout(() => setLocation("/imoveis"), 800);
+      },
+      onError: () => toast({ title: "Erro ao contratar add-on", variant: "destructive" }),
+    });
+  }
+
+  function handleCancel() {
+    if (!sub?.id) return;
+    if (!confirm("Cancelar o add-on de Vitrine? Seus imóveis cadastrados deixarão de ser editáveis.")) return;
+    updateSub.mutate({
+      id: sub.id,
+      data: { marketplaceAddon: false, marketplacePropertyLimit: undefined as any, marketplaceAddonPrice: undefined as any },
+    }, {
+      onSuccess: () => {
+        queryClient.invalidateQueries({ queryKey: getGetMySubscriptionQueryKey() });
+        toast({ title: "Add-on cancelado." });
+      },
+    });
+  }
+
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
       <div className="flex items-center gap-2 mb-4">
         <Store className="w-4 h-4 text-[#0D1B8C]" />
-        <div className="text-sm font-semibold text-[#07113A]">Add-on Marketplace de Imóveis</div>
+        <div className="text-sm font-semibold text-[#07113A]">Vitrine de Imóveis</div>
       </div>
 
       {hasAddon ? (
-        <div className="p-3 rounded-xl bg-[#EEF2FF] flex items-center gap-3">
-          <CheckCircle className="w-5 h-5 text-[#0D1B8C]" />
-          <div>
-            <div className="font-semibold text-sm text-[#0D1B8C]">Add-on ativo</div>
-            <div className="text-xs text-gray-500">
-              Até {sub.marketplacePropertyLimit} imóveis · {formatBRL(sub.marketplaceAddonPrice ?? 0)}/mês
+        <div className="space-y-3">
+          <div className="p-3 rounded-xl bg-[#EEF2FF] flex items-center gap-3">
+            <CheckCircle className="w-5 h-5 text-[#0D1B8C]" />
+            <div>
+              <div className="font-semibold text-sm text-[#0D1B8C]">Vitrine ativa</div>
+              <div className="text-xs text-gray-500">
+                Até {sub.marketplacePropertyLimit} imóveis · {formatBRL(sub.marketplaceAddonPrice ?? 0)}/mês
+              </div>
             </div>
           </div>
+          <button
+            onClick={handleCancel}
+            disabled={updateSub.isPending}
+            className="w-full text-xs text-gray-400 hover:text-red-500 underline-offset-2 hover:underline"
+          >
+            Cancelar add-on
+          </button>
         </div>
       ) : (
         <div className="space-y-3">
           <p className="text-xs text-gray-500 leading-relaxed">
-            Divulgue seus imóveis no marketplace ScoreCasa para clientes verificados. Pacote extra opcional.
+            Divulgue seu portfólio de imóveis para clientes verificados da plataforma. Sem o add-on, a aba <strong>Imóveis</strong> não fica disponível.
           </p>
           <div className="grid grid-cols-2 gap-3">
             {MARKETPLACE_ADDONS.map((addon) => (
-              <div key={addon.id} className="border border-gray-200 rounded-xl p-3 text-center">
+              <button
+                key={addon.id}
+                onClick={() => handleContract(addon)}
+                disabled={updateSub.isPending}
+                data-testid={`button-contract-${addon.id}`}
+                className="border-2 border-[#0D1B8C]/20 hover:border-[#0D1B8C] rounded-xl p-3 text-center transition-all disabled:opacity-60 group"
+              >
                 <div className="text-xs font-semibold text-gray-500 mb-1">{addon.label}</div>
                 <div className="text-lg font-bold text-[#0D1B8C]">{formatBRL(addon.priceMonthly)}</div>
-                <div className="text-[10px] text-gray-400">/mês</div>
-              </div>
+                <div className="text-[10px] text-gray-400 mb-2">/mês</div>
+                <div className="text-[10px] font-bold text-white py-1 rounded-md group-hover:bg-[#10A65A] bg-[#0D1B8C] transition-colors">
+                  {updateSub.isPending ? "..." : "Contratar"}
+                </div>
+              </button>
             ))}
-          </div>
-          <div className="text-xs text-center text-gray-400 pt-1">
-            Para contratar o add-on, entre em contato em{" "}
-            <span className="font-semibold text-[#0D1B8C]">parceiros@scorecasa.com.br</span>
           </div>
         </div>
       )}

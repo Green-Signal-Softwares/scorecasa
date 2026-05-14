@@ -1,7 +1,7 @@
 import { useLocation, Link } from "wouter";
 import { LayoutDashboard, Users, UserCheck, Trophy, LogOut, Menu, X, Building2, CreditCard, ClipboardList, Star } from "lucide-react";
 import { useState } from "react";
-import { useLogout, useGetMe } from "@workspace/api-client-react";
+import { useLogout, useGetMe, useGetMySubscription } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useRequireBrokerAuth } from "@/hooks/use-auth";
 import { NotificationBell } from "./NotificationBell";
@@ -16,12 +16,18 @@ const ROLE_LABELS: Record<string, { label: string; color: string; bg: string }> 
 };
 
 // Nav items per role
-function getNavItems(role: string) {
+function getNavItems(role: string, marketplaceAddon: boolean) {
   const base = [
     { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
     { href: "/leads",     label: "Leads",     icon: Users },
-    { href: "/imoveis",   label: "Imóveis",   icon: Building2 },
   ];
+
+  // Aba Imóveis: corretor só vê se tiver contratado o add-on de Vitrine.
+  // Admin, analista, correspondente e cliente sempre veem (estes últimos só visualizam).
+  const showImoveis = role === "broker" ? marketplaceAddon : true;
+  if (showImoveis) {
+    base.push({ href: "/imoveis", label: "Imóveis", icon: Building2 });
+  }
 
   if (["admin", "analyst"].includes(role)) {
     base.push(
@@ -62,6 +68,9 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const { data: me } = useGetMe({});
   const role = (me as any)?.role ?? "analyst";
   const userName = (me as any)?.name ?? "";
+  // 404 quando o usuário não tem assinatura — tratamos como sem add-on.
+  const { data: sub } = useGetMySubscription({ query: { retry: false } } as any);
+  const marketplaceAddon = !!(sub as any)?.marketplaceAddon;
 
   if (isLoading) {
     return (
@@ -94,7 +103,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const navItems = getNavItems(role);
+  const navItems = getNavItems(role, marketplaceAddon);
   const roleInfo = ROLE_LABELS[role] ?? ROLE_LABELS.analyst;
 
   const SidebarContent = () => (

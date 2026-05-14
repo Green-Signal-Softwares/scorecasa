@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, propertiesTable, propertyInterestsTable } from "@workspace/db";
+import { db, propertiesTable, propertyInterestsTable, usersTable, subscriptionsTable } from "@workspace/db";
 import { eq, and, gte, lte, sql } from "drizzle-orm";
 import { z } from "zod";
 
@@ -8,6 +8,31 @@ const router = Router();
 function requireAuth(req: any, res: any, next: () => void) {
   if (!(req as any).session?.userId) { res.status(401).json({ error: "Unauthorized" }); return; }
   next();
+}
+
+// Apenas admin/analista e corretor com add-on de Vitrine ativo podem
+// cadastrar/editar/remover imóveis. Cliente e correspondente são view-only.
+async function requireCanManageProperty(req: any, res: any, next: () => void) {
+  const userId = (req as any).session?.userId;
+  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+  if (!user) { res.status(401).json({ error: "Unauthorized" }); return; }
+
+  if (user.role === "admin" || user.role === "analyst") { next(); return; }
+
+  if (user.role === "broker") {
+    const [sub] = await db.select().from(subscriptionsTable)
+      .where(eq(subscriptionsTable.userId, userId)).limit(1);
+    if (sub?.marketplaceAddon) { next(); return; }
+    res.status(403).json({
+      error: "Você precisa contratar o add-on de Vitrine de Imóveis na página Financeiro para divulgar imóveis.",
+    });
+    return;
+  }
+
+  // cliente, correspondente etc.
+  res.status(403).json({ error: "Seu perfil não permite cadastrar imóveis." });
 }
 
 const CreatePropertyBody = z.object({
@@ -69,11 +94,35 @@ router.get("/", async (req, res) => {
 });
 
 // POST /properties
-router.post("/", requireAuth, async (req, res) => {
+router.post("/", requireCanManageProperty, async (req, res) => {
   const parsed = CreatePropertyBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Invalid body", details: parsed.error.issues }); return; }
 
-  const [created] = await db.insert(propertiesTable).values(parsed.data).returning();
+  const userId = (req as any).session!.userId!;
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+
+  let data: any = parsed.data;
+
+  if (user?.role === "broker") {
+    // Anti-IDOR: brokerId é SEMPRE o próprio corretor, ignorando o input.
+    data = { ...parsed.data, brokerId: userId };
+
+    // Enforcement do limite do add-on contra o próprio brokerId.
+    const [sub] = await db.select().from(subscriptionsTable)
+      .where(eq(subscriptionsTable.userId, userId)).limit(1);
+    if (sub?.marketplacePropertyLimit) {
+      const [{ count }] = await db.select({ count: sql<number>`count(*)::int` })
+        .from(propertiesTable).where(eq(propertiesTable.brokerId, userId));
+      if (count >= sub.marketplacePropertyLimit) {
+        res.status(403).json({
+          error: `Limite de ${sub.marketplacePropertyLimit} imóveis atingido. Faça upgrade do add-on de Vitrine.`,
+        });
+        return;
+      }
+    }
+  }
+
+  const [created] = await db.insert(propertiesTable).values(data).returning();
   res.status(201).json(formatProperty(created));
 });
 
@@ -94,23 +143,44 @@ router.get("/:id", async (req, res) => {
 });
 
 // PATCH /properties/:id
-router.patch("/:id", requireAuth, async (req, res) => {
+router.patch("/:id", requireCanManageProperty, async (req, res) => {
   const id = Number(req.params.id);
   const parsed = UpdatePropertyBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Invalid body" }); return; }
 
+  const userId = (req as any).session!.userId!;
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+
+  // Para broker: bloqueia alteração de brokerId (não pode transferir imóvel)
+  // e restringe a operação aos imóveis dele (anti-IDOR).
+  const updateData: any = { ...parsed.data, updatedAt: new Date() };
+  let whereClause = eq(propertiesTable.id, id);
+  if (user?.role === "broker") {
+    delete updateData.brokerId;
+    whereClause = and(eq(propertiesTable.id, id), eq(propertiesTable.brokerId, userId))!;
+  }
+
   const [updated] = await db.update(propertiesTable)
-    .set({ ...parsed.data, updatedAt: new Date() })
-    .where(eq(propertiesTable.id, id))
+    .set(updateData)
+    .where(whereClause)
     .returning();
   if (!updated) { res.status(404).json({ error: "Not found" }); return; }
   res.json(formatProperty(updated));
 });
 
 // DELETE /properties/:id
-router.delete("/:id", requireAuth, async (req, res) => {
+router.delete("/:id", requireCanManageProperty, async (req, res) => {
   const id = Number(req.params.id);
-  await db.delete(propertiesTable).where(eq(propertiesTable.id, id));
+  const userId = (req as any).session!.userId!;
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+
+  // Broker só pode deletar imóvel próprio.
+  const whereClause = user?.role === "broker"
+    ? and(eq(propertiesTable.id, id), eq(propertiesTable.brokerId, userId))!
+    : eq(propertiesTable.id, id);
+
+  const deleted = await db.delete(propertiesTable).where(whereClause).returning();
+  if (deleted.length === 0) { res.status(404).json({ error: "Not found" }); return; }
   res.json({ ok: true });
 });
 

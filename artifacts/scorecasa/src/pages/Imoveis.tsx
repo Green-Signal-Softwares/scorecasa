@@ -1,5 +1,5 @@
 import { useState } from "react";
-import { useGetProperties, useCreateProperty, useUpdateProperty, useDeleteProperty, useTogglePropertyInterest, useGetMyInterests, useGetMe } from "@workspace/api-client-react";
+import { useGetProperties, useCreateProperty, useUpdateProperty, useDeleteProperty, useTogglePropertyInterest, useGetMyInterests, useGetMe, useGetMySubscription } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { getGetPropertiesQueryKey, getGetMyInterestsQueryKey } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
@@ -166,7 +166,14 @@ export function Imoveis() {
   const { toast } = useToast();
   const { data: me } = useGetMe({});
   const role = (me as any)?.role ?? "client";
-  const canManage = ["admin", "broker", "correspondent", "analyst"].includes(role);
+  const { data: sub } = useGetMySubscription({ query: { retry: false } } as any);
+  const hasMarketplaceAddon = !!(sub as any)?.marketplaceAddon;
+  // Só admin/analista e corretor com add-on de Vitrine podem cadastrar/editar.
+  // Cliente e correspondente apenas visualizam o catálogo divulgado pelos corretores.
+  const canManage =
+    role === "admin" ||
+    role === "analyst" ||
+    (role === "broker" && hasMarketplaceAddon);
 
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState("");
@@ -269,6 +276,27 @@ export function Imoveis() {
     });
   }
 
+  // Corretor sem add-on não deve nem ter acesso à página (a aba está oculta).
+  // Se chegar aqui via URL direta, mostramos um aviso direcionando ao Financeiro.
+  if (role === "broker" && !hasMarketplaceAddon) {
+    return (
+      <div className="max-w-xl mx-auto mt-12 bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center">
+        <Building2 className="w-12 h-12 mx-auto mb-4" style={{ color: "#0D1B8C", opacity: 0.3 }} />
+        <h2 className="text-xl font-bold mb-2" style={{ color: "#07113A" }}>Vitrine de Imóveis</h2>
+        <p className="text-sm text-gray-500 mb-6">
+          Para divulgar seu portfólio de imóveis no marketplace ScoreCasa, contrate o add-on de Vitrine na página Financeiro.
+        </p>
+        <a
+          href="/financeiro"
+          className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl font-semibold text-white"
+          style={{ background: "#0D1B8C" }}
+        >
+          Ir para Financeiro
+        </a>
+      </div>
+    );
+  }
+
   return (
     <div className="space-y-6">
       {/* Header */}
@@ -278,7 +306,7 @@ export function Imoveis() {
           <p className="text-sm text-muted-foreground mt-0.5">
             {canManage
               ? "Gerencie o catálogo de imóveis da plataforma"
-              : "Encontre o imóvel ideal e registre seu interesse"}
+              : "Encontre o imóvel ideal divulgado pelos nossos corretores parceiros"}
           </p>
         </div>
         {canManage && (
