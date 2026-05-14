@@ -1,7 +1,7 @@
 import { Router } from "express";
 import { db, usersTable, leadsTable, brokersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
-import { extractBcbFromPdf, normalizeCpf } from "./bcb-ocr-helper";
+import { extractBcbFromPdf, normalizeCpf, safeOcrErrorMessage } from "./bcb-ocr-helper";
 
 const router = Router();
 
@@ -148,7 +148,7 @@ router.post("/scr-import", requireClient, async (req, res) => {
     extraction = result;
   } catch (err: any) {
     req.log.error({ err }, "scr-import: OCR error");
-    res.status(500).json({ error: "Erro ao processar PDF do SCR. Tente novamente." });
+    res.status(500).json({ error: safeOcrErrorMessage(err) });
     return;
   }
 

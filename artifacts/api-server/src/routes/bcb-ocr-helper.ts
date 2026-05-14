@@ -104,7 +104,33 @@ export async function extractBcbFromPdf(
   mimeType: string,
 ): Promise<BcbExtraction | { error: string; status: number }> {
   const isPdf = mimeType === "application/pdf" || mimeType === "application/x-pdf";
-  const dataUrl = "data:" + (isPdf ? "application/pdf" : mimeType) + ";base64," + imageBase64;
+  const isImage = mimeType.startsWith("image/");
+
+  if (!isPdf && !isImage) {
+    return { error: "Formato nao suportado. Envie um PDF (.pdf) ou imagem (PNG/JPG) do relatorio Registrato.", status: 400 };
+  }
+
+  // Validate magic bytes: a "PDF" mimeType must actually be a PDF, otherwise the OpenAI proxy
+  // rejects it with a generic 400 ("file type not supported"). Same for common image formats.
+  // Strip optional data-URL prefix and surrounding whitespace before inspecting magic bytes.
+  const rawB64 = imageBase64.trim().replace(/^data:[^;]+;base64,/, "");
+  let head: Buffer;
+  try {
+    head = Buffer.from(rawB64.slice(0, 64), "base64");
+  } catch {
+    return { error: "Arquivo invalido (base64 corrompido). Envie novamente o PDF do Registrato.", status: 400 };
+  }
+  if (isPdf) {
+    const looksLikePdf = head.length >= 4 && head.slice(0, 4).toString("ascii") === "%PDF";
+    if (!looksLikePdf) {
+      return {
+        error: "Este arquivo nao e um PDF valido. Baixe o relatorio diretamente em gov.br/Registrato e envie sem renomear nem imprimir como PDF.",
+        status: 400,
+      };
+    }
+  }
+
+  const dataUrl = "data:" + (isPdf ? "application/pdf" : mimeType) + ";base64," + rawB64;
 
   const docPart: any = isPdf
     ? { type: "file", file: { filename: "bcb-registrato.pdf", file_data: dataUrl } }
@@ -188,6 +214,24 @@ export async function extractBcbFromPdf(
       operacoes: ops,
     },
   };
+}
+
+// Map upstream OpenAI/proxy errors to safe, user-actionable messages without leaking infra details.
+export function safeOcrErrorMessage(err: unknown): string {
+  const raw = (err as any)?.message ?? "";
+  const status = (err as any)?.status as number | undefined;
+  if (typeof raw === "string") {
+    if (/file type.*not supported|please try again with a pdf/i.test(raw)) {
+      return "O arquivo nao foi reconhecido como PDF valido pelo provedor de OCR. Baixe o relatorio diretamente em gov.br/Registrato e envie sem renomear.";
+    }
+    if (status === 413 || /too large|payload/i.test(raw)) {
+      return "Arquivo muito grande. Envie um PDF de ate 10 MB.";
+    }
+    if (status === 429 || /rate limit/i.test(raw)) {
+      return "Servico de OCR temporariamente sobrecarregado. Tente novamente em instantes.";
+    }
+  }
+  return "Nao foi possivel processar o PDF do SCR. Verifique se e o relatorio oficial do Registrato e tente novamente.";
 }
 
 export function normalizeCpf(cpf: string | null | undefined): string {

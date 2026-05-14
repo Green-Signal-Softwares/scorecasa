@@ -1,6 +1,6 @@
 import { Router } from "express";
 import OpenAI from "openai";
-import { extractBcbFromPdf } from "./bcb-ocr-helper";
+import { extractBcbFromPdf, safeOcrErrorMessage } from "./bcb-ocr-helper";
 
 const router = Router();
 
@@ -87,7 +87,7 @@ router.post("/", async (req, res) => {
       });
     } catch (err: any) {
       req.log.error({ err }, "bureau-ocr BCB error");
-      res.status(500).json({ error: "Erro ao processar PDF do SCR. Tente novamente." });
+      res.status(500).json({ error: safeOcrErrorMessage(err) });
     }
     return;
   }
