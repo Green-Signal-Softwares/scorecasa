@@ -18,7 +18,7 @@ const NAV_ITEMS: Array<{
   label: string;
   icon: typeof LayoutDashboard;
 }> = [
-  { key: "dashboard",  href: "/portal",            label: "Dashboard",   icon: LayoutDashboard },
+  { key: "dashboard",  href: "/portal",            label: "Resumo",      icon: LayoutDashboard },
   { key: "simulador",  href: "/portal/simulador",  label: "Simulador",   icon: Calculator },
   { key: "imoveis",    href: "/portal/imoveis",    label: "Imóveis",     icon: Building2 },
   { key: "meus-dados", href: "/portal/meus-dados", label: "Meus dados",  icon: Users },

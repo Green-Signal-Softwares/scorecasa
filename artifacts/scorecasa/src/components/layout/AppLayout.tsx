@@ -18,7 +18,7 @@ const ROLE_LABELS: Record<string, { label: string; color: string; bg: string }> 
 // Nav items per role
 function getNavItems(role: string, marketplaceAddon: boolean) {
   const base = [
-    { href: "/dashboard", label: "Dashboard", icon: LayoutDashboard },
+    { href: "/dashboard", label: "Resumo", icon: LayoutDashboard },
     { href: "/leads",     label: "Leads",     icon: Users },
   ];
 

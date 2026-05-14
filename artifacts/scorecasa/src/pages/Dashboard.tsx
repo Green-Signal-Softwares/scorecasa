@@ -97,7 +97,7 @@ export function Dashboard() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-xl font-bold text-foreground">Dashboard</h1>
+        <h1 className="text-xl font-bold text-foreground">Resumo</h1>
         <p className="text-sm text-muted-foreground">Visao geral da plataforma</p>
       </div>
 
