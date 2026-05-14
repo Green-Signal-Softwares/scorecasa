@@ -19,7 +19,8 @@ import {
   Building2, Phone, Mail, DollarSign, Pencil, X, Save, RefreshCw,
   FileDown, ShieldCheck, ShieldX, AlertTriangle, Landmark, Clock,
   BadgeCheck, ChevronDown, ChevronUp, BarChart3, SlidersHorizontal,
-  Navigation, CreditCard, Car, Wallet,
+  Navigation, CreditCard, Car, Wallet, Upload, Sparkles, FileImage,
+  XCircle, CheckCircle2,
 } from "lucide-react";
 import { BankComparison } from "@/components/BankComparison";
 import { CreditGPS, computeGpsSteps } from "@/components/CreditGPS";
@@ -109,6 +110,8 @@ export function LeadDetails({ id }: { id: number }) {
   const updateLead = useUpdateLead();
   const enrichLead = useEnrichLead();
   const [enrichOpen, setEnrichOpen] = useState(false);
+  const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrResult, setOcrResult] = useState<null | { ok: boolean; message: string; details?: string }>(null);
   const [enrichForm, setEnrichForm] = useState({
     serasaScore: "",
     hasNegativations: false,
@@ -148,6 +151,83 @@ export function LeadDetails({ id }: { id: number }) {
       });
     }
   }, [lead?.enrichedAt]);
+
+  const handleOcrUpload = async (file: File) => {
+    setOcrLoading(true);
+    setOcrResult(null);
+    try {
+      const arrayBuffer = await file.arrayBuffer();
+      const bytes = new Uint8Array(arrayBuffer);
+      let binary = "";
+      for (let i = 0; i < bytes.byteLength; i++) binary += String.fromCharCode(bytes[i]);
+      const imageBase64 = btoa(binary);
+
+      const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const resp = await fetch(`${BASE}/api/bureau-ocr`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({ imageBase64, mimeType: file.type }),
+      });
+
+      if (!resp.ok) {
+        const err = await resp.json().catch(() => ({}));
+        throw new Error((err as any).error ?? "Erro ao processar documento");
+      }
+
+      const data = await resp.json() as {
+        enrichFields: {
+          hasNegativations?: boolean;
+          negativationsValue?: number;
+          hasProtests?: boolean;
+          protestsValue?: number;
+          siricStatus?: string;
+          siricObservation?: string;
+        };
+        summary: {
+          nomeCliente?: string;
+          nadaConsta?: boolean;
+          serasaOcorrencias?: number;
+          protestosCount?: number;
+          scpcCount?: number;
+          cadinContratos?: number;
+        };
+      };
+
+      const ef = data.enrichFields;
+      setEnrichForm((f) => ({
+        ...f,
+        hasNegativations: ef.hasNegativations ?? f.hasNegativations,
+        negativationsValue: ef.negativationsValue != null ? String(ef.negativationsValue.toFixed(2)) : f.negativationsValue,
+        hasProtests: ef.hasProtests ?? f.hasProtests,
+        protestsValue: ef.protestsValue != null ? String(ef.protestsValue.toFixed(2)) : f.protestsValue,
+        siricStatus: (ef.siricStatus as any) ?? f.siricStatus,
+        siricObservation: ef.siricObservation ?? f.siricObservation,
+      }));
+
+      const s = data.summary;
+      const details = s.nadaConsta
+        ? "Nada consta — cliente sem restrições."
+        : [
+            s.serasaOcorrencias ? `Serasa: ${s.serasaOcorrencias} ocorrência(s)` : null,
+            s.protestosCount ? `Protestos: ${s.protestosCount}` : null,
+            s.scpcCount ? `SCPC: ${s.scpcCount} registro(s)` : null,
+            s.cadinContratos ? `CADIN: ${s.cadinContratos} contrato(s) em atraso` : null,
+          ].filter(Boolean).join(" · ") || "Sem pendências identificadas";
+
+      setOcrResult({
+        ok: true,
+        message: s.nomeCliente ? `Dados de ${s.nomeCliente} extraídos com sucesso` : "Dados extraídos com sucesso",
+        details,
+      });
+      toast({ title: "CCA Caixa importado", description: "Campos preenchidos automaticamente pela IA." });
+    } catch (err: any) {
+      setOcrResult({ ok: false, message: err.message ?? "Erro ao processar imagem" });
+      toast({ title: "Erro na leitura", description: err.message ?? "Tente novamente com outra imagem." });
+    } finally {
+      setOcrLoading(false);
+    }
+  };
 
   const handleEnrichSave = () => {
     const payload = {
@@ -730,7 +810,85 @@ export function LeadDetails({ id }: { id: number }) {
 
             {enrichOpen && (
               <div className="px-5 pb-5 space-y-5 border-t border-border">
-                <p className="text-xs text-muted-foreground pt-4">
+
+                {/* ── CCA Caixa OCR Import ── */}
+                <div className="pt-4">
+                  <div className="rounded-xl border-2 border-dashed p-4 transition-colors" style={{ borderColor: "#CBD5E1", background: "#F8FAFC" }}>
+                    <div className="flex items-start gap-3">
+                      <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "#EEF2FF" }}>
+                        <Sparkles className="w-4 h-4" style={{ color: "#0D1B8C" }} />
+                      </div>
+                      <div className="flex-1 min-w-0">
+                        <div className="text-sm font-semibold mb-0.5" style={{ color: "#07113A" }}>
+                          Importar CCA Caixa com IA
+                        </div>
+                        <p className="text-xs text-gray-500 leading-relaxed">
+                          Envie a imagem ou PDF da Pesquisa Cadastral Simplificada (CCA Caixa Aqui). A IA extrai automaticamente Serasa, SCPC, Protestos e CADIN.
+                        </p>
+
+                        {/* Result feedback */}
+                        {ocrResult && (
+                          <div
+                            className="mt-3 p-3 rounded-lg flex items-start gap-2 text-xs"
+                            style={{
+                              background: ocrResult.ok ? "#F0FDF4" : "#FEF2F2",
+                              color: ocrResult.ok ? "#065F46" : "#991B1B",
+                            }}
+                          >
+                            {ocrResult.ok
+                              ? <CheckCircle2 className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                              : <XCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" />
+                            }
+                            <div>
+                              <div className="font-semibold">{ocrResult.message}</div>
+                              {ocrResult.details && <div className="mt-0.5 opacity-80">{ocrResult.details}</div>}
+                            </div>
+                          </div>
+                        )}
+
+                        <label className="mt-3 flex items-center justify-center gap-2 cursor-pointer">
+                          <input
+                            type="file"
+                            accept="image/*,application/pdf"
+                            className="hidden"
+                            disabled={ocrLoading}
+                            onChange={(e) => {
+                              const file = e.target.files?.[0];
+                              if (file) handleOcrUpload(file);
+                              e.target.value = "";
+                            }}
+                          />
+                          <div
+                            className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold transition-all"
+                            style={{
+                              background: ocrLoading ? "#E2E8F0" : "#0D1B8C",
+                              color: ocrLoading ? "#94A3B8" : "#fff",
+                              cursor: ocrLoading ? "not-allowed" : "pointer",
+                            }}
+                          >
+                            {ocrLoading ? (
+                              <>
+                                <div className="w-3.5 h-3.5 border-2 border-white/30 border-t-white rounded-full animate-spin" />
+                                Analisando com IA...
+                              </>
+                            ) : (
+                              <>
+                                <FileImage className="w-3.5 h-3.5" />
+                                Selecionar arquivo
+                                <Upload className="w-3.5 h-3.5" />
+                              </>
+                            )}
+                          </div>
+                        </label>
+                        <p className="text-[10px] text-gray-400 text-center mt-1.5">
+                          PNG, JPG ou PDF · máx. 10 MB
+                        </p>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                <p className="text-xs text-muted-foreground">
                   Preencha com os dados consultados no sistema Caixa e nos bureaus (Serasa, SPC). Os scores serao recalculados automaticamente ao salvar.
                 </p>
 

@@ -12,6 +12,7 @@ import propertiesRouter from "./properties";
 import subscriptionsRouter from "./subscriptions";
 import ratingsRouter from "./ratings";
 import salesHistoryRouter from "./sales-history";
+import bureauOcrRouter from "./bureau-ocr";
 
 const router: IRouter = Router();
 
@@ -28,5 +29,6 @@ router.use("/properties", propertiesRouter);
 router.use("/subscriptions", subscriptionsRouter);
 router.use("/ratings", ratingsRouter);
 router.use("/sales-history", salesHistoryRouter);
+router.use("/bureau-ocr", bureauOcrRouter);
 
 export default router;
