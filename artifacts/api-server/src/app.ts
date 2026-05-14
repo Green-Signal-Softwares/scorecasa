@@ -38,7 +38,7 @@ app.use(cookieParser(process.env.SESSION_SECRET ?? "scorecasa_secret"));
 app.use(express.json());
 app.use(express.urlencoded({ extended: true }));
 
-app.use((req, _res, next) => {
+app.use((req, res, next) => {
   const sessionCookie = req.signedCookies?.session;
   if (sessionCookie) {
     try {
@@ -50,18 +50,25 @@ app.use((req, _res, next) => {
     (req as any).session = {};
   }
 
-  const originalJson = _res.json.bind(_res);
+  (req as any)._sessionDestroyed = false;
   (req as any).session.destroy = () => {
-    _res.clearCookie("session");
+    (req as any)._sessionDestroyed = true;
+    for (const key of Object.keys((req as any).session)) {
+      if (key !== "destroy") delete (req as any).session[key];
+    }
+    res.clearCookie("session", {
+      httpOnly: true,
+      sameSite: "none",
+      secure: true,
+    });
   };
 
-  next();
-});
-
-app.use((req, res, next) => {
   const originalJson = res.json.bind(res);
   res.json = function (body) {
     const session = (req as any).session;
+    if ((req as any)._sessionDestroyed) {
+      return originalJson(body);
+    }
     if (session && Object.keys(session).filter((k) => k !== "destroy").length > 0) {
       const { destroy: _, ...data } = session;
       res.cookie("session", JSON.stringify(data), {
@@ -74,6 +81,7 @@ app.use((req, res, next) => {
     }
     return originalJson(body);
   };
+
   next();
 });
 
