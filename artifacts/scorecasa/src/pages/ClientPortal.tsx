@@ -1,5 +1,6 @@
 import { useGetClientProfile, getGetClientProfileQueryKey } from "@workspace/api-client-react";
 import { ClientLayout } from "@/components/layout/ClientLayout";
+import { SCRImport } from "@/components/portal/SCRImport";
 import { useLocation } from "wouter";
 import { useGetMe, getGetMeQueryKey } from "@workspace/api-client-react";
 import { useEffect } from "react";
@@ -330,6 +331,9 @@ export function ClientPortal() {
           <p className="text-xs text-gray-400 italic">O IPA é uma referência educativa. A decisão de crédito cabe a cada instituição e pode usar outros critérios.</p>
         </div>
       </div>
+
+      {/* ── SCR Registrato (Banco Central) ───────────────────────────── */}
+      <SCRImport lead={lead as any} />
 
       {/* ── Resultado da Pesquisa ────────────────────────────────────── */}
       <div className="rounded-2xl shadow-sm border border-gray-100 overflow-hidden mb-6 bg-white">

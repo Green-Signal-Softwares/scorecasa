@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { db, usersTable, leadsTable, brokersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { extractBcbFromPdf, normalizeCpf } from "./bcb-ocr-helper";
 
 const router = Router();
 
@@ -116,6 +117,122 @@ router.put("/profile", requireClient, async (req, res) => {
 
   const profile = await getClientProfile(userId);
   res.json(profile);
+});
+
+// Importa dados do SCR (Banco Central / Registrato) para o lead do cliente.
+// Recebe o PDF original do SCR; o servidor faz OCR, valida CPF e persiste os campos.
+// Esta abordagem garante que o cliente NAO consegue forjar valores financeiros usados no score.
+router.post("/scr-import", requireClient, async (req, res) => {
+  const userId = (req as any).session.userId as number;
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+  if (!user || user.role !== "client" || !user.leadId) {
+    res.status(403).json({ error: "Apenas clientes com lead vinculado podem importar SCR." });
+    return;
+  }
+
+  const { imageBase64, mimeType } = (req.body ?? {}) as { imageBase64?: string; mimeType?: string };
+  if (!imageBase64 || typeof imageBase64 !== "string") {
+    res.status(400).json({ error: "Envie o PDF do relatorio SCR (imageBase64 obrigatorio)." });
+    return;
+  }
+  const mime = typeof mimeType === "string" ? mimeType : "application/pdf";
+
+  // OCR server-side. Resultado e a unica fonte de verdade para os campos persistidos.
+  let extraction;
+  try {
+    const result = await extractBcbFromPdf(imageBase64, mime);
+    if ("error" in result) {
+      res.status(result.status).json({ error: result.error });
+      return;
+    }
+    extraction = result;
+  } catch (err: any) {
+    req.log.error({ err }, "scr-import: OCR error");
+    res.status(500).json({ error: "Erro ao processar PDF do SCR. Tente novamente." });
+    return;
+  }
+
+  const [existing] = await db.select().from(leadsTable).where(eq(leadsTable.id, user.leadId)).limit(1);
+  if (!existing) {
+    res.status(404).json({ error: "Lead nao encontrado." });
+    return;
+  }
+
+  // Valida que o CPF do SCR confere com o do lead (anti-fraude).
+  // CPF e obrigatorio: se a OCR nao conseguir extrair, recusamos a importacao.
+  const scrCpf = normalizeCpf(extraction.summary.cpf);
+  const leadCpf = normalizeCpf(existing.cpf);
+  if (!scrCpf || scrCpf.length !== 11) {
+    res.status(422).json({
+      error: "Nao foi possivel identificar o CPF no relatorio SCR. Envie o PDF original do Registrato (gov.br), sem cortes ou alteracoes.",
+    });
+    return;
+  }
+  if (!leadCpf) {
+    res.status(400).json({ error: "Seu cadastro nao tem CPF informado. Atualize seus dados antes de importar o SCR." });
+    return;
+  }
+  if (scrCpf !== leadCpf) {
+    res.status(400).json({
+      error: "O CPF do relatorio SCR (" + scrCpf.replace(/(\d{3})(\d{3})(\d{3})(\d{2})/, "$1.***.***-$4") + ") nao confere com o CPF do seu cadastro. Envie o relatorio do titular.",
+    });
+    return;
+  }
+
+  const ef = extraction.enrichFields;
+
+  // Persistencia explicita: zeros e nulls SAO escritos para limpar dados antigos
+  // de relatorios SCR anteriores (ex.: divida vencida quitada).
+  const update: Record<string, unknown> = {
+    updatedAt: new Date(),
+    bcbTotalDebt: ef.bcbTotalDebt,
+    bcbMonthlyCommitment: ef.bcbMonthlyCommitment,
+    bcbOperationsCount: ef.bcbOperationsCount,
+    bcbQueryDate: ef.bcbQueryDate,
+    bcbDebtsCurrent: ef.bcbDebtsCurrent,
+    bcbDebtsOverdue: ef.bcbDebtsOverdue,
+    bcbCreditLimits: ef.bcbCreditLimits,
+    bcbOperationsJson: ef.bcbOperationsJson,
+    creditCardLimit: ef.creditCardLimit,
+    creditCardUsage: ef.creditCardUsage,
+    vehicleLoanMonthly: ef.vehicleLoanMonthly,
+    otherLoansMonthly: ef.otherLoansMonthly,
+    hasNegativations: ef.hasNegativations,
+  };
+
+  // Recalcula score
+  const totalIncome = existing.income + (existing.informalIncome ?? 0) * 0.7 + (existing.spouseIncome ?? 0);
+  const ratio = totalIncome > 0 ? existing.propertyValue / (totalIncome * 12) : 99;
+  let baseChance = Math.max(0, Math.min(100, 100 - (ratio / 4.5) * 60));
+
+  const monthlyDebt = ef.bcbMonthlyCommitment ?? ((ef.vehicleLoanMonthly ?? 0) + (ef.otherLoansMonthly ?? 0));
+  const debtRatio = totalIncome > 0 ? monthlyDebt / totalIncome : 0;
+  if (debtRatio > 0.30) baseChance -= 18;
+  else if (debtRatio > 0.20) baseChance -= 10;
+  else if (debtRatio > 0.10) baseChance -= 4;
+
+  const overdue = ef.bcbDebtsOverdue ?? 0;
+  if (overdue > 0) baseChance -= 25;
+
+  const approvalChance = Math.round(Math.max(0, Math.min(100, baseChance)));
+  const scoreCaixa = Math.min(1000, Math.max(300, Math.round(300 + (approvalChance / 100) * 550)));
+  const scoreMCMV = existing.income <= 8000 ? Math.round(600 + Math.random() * 250) : Math.round(300 + Math.random() * 200);
+
+  let recommendation: string;
+  if (overdue > 0) {
+    recommendation = `SCR aponta R$ ${overdue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} em dividas vencidas. Regularize antes de solicitar financiamento.`;
+  } else if (debtRatio > 0.30) {
+    recommendation = `Comprometimento mensal esta em ${(debtRatio * 100).toFixed(0)}% da renda — acima do limite Caixa de 30%. Reduza dividas ativas antes de prosseguir.`;
+  } else if (approvalChance >= 70) {
+    recommendation = "Perfil com alta chance de aprovacao. SCR limpo e comprometimento dentro do limite.";
+  } else {
+    recommendation = "Perfil viavel. Trabalhe a entrada e mantenha o SCR regular.";
+  }
+  Object.assign(update, { approvalChance, scoreCaixa, scoreMCMV, aiRecommendation: recommendation });
+
+  await db.update(leadsTable).set(update).where(eq(leadsTable.id, user.leadId));
+  const profile = await getClientProfile(userId);
+  res.json({ ...profile, summary: extraction.summary });
 });
 
 export default router;

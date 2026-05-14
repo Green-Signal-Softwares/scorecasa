@@ -1,5 +1,6 @@
 import { Router } from "express";
 import OpenAI from "openai";
+import { extractBcbFromPdf } from "./bcb-ocr-helper";
 
 const router = Router();
 
@@ -47,40 +48,7 @@ const CCA_PROMPT = [
   "- Extraia TODOS os registros visiveis, nao apenas o primeiro.",
 ].join("\n");
 
-const BCB_PROMPT = [
-  "Voce e um extrator de dados de documentos do Banco Central do Brasil.",
-  "Analise esta imagem do relatorio Registrato ou Resumo de Emprestimos e Financiamentos",
-  "do Banco Central do Brasil (BCB) e extraia as informacoes em formato JSON estrito.",
-  "",
-  "Retorne APENAS um JSON valido com este formato (sem markdown, sem texto extra):",
-  "{",
-  '  "nomeCliente": "string ou null",',
-  '  "cpf": "string ou null",',
-  '  "dataReferencia": "string ou null",',
-  '  "totalDividaAtiva": number ou 0,',
-  '  "parcelaMensalTotal": number ou 0,',
-  '  "quantidadeOperacoes": number ou 0,',
-  '  "operacoes": [',
-  '    {"instituicao":"string","modalidade":"string","saldoDevedor":number,"parcelaMensal":number ou null,"vencimento":"string ou null","situacao":"string"}',
-  "  ],",
-  '  "limiteCartaoCredito": number ou null,',
-  '  "utilizacaoCartaoCredito": number ou null,',
-  '  "emprestimoPessoalMensal": number ou null,',
-  '  "financiamentoVeiculoMensal": number ou null,',
-  '  "outrosMensal": number ou null,',
-  '  "inadimplencia": true ou false,',
-  '  "valorInadimplente": number ou 0',
-  "}",
-  "",
-  "Regras importantes:",
-  "- totalDividaAtiva = soma de todos os saldos devedores de operacoes ativas.",
-  "- parcelaMensalTotal = soma de todas as parcelas mensais comprometidas.",
-  "- quantidadeOperacoes = numero total de operacoes de credito ativas encontradas.",
-  "- Para valores monetarios, extraia apenas o numero (ex: R$ 1.234,56 vira 1234.56).",
-  "- Se um campo nao aparecer no documento, use null ou 0 conforme o tipo.",
-  "- inadimplencia = true se houver qualquer operacao vencida/inadimplente.",
-  "- Extraia TODAS as operacoes visiveis, nao apenas a primeira.",
-].join("\n");
+// (BCB_PROMPT and extraction logic are in ./bcb-ocr-helper.ts and shared with /api/client/scr-import.)
 
 router.post("/", async (req, res) => {
   const sessionUserId = (req as any).session?.userId;
@@ -101,16 +69,38 @@ router.post("/", async (req, res) => {
   }
 
   const mime = mimeType ?? "image/png";
+  const isBcb = docType === "bcb";
+
+  if (isBcb) {
+    try {
+      const result = await extractBcbFromPdf(imageBase64, mime);
+      if ("error" in result) {
+        req.log.warn({ err: result.error }, "bureau-ocr: BCB extraction failed");
+        res.status(result.status).json({ error: result.error });
+        return;
+      }
+      res.json({
+        docType: "bcb",
+        raw: result.parsed,
+        enrichFields: result.enrichFields,
+        summary: result.summary,
+      });
+    } catch (err: any) {
+      req.log.error({ err }, "bureau-ocr BCB error");
+      res.status(500).json({ error: "Erro ao processar PDF do SCR. Tente novamente." });
+    }
+    return;
+  }
+
   const isPdf = mime === "application/pdf" || mime === "application/x-pdf";
   const dataUrl = "data:" + (isPdf ? "application/pdf" : mime) + ";base64," + imageBase64;
-  const isBcb = docType === "bcb";
 
   // PDFs use the OpenAI `file` content type; images use `image_url`.
   const docPart: any = isPdf
     ? {
         type: "file",
         file: {
-          filename: isBcb ? "bcb-registrato.pdf" : "cca-caixa.pdf",
+          filename: "cca-caixa.pdf",
           file_data: dataUrl,
         },
       }
@@ -126,13 +116,7 @@ router.post("/", async (req, res) => {
       messages: [
         {
           role: "user",
-          content: [
-            {
-              type: "text",
-              text: isBcb ? BCB_PROMPT : CCA_PROMPT,
-            },
-            docPart,
-          ],
+          content: [{ type: "text", text: CCA_PROMPT }, docPart],
         },
       ] as any,
     });
@@ -146,51 +130,6 @@ router.post("/", async (req, res) => {
     } catch {
       req.log.warn({ raw }, "bureau-ocr: failed to parse LLM JSON");
       res.status(422).json({ error: "Nao foi possivel extrair os dados da imagem. Verifique se e um documento valido." });
-      return;
-    }
-
-    if (isBcb) {
-      const ops: { instituicao: string; modalidade: string; saldoDevedor: number; parcelaMensal: number | null }[] = parsed.operacoes ?? [];
-
-      const vehicleMensal =
-        parsed.financiamentoVeiculoMensal ??
-        (ops.filter((o) => /veiculo|veículo|auto|carro/i.test(o.modalidade))
-           .reduce((s, o) => s + (o.parcelaMensal ?? 0), 0) || null);
-
-      const outrosMensal =
-        (parsed.outrosMensal ??
-        parsed.emprestimoPessoalMensal ??
-        ops.filter((o) => !/veiculo|veículo|auto|carro|cartao|cartão/i.test(o.modalidade))
-           .reduce((s, o) => s + (o.parcelaMensal ?? 0), 0)) || null;
-
-      const operacoesCount = parsed.quantidadeOperacoes > 0
-        ? parsed.quantidadeOperacoes
-        : ops.length || null;
-
-      res.json({
-        docType: "bcb",
-        raw: parsed,
-        enrichFields: {
-          bcbTotalDebt: parsed.totalDividaAtiva > 0 ? parsed.totalDividaAtiva : undefined,
-          bcbMonthlyCommitment: parsed.parcelaMensalTotal > 0 ? parsed.parcelaMensalTotal : undefined,
-          bcbOperationsCount: operacoesCount ?? undefined,
-          bcbQueryDate: parsed.dataReferencia ?? undefined,
-          creditCardLimit: parsed.limiteCartaoCredito ?? undefined,
-          creditCardUsage: parsed.utilizacaoCartaoCredito ?? undefined,
-          vehicleLoanMonthly: vehicleMensal ?? undefined,
-          otherLoansMonthly: outrosMensal ?? undefined,
-        },
-        summary: {
-          nomeCliente: parsed.nomeCliente,
-          cpf: parsed.cpf,
-          dataReferencia: parsed.dataReferencia,
-          totalDividaAtiva: parsed.totalDividaAtiva ?? 0,
-          parcelaMensalTotal: parsed.parcelaMensalTotal ?? 0,
-          quantidadeOperacoes: operacoesCount ?? 0,
-          inadimplencia: parsed.inadimplencia ?? false,
-          valorInadimplente: parsed.valorInadimplente ?? 0,
-        },
-      });
       return;
     }
 
