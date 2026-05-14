@@ -110,7 +110,7 @@ export function ClientPortal() {
 
   if (!profile) {
     return (
-      <ClientLayout userName={me.name} activePage="home">
+      <ClientLayout userName={me.name} activePage="dashboard">
         <div className="text-center py-20 text-gray-500">Perfil não encontrado.</div>
       </ClientLayout>
     );
@@ -152,7 +152,7 @@ export function ClientPortal() {
   const maritalLabel = (lead as any).maritalStatus ? (maritalLabels[(lead as any).maritalStatus] ?? (lead as any).maritalStatus) : "Não informado";
 
   return (
-    <ClientLayout userName={me.name} activePage="home">
+    <ClientLayout userName={me.name} activePage="dashboard">
       {/* Welcome */}
       <div className="mb-6">
         <h1 className="text-2xl font-bold" style={{ color: "#07113A" }}>

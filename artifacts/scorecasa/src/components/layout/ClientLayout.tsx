@@ -1,5 +1,5 @@
 import { useLocation, Link } from "wouter";
-import { LogOut, Home, Database, Bell, Menu, X } from "lucide-react";
+import { LogOut, LayoutDashboard, Users, Menu, X } from "lucide-react";
 import { useState } from "react";
 import { useLogout } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -9,18 +9,17 @@ import { ScoreCasaIcon, ScoreCasaWordmark } from "@/components/ScoreCasaLogo";
 interface ClientLayoutProps {
   children: React.ReactNode;
   userName?: string;
-  activePage?: "home" | "meus-dados" | "notificacoes";
+  activePage?: "dashboard" | "meus-dados";
 }
 
 const NAV_ITEMS: Array<{
   key: NonNullable<ClientLayoutProps["activePage"]>;
   href: string;
   label: string;
-  icon: typeof Home;
+  icon: typeof LayoutDashboard;
 }> = [
-  { key: "home",         href: "/portal",            label: "Home",          icon: Home },
-  { key: "meus-dados",   href: "/portal/meus-dados", label: "Meus dados",    icon: Database },
-  { key: "notificacoes", href: "/portal",            label: "Notificações",  icon: Bell },
+  { key: "dashboard",  href: "/portal",            label: "Dashboard",   icon: LayoutDashboard },
+  { key: "meus-dados", href: "/portal/meus-dados", label: "Meus dados",  icon: Users },
 ];
 
 export function ClientLayout({ children, userName, activePage }: ClientLayoutProps) {
