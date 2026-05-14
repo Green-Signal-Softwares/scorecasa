@@ -43,11 +43,10 @@ import {
 } from "lucide-react";
 
 const STAGES = [
-  { id: "analise",      label: "Análise",      color: "#0D1B8C", bg: "#EEF2FF" },
-  { id: "aprovacao",    label: "Aprovação",    color: "#7C3AED", bg: "#F5F3FF" },
+  { id: "aprovacao",    label: "Aprovação",    color: "#0D1B8C", bg: "#EEF2FF" },
   { id: "engenharia",   label: "Engenharia",   color: "#D97706", bg: "#FFFBEB" },
   { id: "conformidade", label: "Conformidade", color: "#0891B2", bg: "#ECFEFF" },
-  { id: "assinatura",   label: "Assinatura",   color: "#10A65A", bg: "#F0FDF4" },
+  { id: "assinatura",   label: "Contrato",     color: "#10A65A", bg: "#F0FDF4" },
   { id: "concluido",    label: "Concluído",    color: "#047857", bg: "#ECFDF5" },
 ] as const;
 
@@ -213,7 +212,7 @@ export function ProcessDetails({ leadId }: { leadId: number }) {
 
       {/* Stage progress */}
       <Card className="p-4">
-        <div className="grid grid-cols-1 md:grid-cols-5 gap-2">
+        <div className="grid grid-cols-1 md:grid-cols-4 lg:grid-cols-5 gap-2">
           {STAGES.map((s, idx) => {
             const stats = statsByStage(s.id);
             const isCurrent = s.id === summary.stage;

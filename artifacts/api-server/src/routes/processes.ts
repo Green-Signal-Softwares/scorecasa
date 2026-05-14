@@ -7,7 +7,7 @@ import {
   processDocumentsTable,
   processStageHistoryTable,
 } from "@workspace/db";
-import { eq, and, desc, asc, inArray } from "drizzle-orm";
+import { eq, and, or, isNotNull, desc, asc, inArray } from "drizzle-orm";
 import {
   ChangeProcessStageBody as ChangeStageRequest,
   RegisterProcessDocumentBody as RegisterDocumentRequest,
@@ -44,12 +44,10 @@ router.use(requireStaff);
 
 // ── Document checklist per stage (RAUZEE-style) ─────────────────────────────
 const CHECKLIST = [
-  { stage: "analise", slug: "rg_cnh", label: "RG ou CNH (frente e verso)", required: true },
-  { stage: "analise", slug: "cpf", label: "CPF", required: true },
-  { stage: "analise", slug: "comp_residencia", label: "Comprovante de residência (últimos 3 meses)", required: true },
-  { stage: "analise", slug: "estado_civil", label: "Certidão de nascimento ou casamento", required: true },
-  { stage: "analise", slug: "ctps", label: "Carteira de trabalho", required: false },
-
+  { stage: "aprovacao", slug: "rg_cnh", label: "RG ou CNH (frente e verso)", required: true },
+  { stage: "aprovacao", slug: "cpf", label: "CPF", required: true },
+  { stage: "aprovacao", slug: "comp_residencia", label: "Comprovante de residência (últimos 3 meses)", required: true },
+  { stage: "aprovacao", slug: "estado_civil", label: "Certidão de nascimento ou casamento", required: true },
   { stage: "aprovacao", slug: "contracheque", label: "Contracheques (3 últimos)", required: true },
   { stage: "aprovacao", slug: "irpf", label: "Declaração de IRPF + recibo", required: true },
   { stage: "aprovacao", slug: "extrato_bancario", label: "Extrato bancário (3 meses)", required: true },
@@ -70,7 +68,7 @@ const CHECKLIST = [
   { stage: "assinatura", slug: "comprovante_pgto", label: "Comprovante de pagamento ITBI/registro", required: true },
 ] as const;
 
-const STAGE_ORDER = ["analise", "aprovacao", "engenharia", "conformidade", "assinatura", "concluido"] as const;
+const STAGE_ORDER = ["aprovacao", "engenharia", "conformidade", "assinatura", "concluido"] as const;
 type Stage = (typeof STAGE_ORDER)[number];
 
 function isStage(s: string): s is Stage {
@@ -79,10 +77,8 @@ function isStage(s: string): s is Stage {
 
 function effectiveStage(lead: { processStage: string | null; status: string }): Stage {
   if (lead.processStage && isStage(lead.processStage)) return lead.processStage;
-  // Default mapping from legacy lead.status
-  if (lead.status === "approved") return "aprovacao";
   if (lead.status === "in_progress") return "engenharia";
-  return "analise";
+  return "aprovacao";
 }
 
 // ── GET /api/correspondent/processes ────────────────────────────────────────
@@ -94,8 +90,17 @@ router.get("/", async (req, res) => {
   }
   const stageFilter = parsed.data.stage;
 
-  // Pull all leads, optionally filter by stage in JS (since stage may be derived)
-  const leads = await db.select().from(leadsTable);
+  // Only leads que foram aprovados (ou já estão na esteira de processos) entram aqui.
+  const leads = await db
+    .select()
+    .from(leadsTable)
+    .where(
+      or(
+        eq(leadsTable.status, "approved"),
+        eq(leadsTable.status, "in_progress"),
+        isNotNull(leadsTable.processStage),
+      ),
+    );
   if (leads.length === 0) {
     res.json([]);
     return;
