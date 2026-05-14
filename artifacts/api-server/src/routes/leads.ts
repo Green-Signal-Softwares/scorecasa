@@ -1,6 +1,24 @@
 import { Router } from "express";
-import { db, leadsTable, brokersTable, notificationsTable } from "@workspace/db";
+import { db, leadsTable, brokersTable, notificationsTable, usersTable } from "@workspace/db";
 import { eq, sql, ilike, or, and, desc } from "drizzle-orm";
+
+async function getSessionUser(req: any) {
+  const userId = req.session?.userId as number | undefined;
+  if (!userId) return null;
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+  return user ?? null;
+}
+
+// Middleware: exige sessão autenticada em todas as rotas /api/leads
+async function requireAuth(req: any, res: any, next: any) {
+  const user = await getSessionUser(req);
+  if (!user) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  req.sessionUser = user;
+  next();
+}
 import {
   CreateLeadBody,
   UpdateLeadBody,
@@ -14,6 +32,9 @@ import {
 } from "@workspace/api-zod";
 
 const router = Router();
+
+// Todas as rotas de leads exigem autenticação
+router.use(requireAuth);
 
 interface ScoreInput {
   income: number;
@@ -192,6 +213,32 @@ router.get("/", async (req, res) => {
   const { status, search, page = 1, limit = 20 } = parsed.data;
   const offset = (page - 1) * limit;
 
+  // Cliente individual: só vê o próprio lead
+  const sessionUser = await getSessionUser(req);
+  if (sessionUser?.role === "client") {
+    if (!sessionUser.leadId) {
+      res.json({ data: [], total: 0, page, limit });
+      return;
+    }
+    const [lead] = await db.select().from(leadsTable).where(eq(leadsTable.id, sessionUser.leadId)).limit(1);
+    if (!lead) {
+      res.json({ data: [], total: 0, page, limit });
+      return;
+    }
+    let brokerName: string | null = null;
+    if (lead.brokerId) {
+      const [broker] = await db.select({ name: brokersTable.name }).from(brokersTable).where(eq(brokersTable.id, lead.brokerId)).limit(1);
+      brokerName = broker?.name ?? null;
+    }
+    res.json({
+      data: [{ ...lead, brokerName, createdAt: lead.createdAt.toISOString(), updatedAt: lead.updatedAt.toISOString() }],
+      total: 1,
+      page,
+      limit,
+    });
+    return;
+  }
+
   const conditions = [];
   if (status) conditions.push(eq(leadsTable.status, status as any));
   if (search) {
@@ -231,6 +278,11 @@ router.get("/", async (req, res) => {
 });
 
 router.post("/", async (req, res) => {
+  const sessionUser = await getSessionUser(req);
+  if (sessionUser?.role === "client") {
+    res.status(403).json({ error: "Clientes não podem criar leads de terceiros." });
+    return;
+  }
   const parsed = CreateLeadBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid request body" });
@@ -270,6 +322,12 @@ router.get("/:id", async (req, res) => {
     return;
   }
 
+  const sessionUser = await getSessionUser(req);
+  if (sessionUser?.role === "client" && sessionUser.leadId !== parsed.data.id) {
+    res.status(403).json({ error: "Acesso negado a este lead." });
+    return;
+  }
+
   const [lead] = await db.select().from(leadsTable).where(eq(leadsTable.id, parsed.data.id)).limit(1);
   if (!lead) {
     res.status(404).json({ error: "Lead not found" });
@@ -291,6 +349,11 @@ router.get("/:id", async (req, res) => {
 });
 
 router.put("/:id", async (req, res) => {
+  const sessionUser = await getSessionUser(req);
+  if (sessionUser?.role === "client") {
+    res.status(403).json({ error: "Use /api/client/profile para editar seus dados." });
+    return;
+  }
   const paramsParsed = UpdateLeadParams.safeParse({ id: Number(req.params.id) });
   if (!paramsParsed.success) {
     res.status(400).json({ error: "Invalid ID" });
@@ -370,6 +433,11 @@ router.put("/:id", async (req, res) => {
 });
 
 router.delete("/:id", async (req, res) => {
+  const sessionUser = await getSessionUser(req);
+  if (sessionUser?.role === "client") {
+    res.status(403).json({ error: "Clientes não podem excluir leads." });
+    return;
+  }
   const parsed = DeleteLeadParams.safeParse({ id: Number(req.params.id) });
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid ID" });
@@ -381,6 +449,11 @@ router.delete("/:id", async (req, res) => {
 });
 
 router.put("/:id/enrich", async (req, res) => {
+  const sessionUser = await getSessionUser(req);
+  if (sessionUser?.role === "client") {
+    res.status(403).json({ error: "Clientes não podem enriquecer dados de leads." });
+    return;
+  }
   const paramsParsed = EnrichLeadParams.safeParse({ id: Number(req.params.id) });
   if (!paramsParsed.success) {
     res.status(400).json({ error: "Invalid ID" });
@@ -454,6 +527,12 @@ router.get("/:id/score", async (req, res) => {
   const parsed = GetLeadScoreParams.safeParse({ id: Number(req.params.id) });
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid ID" });
+    return;
+  }
+
+  const sessionUser = await getSessionUser(req);
+  if (sessionUser?.role === "client" && sessionUser.leadId !== parsed.data.id) {
+    res.status(403).json({ error: "Acesso negado a este lead." });
     return;
   }
 

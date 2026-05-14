@@ -1,7 +1,9 @@
 import { QueryClient, QueryClientProvider } from "@tanstack/react-query";
 import { Toaster } from "@/components/ui/toaster";
 import { TooltipProvider } from "@/components/ui/tooltip";
-import { Switch, Route, Router as WouterRouter } from "wouter";
+import { Switch, Route, Router as WouterRouter, useLocation } from "wouter";
+import { useEffect, type ReactNode } from "react";
+import { useGetMe, getGetMeQueryKey } from "@workspace/api-client-react";
 import NotFound from "@/pages/not-found";
 import { Login } from "@/pages/Login";
 import { Dashboard } from "@/pages/Dashboard";
@@ -22,6 +24,28 @@ import { ClientMeusDados } from "@/pages/ClientMeusDados";
 
 const queryClient = new QueryClient();
 
+function FullscreenLoader() {
+  return (
+    <div className="min-h-screen flex items-center justify-center" style={{ background: "#07113A" }}>
+      <div className="w-8 h-8 border-2 border-white/20 border-t-white rounded-full animate-spin" />
+    </div>
+  );
+}
+
+function StaffOnly({ children }: { children: ReactNode }) {
+  const [, setLocation] = useLocation();
+  const { data: me, isLoading } = useGetMe({
+    query: { queryKey: getGetMeQueryKey(), retry: false, staleTime: 60_000 },
+  });
+  useEffect(() => {
+    if (isLoading) return;
+    if (!me) setLocation("/login");
+    else if (me.role === "client") setLocation("/portal");
+  }, [isLoading, me, setLocation]);
+  if (isLoading || !me || me.role === "client") return <FullscreenLoader />;
+  return <>{children}</>;
+}
+
 function Router() {
   return (
     <Switch>
@@ -35,73 +59,91 @@ function Router() {
 
       <Route path="/leads/:id">
         {(params) => (
-          <AppLayout>
-            <LeadDetails id={Number(params?.id)} />
-          </AppLayout>
+          <StaffOnly>
+            <AppLayout>
+              <LeadDetails id={Number(params?.id)} />
+            </AppLayout>
+          </StaffOnly>
         )}
       </Route>
 
       <Route path="/leads">
         {() => (
-          <AppLayout>
-            <Leads />
-          </AppLayout>
+          <StaffOnly>
+            <AppLayout>
+              <Leads />
+            </AppLayout>
+          </StaffOnly>
         )}
       </Route>
 
       <Route path="/dashboard">
         {() => (
-          <AppLayout>
-            <Dashboard />
-          </AppLayout>
+          <StaffOnly>
+            <AppLayout>
+              <Dashboard />
+            </AppLayout>
+          </StaffOnly>
         )}
       </Route>
 
       <Route path="/brokers">
         {() => (
-          <AppLayout>
-            <Brokers />
-          </AppLayout>
+          <StaffOnly>
+            <AppLayout>
+              <Brokers />
+            </AppLayout>
+          </StaffOnly>
         )}
       </Route>
 
       <Route path="/ranking">
         {() => (
-          <AppLayout>
-            <Ranking />
-          </AppLayout>
+          <StaffOnly>
+            <AppLayout>
+              <Ranking />
+            </AppLayout>
+          </StaffOnly>
         )}
       </Route>
 
       <Route path="/imoveis">
         {() => (
-          <AppLayout>
-            <Imoveis />
-          </AppLayout>
+          <StaffOnly>
+            <AppLayout>
+              <Imoveis />
+            </AppLayout>
+          </StaffOnly>
         )}
       </Route>
 
       <Route path="/financeiro">
         {() => (
-          <AppLayout>
-            <Financeiro />
-          </AppLayout>
+          <StaffOnly>
+            <AppLayout>
+              <Financeiro />
+            </AppLayout>
+          </StaffOnly>
         )}
       </Route>
 
       <Route path="/historico">
         {() => (
-          <AppLayout>
-            <Historico />
-          </AppLayout>
+          <StaffOnly>
+            <AppLayout>
+              <Historico />
+            </AppLayout>
+          </StaffOnly>
         )}
       </Route>
 
       <Route path="/avaliacoes">
         {() => (
-          <AppLayout>
-            <Avaliacoes />
-          </AppLayout>
+          <StaffOnly>
+            <AppLayout>
+              <Avaliacoes />
+            </AppLayout>
+          </StaffOnly>
         )}
       </Route>
 
