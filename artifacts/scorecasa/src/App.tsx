@@ -18,6 +18,7 @@ import { Avaliacoes } from "@/pages/Avaliacoes";
 import { Processos } from "@/pages/Processos";
 import { ProcessDetails } from "@/pages/ProcessDetails";
 import { ScoreCasaConectado } from "@/pages/ScoreCasaConectado";
+import { Correspondente } from "@/pages/Correspondente";
 import { Termos } from "@/pages/Termos";
 import { Privacidade } from "@/pages/Privacidade";
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -72,6 +73,7 @@ function Router() {
       <Route path="/" component={Login} />
       <Route path="/login" component={Login} />
       <Route path="/cadastro" component={ClientRegister} />
+      <Route path="/correspondente" component={Correspondente} />
       <Route path="/termos" component={Termos} />
       <Route path="/privacidade" component={Privacidade} />
       <Route path="/portal/meus-dados" component={ClientMeusDados} />
