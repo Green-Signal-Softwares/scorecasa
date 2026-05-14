@@ -1,3 +1,5 @@
+import scorecasaIconUrl from "@assets/4_1778776494430.png";
+
 interface ScoreCasaIconProps {
   size?: number;
   className?: string;
@@ -5,67 +7,14 @@ interface ScoreCasaIconProps {
 
 export function ScoreCasaIcon({ size = 36, className }: ScoreCasaIconProps) {
   return (
-    <svg
+    <img
+      src={scorecasaIconUrl}
       width={size}
       height={size}
-      viewBox="0 0 200 200"
-      fill="none"
-      xmlns="http://www.w3.org/2000/svg"
+      alt="ScoreCasa"
       className={className}
-    >
-      <defs>
-        <linearGradient id="sc-icon-bg" x1="0" y1="0" x2="200" y2="200" gradientUnits="userSpaceOnUse">
-          <stop offset="0%" stopColor="#0D1B8C" />
-          <stop offset="100%" stopColor="#07113A" />
-        </linearGradient>
-        <clipPath id="sc-icon-clip">
-          <rect width="200" height="200" rx="40" />
-        </clipPath>
-      </defs>
-
-      {/* Background */}
-      <rect width="200" height="200" rx="40" fill="url(#sc-icon-bg)" />
-
-      {/* Green wave at the bottom */}
-      <path
-        d="M0 148 Q50 132 100 148 Q150 164 200 148 L200 200 L0 200 Z"
-        fill="#10A65A"
-        opacity="0.3"
-        clipPath="url(#sc-icon-clip)"
-      />
-      <path
-        d="M0 162 Q50 150 100 162 Q150 174 200 162 L200 200 L0 200 Z"
-        fill="#10A65A"
-        opacity="0.45"
-        clipPath="url(#sc-icon-clip)"
-      />
-
-      {/* Bold white S — Poppins-like, centered */}
-      <text
-        x="106"
-        y="148"
-        fontFamily="Poppins, Arial Black, sans-serif"
-        fontWeight="900"
-        fontSize="140"
-        fill="white"
-        textAnchor="middle"
-        dominantBaseline="auto"
-        letterSpacing="-4"
-        opacity="0.97"
-      >
-        S
-      </text>
-
-      {/* Green checkmark — large, upper-left, overlapping S */}
-      <polyline
-        points="28,88 62,124 118,44"
-        stroke="#10A65A"
-        strokeWidth="19"
-        strokeLinecap="round"
-        strokeLinejoin="round"
-        fill="none"
-      />
-    </svg>
+      style={{ display: "block", objectFit: "contain" }}
+    />
   );
 }
 

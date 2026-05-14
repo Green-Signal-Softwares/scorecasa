@@ -19,15 +19,17 @@ function Logo({ variant = "light" }: { variant?: "light" | "dark" }) {
   const fg = variant === "light" ? "#FFFFFF" : "#07113A";
   return (
     <div className="flex items-center gap-2">
-      <div
-        className="w-8 h-8 rounded-lg flex items-center justify-center font-black text-white text-sm"
-        style={{ background: "#0D1B8C" }}
-      >
-        SC
-      </div>
-      <div className="font-bold tracking-tight" style={{ color: fg, fontFamily: "Poppins, sans-serif" }}>
-        ScoreCasa
-      </div>
+      <img
+        src="/__mockup/images/scorecasa-icon.png"
+        alt="ScoreCasa"
+        width={32}
+        height={32}
+        style={{ display: "block", objectFit: "contain" }}
+      />
+      <span style={{ fontFamily: "Poppins, sans-serif", fontWeight: 700, letterSpacing: "-0.02em", lineHeight: 1 }} className="text-lg">
+        <span style={{ color: fg }}>score</span>
+        <span style={{ color: "#10A65A" }}>casa</span>
+      </span>
     </div>
   );
 }
