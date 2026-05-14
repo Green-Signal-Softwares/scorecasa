@@ -77,6 +77,12 @@ export const leadsTable = pgTable("leads", {
   creditCardUsage: real("credit_card_usage"),
   otherLoansMonthly: real("other_loans_monthly"),
 
+  // ── Banco Central do Brasil (Registrato) ─────────────────────
+  bcbTotalDebt: real("bcb_total_debt"),
+  bcbMonthlyCommitment: real("bcb_monthly_commitment"),
+  bcbOperationsCount: integer("bcb_operations_count"),
+  bcbQueryDate: text("bcb_query_date"),
+
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

@@ -188,6 +188,26 @@ export const GetClientProfileResponse = zod.object({
       .describe(
         "Outras parcelas mensais (CDC, empréstimos pessoais, consignado, R$\/mês)",
       ),
+    bcbTotalDebt: zod
+      .number()
+      .nullish()
+      .describe(
+        "Total de empréstimos e financiamentos ativos no SCR\/BCB (R$)",
+      ),
+    bcbMonthlyCommitment: zod
+      .number()
+      .nullish()
+      .describe(
+        "Soma das parcelas mensais comprometidas no SCR\/BCB (R$\/mês)",
+      ),
+    bcbOperationsCount: zod
+      .number()
+      .nullish()
+      .describe("Número de operações de crédito ativas no SCR\/BCB"),
+    bcbQueryDate: zod
+      .string()
+      .nullish()
+      .describe("Data de referência da consulta Registrato\/BCB"),
     createdAt: zod.coerce.date(),
     updatedAt: zod.coerce.date(),
   }),
@@ -331,6 +351,26 @@ export const UpdateClientProfileResponse = zod.object({
       .describe(
         "Outras parcelas mensais (CDC, empréstimos pessoais, consignado, R$\/mês)",
       ),
+    bcbTotalDebt: zod
+      .number()
+      .nullish()
+      .describe(
+        "Total de empréstimos e financiamentos ativos no SCR\/BCB (R$)",
+      ),
+    bcbMonthlyCommitment: zod
+      .number()
+      .nullish()
+      .describe(
+        "Soma das parcelas mensais comprometidas no SCR\/BCB (R$\/mês)",
+      ),
+    bcbOperationsCount: zod
+      .number()
+      .nullish()
+      .describe("Número de operações de crédito ativas no SCR\/BCB"),
+    bcbQueryDate: zod
+      .string()
+      .nullish()
+      .describe("Data de referência da consulta Registrato\/BCB"),
     createdAt: zod.coerce.date(),
     updatedAt: zod.coerce.date(),
   }),
@@ -1234,6 +1274,26 @@ export const GetLeadsResponse = zod.object({
         .describe(
           "Outras parcelas mensais (CDC, empréstimos pessoais, consignado, R$\/mês)",
         ),
+      bcbTotalDebt: zod
+        .number()
+        .nullish()
+        .describe(
+          "Total de empréstimos e financiamentos ativos no SCR\/BCB (R$)",
+        ),
+      bcbMonthlyCommitment: zod
+        .number()
+        .nullish()
+        .describe(
+          "Soma das parcelas mensais comprometidas no SCR\/BCB (R$\/mês)",
+        ),
+      bcbOperationsCount: zod
+        .number()
+        .nullish()
+        .describe("Número de operações de crédito ativas no SCR\/BCB"),
+      bcbQueryDate: zod
+        .string()
+        .nullish()
+        .describe("Data de referência da consulta Registrato\/BCB"),
       createdAt: zod.coerce.date(),
       updatedAt: zod.coerce.date(),
     }),
@@ -1400,6 +1460,22 @@ export const GetLeadResponse = zod.object({
     .describe(
       "Outras parcelas mensais (CDC, empréstimos pessoais, consignado, R$\/mês)",
     ),
+  bcbTotalDebt: zod
+    .number()
+    .nullish()
+    .describe("Total de empréstimos e financiamentos ativos no SCR\/BCB (R$)"),
+  bcbMonthlyCommitment: zod
+    .number()
+    .nullish()
+    .describe("Soma das parcelas mensais comprometidas no SCR\/BCB (R$\/mês)"),
+  bcbOperationsCount: zod
+    .number()
+    .nullish()
+    .describe("Número de operações de crédito ativas no SCR\/BCB"),
+  bcbQueryDate: zod
+    .string()
+    .nullish()
+    .describe("Data de referência da consulta Registrato\/BCB"),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -1532,6 +1608,22 @@ export const UpdateLeadResponse = zod.object({
     .describe(
       "Outras parcelas mensais (CDC, empréstimos pessoais, consignado, R$\/mês)",
     ),
+  bcbTotalDebt: zod
+    .number()
+    .nullish()
+    .describe("Total de empréstimos e financiamentos ativos no SCR\/BCB (R$)"),
+  bcbMonthlyCommitment: zod
+    .number()
+    .nullish()
+    .describe("Soma das parcelas mensais comprometidas no SCR\/BCB (R$\/mês)"),
+  bcbOperationsCount: zod
+    .number()
+    .nullish()
+    .describe("Número de operações de crédito ativas no SCR\/BCB"),
+  bcbQueryDate: zod
+    .string()
+    .nullish()
+    .describe("Data de referência da consulta Registrato\/BCB"),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });
@@ -1656,6 +1748,22 @@ export const EnrichLeadBody = zod.object({
     .number()
     .nullish()
     .describe("Outras parcelas mensais (CDC, empréstimos pessoais, R$\/mês)"),
+  bcbTotalDebt: zod
+    .number()
+    .nullish()
+    .describe("Total de empréstimos e financiamentos ativos no SCR\/BCB (R$)"),
+  bcbMonthlyCommitment: zod
+    .number()
+    .nullish()
+    .describe("Soma das parcelas mensais comprometidas no SCR\/BCB (R$\/mês)"),
+  bcbOperationsCount: zod
+    .number()
+    .nullish()
+    .describe("Número de operações de crédito ativas no SCR\/BCB"),
+  bcbQueryDate: zod
+    .string()
+    .nullish()
+    .describe("Data de referência da consulta Registrato\/BCB"),
 });
 
 export const EnrichLeadResponse = zod.object({
@@ -1767,6 +1875,22 @@ export const EnrichLeadResponse = zod.object({
     .describe(
       "Outras parcelas mensais (CDC, empréstimos pessoais, consignado, R$\/mês)",
     ),
+  bcbTotalDebt: zod
+    .number()
+    .nullish()
+    .describe("Total de empréstimos e financiamentos ativos no SCR\/BCB (R$)"),
+  bcbMonthlyCommitment: zod
+    .number()
+    .nullish()
+    .describe("Soma das parcelas mensais comprometidas no SCR\/BCB (R$\/mês)"),
+  bcbOperationsCount: zod
+    .number()
+    .nullish()
+    .describe("Número de operações de crédito ativas no SCR\/BCB"),
+  bcbQueryDate: zod
+    .string()
+    .nullish()
+    .describe("Data de referência da consulta Registrato\/BCB"),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date(),
 });

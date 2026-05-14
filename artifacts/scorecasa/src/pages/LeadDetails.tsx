@@ -111,12 +111,17 @@ export function LeadDetails({ id }: { id: number }) {
   const enrichLead = useEnrichLead();
   const [enrichOpen, setEnrichOpen] = useState(false);
   const [ocrLoading, setOcrLoading] = useState(false);
+  const [ocrDocType, setOcrDocType] = useState<"cca" | "bcb">("cca");
   const [ocrResult, setOcrResult] = useState<null | { ok: boolean; message: string; details?: string }>(null);
   const [enrichForm, setEnrichForm] = useState({
     serasaScore: "",
     hasNegativations: false,
     negativationsValue: "",
     hasProtests: false,
+    bcbTotalDebt: "",
+    bcbMonthlyCommitment: "",
+    bcbOperationsCount: "",
+    bcbQueryDate: "",
     protestsValue: "",
     siricStatus: "" as "" | "regular" | "irregular" | "pendente",
     siricObservation: "",
@@ -148,6 +153,10 @@ export function LeadDetails({ id }: { id: number }) {
         creditCardLimit: lead.creditCardLimit != null ? String(lead.creditCardLimit) : "",
         creditCardUsage: lead.creditCardUsage != null ? String(lead.creditCardUsage) : "",
         otherLoansMonthly: lead.otherLoansMonthly != null ? String(lead.otherLoansMonthly) : "",
+        bcbTotalDebt: (lead as any).bcbTotalDebt != null ? String((lead as any).bcbTotalDebt) : "",
+        bcbMonthlyCommitment: (lead as any).bcbMonthlyCommitment != null ? String((lead as any).bcbMonthlyCommitment) : "",
+        bcbOperationsCount: (lead as any).bcbOperationsCount != null ? String((lead as any).bcbOperationsCount) : "",
+        bcbQueryDate: (lead as any).bcbQueryDate ?? "",
       });
     }
   }, [lead?.enrichedAt]);
@@ -167,7 +176,7 @@ export function LeadDetails({ id }: { id: number }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ imageBase64, mimeType: file.type }),
+        body: JSON.stringify({ imageBase64, mimeType: file.type, docType: ocrDocType }),
       });
 
       if (!resp.ok) {
@@ -176,51 +185,68 @@ export function LeadDetails({ id }: { id: number }) {
       }
 
       const data = await resp.json() as {
-        enrichFields: {
-          hasNegativations?: boolean;
-          negativationsValue?: number;
-          hasProtests?: boolean;
-          protestsValue?: number;
-          siricStatus?: string;
-          siricObservation?: string;
-        };
-        summary: {
-          nomeCliente?: string;
-          nadaConsta?: boolean;
-          serasaOcorrencias?: number;
-          protestosCount?: number;
-          scpcCount?: number;
-          cadinContratos?: number;
-        };
+        docType: "cca" | "bcb";
+        enrichFields: Record<string, any>;
+        summary: Record<string, any>;
       };
 
       const ef = data.enrichFields;
-      setEnrichForm((f) => ({
-        ...f,
-        hasNegativations: ef.hasNegativations ?? f.hasNegativations,
-        negativationsValue: ef.negativationsValue != null ? String(ef.negativationsValue.toFixed(2)) : f.negativationsValue,
-        hasProtests: ef.hasProtests ?? f.hasProtests,
-        protestsValue: ef.protestsValue != null ? String(ef.protestsValue.toFixed(2)) : f.protestsValue,
-        siricStatus: (ef.siricStatus as any) ?? f.siricStatus,
-        siricObservation: ef.siricObservation ?? f.siricObservation,
-      }));
 
-      const s = data.summary;
-      const details = s.nadaConsta
-        ? "Nada consta — cliente sem restrições."
-        : [
-            s.serasaOcorrencias ? `Serasa: ${s.serasaOcorrencias} ocorrência(s)` : null,
-            s.protestosCount ? `Protestos: ${s.protestosCount}` : null,
-            s.scpcCount ? `SCPC: ${s.scpcCount} registro(s)` : null,
-            s.cadinContratos ? `CADIN: ${s.cadinContratos} contrato(s) em atraso` : null,
-          ].filter(Boolean).join(" · ") || "Sem pendências identificadas";
+      if (data.docType === "bcb") {
+        setEnrichForm((f) => ({
+          ...f,
+          bcbTotalDebt: ef.bcbTotalDebt != null ? String((ef.bcbTotalDebt as number).toFixed(2)) : f.bcbTotalDebt,
+          bcbMonthlyCommitment: ef.bcbMonthlyCommitment != null ? String((ef.bcbMonthlyCommitment as number).toFixed(2)) : f.bcbMonthlyCommitment,
+          bcbOperationsCount: ef.bcbOperationsCount != null ? String(ef.bcbOperationsCount) : f.bcbOperationsCount,
+          bcbQueryDate: ef.bcbQueryDate ?? f.bcbQueryDate,
+          creditCardLimit: ef.creditCardLimit != null ? String((ef.creditCardLimit as number).toFixed(2)) : f.creditCardLimit,
+          creditCardUsage: ef.creditCardUsage != null ? String((ef.creditCardUsage as number).toFixed(1)) : f.creditCardUsage,
+          vehicleLoanMonthly: ef.vehicleLoanMonthly != null ? String((ef.vehicleLoanMonthly as number).toFixed(2)) : f.vehicleLoanMonthly,
+          otherLoansMonthly: ef.otherLoansMonthly != null ? String((ef.otherLoansMonthly as number).toFixed(2)) : f.otherLoansMonthly,
+        }));
 
-      setOcrResult({
-        ok: true,
-        message: s.nomeCliente ? `Dados de ${s.nomeCliente} extraídos com sucesso` : "Dados extraídos com sucesso",
-        details,
-      });
-      toast({ title: "CCA Caixa importado", description: "Campos preenchidos automaticamente pela IA." });
+        const s = data.summary;
+        const details = [
+          s.quantidadeOperacoes ? `${s.quantidadeOperacoes} operação(ões) ativa(s)` : null,
+          s.totalDividaAtiva ? `Saldo devedor: R$ ${Number(s.totalDividaAtiva).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : null,
+          s.parcelaMensalTotal ? `Parcelas/mês: R$ ${Number(s.parcelaMensalTotal).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : null,
+          s.inadimplencia ? `⚠ Inadimplência: R$ ${Number(s.valorInadimplente).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : null,
+        ].filter(Boolean).join(" · ") || "Sem operações de crédito identificadas";
+
+        setOcrResult({
+          ok: true,
+          message: s.nomeCliente ? `Dados BCB de ${s.nomeCliente} extraídos com sucesso` : "Dados Registrato BCB extraídos",
+          details,
+        });
+        toast({ title: "Registrato BCB importado", description: "Comprometimento financeiro preenchido pela IA." });
+      } else {
+        setEnrichForm((f) => ({
+          ...f,
+          hasNegativations: ef.hasNegativations ?? f.hasNegativations,
+          negativationsValue: ef.negativationsValue != null ? String((ef.negativationsValue as number).toFixed(2)) : f.negativationsValue,
+          hasProtests: ef.hasProtests ?? f.hasProtests,
+          protestsValue: ef.protestsValue != null ? String((ef.protestsValue as number).toFixed(2)) : f.protestsValue,
+          siricStatus: (ef.siricStatus as any) ?? f.siricStatus,
+          siricObservation: ef.siricObservation ?? f.siricObservation,
+        }));
+
+        const s = data.summary;
+        const details = s.nadaConsta
+          ? "Nada consta — cliente sem restrições."
+          : [
+              s.serasaOcorrencias ? `Serasa: ${s.serasaOcorrencias} ocorrência(s)` : null,
+              s.protestosCount ? `Protestos: ${s.protestosCount}` : null,
+              s.scpcCount ? `SCPC: ${s.scpcCount} registro(s)` : null,
+              s.cadinContratos ? `CADIN: ${s.cadinContratos} contrato(s) em atraso` : null,
+            ].filter(Boolean).join(" · ") || "Sem pendências identificadas";
+
+        setOcrResult({
+          ok: true,
+          message: s.nomeCliente ? `Dados de ${s.nomeCliente} extraídos com sucesso` : "Dados extraídos com sucesso",
+          details,
+        });
+        toast({ title: "CCA Caixa importado", description: "Campos preenchidos automaticamente pela IA." });
+      }
     } catch (err: any) {
       setOcrResult({ ok: false, message: err.message ?? "Erro ao processar imagem" });
       toast({ title: "Erro na leitura", description: err.message ?? "Tente novamente com outra imagem." });
@@ -246,7 +272,11 @@ export function LeadDetails({ id }: { id: number }) {
       creditCardLimit: enrichForm.creditCardLimit ? Number(enrichForm.creditCardLimit) : undefined,
       creditCardUsage: enrichForm.creditCardUsage ? Number(enrichForm.creditCardUsage) : undefined,
       otherLoansMonthly: enrichForm.otherLoansMonthly ? Number(enrichForm.otherLoansMonthly) : undefined,
-    };
+      bcbTotalDebt: enrichForm.bcbTotalDebt ? Number(enrichForm.bcbTotalDebt) : undefined,
+      bcbMonthlyCommitment: enrichForm.bcbMonthlyCommitment ? Number(enrichForm.bcbMonthlyCommitment) : undefined,
+      bcbOperationsCount: enrichForm.bcbOperationsCount ? Number(enrichForm.bcbOperationsCount) : undefined,
+      bcbQueryDate: enrichForm.bcbQueryDate || undefined,
+    } as any;
     enrichLead.mutate(
       { id, data: payload },
       {
@@ -811,20 +841,47 @@ export function LeadDetails({ id }: { id: number }) {
             {enrichOpen && (
               <div className="px-5 pb-5 space-y-5 border-t border-border">
 
-                {/* ── CCA Caixa OCR Import ── */}
-                <div className="pt-4">
-                  <div className="rounded-xl border-2 border-dashed p-4 transition-colors" style={{ borderColor: "#CBD5E1", background: "#F8FAFC" }}>
+                {/* ── OCR Import (CCA Caixa + BCB Registrato) ── */}
+                <div className="pt-4 space-y-3">
+                  {/* Tab selector */}
+                  <div className="flex rounded-lg overflow-hidden border" style={{ borderColor: "#E2E8F0" }}>
+                    {(["cca", "bcb"] as const).map((t) => (
+                      <button
+                        key={t}
+                        type="button"
+                        onClick={() => { setOcrDocType(t); setOcrResult(null); }}
+                        className="flex-1 py-2 text-xs font-semibold transition-all"
+                        style={{
+                          background: ocrDocType === t ? "#0D1B8C" : "#F8FAFC",
+                          color: ocrDocType === t ? "#fff" : "#64748B",
+                        }}
+                      >
+                        {t === "cca" ? "📋 CCA Caixa" : "🏦 BCB Registrato"}
+                      </button>
+                    ))}
+                  </div>
+
+                  <div className="rounded-xl border-2 border-dashed p-4" style={{ borderColor: "#CBD5E1", background: "#F8FAFC" }}>
                     <div className="flex items-start gap-3">
                       <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "#EEF2FF" }}>
                         <Sparkles className="w-4 h-4" style={{ color: "#0D1B8C" }} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        <div className="text-sm font-semibold mb-0.5" style={{ color: "#07113A" }}>
-                          Importar CCA Caixa com IA
-                        </div>
-                        <p className="text-xs text-gray-500 leading-relaxed">
-                          Envie a imagem ou PDF da Pesquisa Cadastral Simplificada (CCA Caixa Aqui). A IA extrai automaticamente Serasa, SCPC, Protestos e CADIN.
-                        </p>
+                        {ocrDocType === "cca" ? (
+                          <>
+                            <div className="text-sm font-semibold mb-0.5" style={{ color: "#07113A" }}>Importar CCA Caixa com IA</div>
+                            <p className="text-xs text-gray-500 leading-relaxed">
+                              Envie a imagem ou PDF da Pesquisa Cadastral Simplificada (Caixa Aqui). Extrai Serasa, SCPC, Protestos e CADIN automaticamente.
+                            </p>
+                          </>
+                        ) : (
+                          <>
+                            <div className="text-sm font-semibold mb-0.5" style={{ color: "#07113A" }}>Importar Registrato BCB com IA</div>
+                            <p className="text-xs text-gray-500 leading-relaxed">
+                              Envie o relatório "Resumo de Empréstimos e Financiamentos" do Banco Central (Registrato). Extrai dívidas totais, parcelas mensais e operações ativas.
+                            </p>
+                          </>
+                        )}
 
                         {/* Result feedback */}
                         {ocrResult && (
@@ -1131,6 +1188,79 @@ export function LeadDetails({ id }: { id: number }) {
                         </div>
                         <div className="text-xs mt-1" style={{ color }}>
                           {ratio > 30 ? "Acima do limite — reduz fortemente a margem de crédito imobiliário" : ratio > 15 ? "Atenção — pode impactar a análise de crédito" : "Dentro do limite aceitável pelos bancos"}
+                        </div>
+                      </div>
+                    );
+                  })()}
+                </div>
+
+                {/* ── Banco Central do Brasil (Registrato) ── */}
+                <div>
+                  <div className="text-xs font-semibold mb-2 uppercase tracking-wide" style={{ color: "#0D1B8C" }}>
+                    Banco Central do Brasil — Registrato
+                  </div>
+                  <p className="text-xs text-muted-foreground mb-3">
+                    Dados do SCR/Registrato: total de dívidas e parcelas comprometidas no sistema financeiro nacional.
+                  </p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <div>
+                      <label className="text-xs text-muted-foreground block mb-1">Total de dívidas ativas (R$)</label>
+                      <Input
+                        type="number"
+                        min={0}
+                        placeholder="Ex: 45000"
+                        className="h-9 text-sm"
+                        value={enrichForm.bcbTotalDebt}
+                        onChange={(e) => setEnrichForm((f) => ({ ...f, bcbTotalDebt: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground block mb-1">Parcelas mensais BCB (R$/mês)</label>
+                      <Input
+                        type="number"
+                        min={0}
+                        placeholder="Ex: 1200"
+                        className="h-9 text-sm"
+                        value={enrichForm.bcbMonthlyCommitment}
+                        onChange={(e) => setEnrichForm((f) => ({ ...f, bcbMonthlyCommitment: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground block mb-1">Qtd. operações ativas</label>
+                      <Input
+                        type="number"
+                        min={0}
+                        placeholder="Ex: 3"
+                        className="h-9 text-sm"
+                        value={enrichForm.bcbOperationsCount}
+                        onChange={(e) => setEnrichForm((f) => ({ ...f, bcbOperationsCount: e.target.value }))}
+                      />
+                    </div>
+                    <div>
+                      <label className="text-xs text-muted-foreground block mb-1">Data de referência BCB</label>
+                      <Input
+                        type="text"
+                        placeholder="Ex: 05/2026"
+                        className="h-9 text-sm"
+                        value={enrichForm.bcbQueryDate}
+                        onChange={(e) => setEnrichForm((f) => ({ ...f, bcbQueryDate: e.target.value }))}
+                      />
+                    </div>
+                  </div>
+                  {enrichForm.bcbMonthlyCommitment && (() => {
+                    const bcbRatio = lead.income > 0 ? (Number(enrichForm.bcbMonthlyCommitment) / lead.income) * 100 : 0;
+                    const color = bcbRatio > 35 ? "#EF4444" : bcbRatio > 20 ? "#F59E0B" : "#10A65A";
+                    return (
+                      <div className="mt-3 p-3 rounded-lg" style={{ background: bcbRatio > 35 ? "#FEF2F2" : bcbRatio > 20 ? "#FFFBEB" : "#F0FDF4" }}>
+                        <div className="flex justify-between items-center text-xs mb-1.5">
+                          <span className="font-medium" style={{ color }}>Comprometimento BCB vs. renda</span>
+                          <span className="font-bold" style={{ color }}>{bcbRatio.toFixed(1)}%</span>
+                        </div>
+                        <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                          <div className="h-full rounded-full transition-all" style={{ width: `${Math.min(100, bcbRatio)}%`, background: color }} />
+                        </div>
+                        <div className="text-xs mt-1" style={{ color }}>
+                          {bcbRatio > 35 ? "Comprometimento elevado — pode inviabilizar a operação" : bcbRatio > 20 ? "Atenção — margem de crédito reduzida" : "Comprometimento aceitável para análise"}
                         </div>
                       </div>
                     );

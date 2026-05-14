@@ -1076,6 +1076,22 @@ components:
           type: number
           nullable: true
           description: Outras parcelas mensais (CDC, empréstimos pessoais, consignado, R$/mês)
+        bcbTotalDebt:
+          type: number
+          nullable: true
+          description: Total de empréstimos e financiamentos ativos no SCR/BCB (R$)
+        bcbMonthlyCommitment:
+          type: number
+          nullable: true
+          description: Soma das parcelas mensais comprometidas no SCR/BCB (R$/mês)
+        bcbOperationsCount:
+          type: integer
+          nullable: true
+          description: Número de operações de crédito ativas no SCR/BCB
+        bcbQueryDate:
+          type: string
+          nullable: true
+          description: Data de referência da consulta Registrato/BCB
         createdAt:
           type: string
           format: date-time
@@ -1136,6 +1152,22 @@ components:
           type: number
           nullable: true
           description: Outras parcelas mensais (CDC, empréstimos pessoais, R$/mês)
+        bcbTotalDebt:
+          type: number
+          nullable: true
+          description: Total de empréstimos e financiamentos ativos no SCR/BCB (R$)
+        bcbMonthlyCommitment:
+          type: number
+          nullable: true
+          description: Soma das parcelas mensais comprometidas no SCR/BCB (R$/mês)
+        bcbOperationsCount:
+          type: integer
+          nullable: true
+          description: Número de operações de crédito ativas no SCR/BCB
+        bcbQueryDate:
+          type: string
+          nullable: true
+          description: Data de referência da consulta Registrato/BCB
 
     CreateLeadRequest:
       type: object

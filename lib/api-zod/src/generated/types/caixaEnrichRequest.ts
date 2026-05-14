@@ -26,4 +26,12 @@ export interface CaixaEnrichRequest {
   creditCardUsage?: number | null;
   /** Outras parcelas mensais (CDC, empréstimos pessoais, R$/mês) */
   otherLoansMonthly?: number | null;
+  /** Total de empréstimos e financiamentos ativos no SCR/BCB (R$) */
+  bcbTotalDebt?: number | null;
+  /** Soma das parcelas mensais comprometidas no SCR/BCB (R$/mês) */
+  bcbMonthlyCommitment?: number | null;
+  /** Número de operações de crédito ativas no SCR/BCB */
+  bcbOperationsCount?: number | null;
+  /** Data de referência da consulta Registrato/BCB */
+  bcbQueryDate?: string | null;
 }
