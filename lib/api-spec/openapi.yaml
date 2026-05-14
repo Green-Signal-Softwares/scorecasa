@@ -978,7 +978,7 @@ components:
       properties:
         email:
           type: string
-          format: email
+          description: E-mail ou CPF (apenas dígitos, 11 caracteres)
         password:
           type: string
 

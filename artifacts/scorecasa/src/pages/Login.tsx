@@ -16,12 +16,32 @@ import { Form, FormControl, FormField, FormItem, FormMessage } from "@/component
 import { useToast } from "@/hooks/use-toast";
 import { useRedirectIfAuthenticated } from "@/hooks/use-auth";
 
+// Aceita e-mail OU CPF (11 dígitos, com ou sem máscara)
 const loginSchema = z.object({
-  email: z.string().email("E-mail inválido"),
+  email: z.string().min(1, "Informe seu e-mail ou CPF").refine((v) => {
+    const trimmed = v.trim();
+    const digits = trimmed.replace(/\D/g, "");
+    if (digits.length === 11 && /^\d+$/.test(digits)) return true;
+    return /^[^\s@]+@[^\s@]+\.[^\s@]+$/.test(trimmed);
+  }, "Informe um e-mail válido ou CPF com 11 dígitos"),
   password: z.string().min(1, "Senha obrigatória"),
 });
 
 type LoginForm = z.infer<typeof loginSchema>;
+
+function formatLoginIdentifier(raw: string): string {
+  const trimmed = raw.trim();
+  const digits = trimmed.replace(/\D/g, "");
+  // Se parece um CPF (apenas dígitos / pontuação típica), aplica máscara
+  if (/^[\d.\-\s]*$/.test(trimmed) && digits.length > 0 && digits.length <= 11) {
+    const d = digits.slice(0, 11);
+    if (d.length <= 3) return d;
+    if (d.length <= 6) return `${d.slice(0, 3)}.${d.slice(3)}`;
+    if (d.length <= 9) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`;
+    return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
+  }
+  return trimmed;
+}
 
 // ── Score Gauge (semicircular) ────────────────────────────────────────────────
 function ScoreGauge({ score, max = 1000 }: { score: number; max?: number }) {
@@ -106,8 +126,13 @@ export function Login() {
   });
 
   const onSubmit = (data: LoginForm) => {
+    // Normaliza: se for CPF mascarado, envia apenas dígitos; senão, e-mail em lowercase
+    const trimmed = data.email.trim();
+    const digits = trimmed.replace(/\D/g, "");
+    const looksLikeCpf = /^[\d.\-\s]+$/.test(trimmed) && digits.length === 11;
+    const normalized = looksLikeCpf ? digits : trimmed.toLowerCase();
     login.mutate(
-      { data },
+      { data: { ...data, email: normalized } },
       {
         onSuccess: (data) => {
           queryClient.invalidateQueries();
@@ -324,9 +349,12 @@ export function Login() {
                           <UserIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#9CA3AF" }} />
                           <Input
                             {...field}
-                            type="email"
-                            placeholder="E-mail"
+                            type="text"
+                            inputMode="email"
+                            autoComplete="username"
+                            placeholder="E-mail ou CPF"
                             className="pl-11 h-12 rounded-xl bg-gray-50 border-gray-200"
+                            onChange={(e) => field.onChange(formatLoginIdentifier(e.target.value))}
                             data-testid="input-email"
                           />
                         </div>

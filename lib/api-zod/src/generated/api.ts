@@ -17,7 +17,7 @@ export const HealthCheckResponse = zod.object({
  * @summary Login with email and password
  */
 export const LoginBody = zod.object({
-  email: zod.string().email(),
+  email: zod.string().describe("E-mail ou CPF (apenas dígitos, 11 caracteres)"),
   password: zod.string(),
 });
 

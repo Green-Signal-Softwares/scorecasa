@@ -113,6 +113,7 @@ router.post("/register", async (req, res) => {
       const [createdUser] = await tx.insert(usersTable).values({
         name,
         email,
+        cpf: cpf ? cpf.replace(/\D/g, "") : null,
         passwordHash: hashPassword(password),
         role,
         leadId,
@@ -170,7 +171,15 @@ router.post("/login", async (req, res) => {
   }
 
   const { email, password } = parsed.data;
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
+
+  // Aceita e-mail OU CPF (11 dígitos numéricos)
+  const identifier = email.trim();
+  const cpfDigits = identifier.replace(/\D/g, "");
+  const isCpf = cpfDigits.length === 11 && /^\d+$/.test(cpfDigits);
+
+  const [user] = isCpf
+    ? await db.select().from(usersTable).where(eq(usersTable.cpf, cpfDigits)).limit(1)
+    : await db.select().from(usersTable).where(eq(usersTable.email, identifier.toLowerCase())).limit(1);
 
   if (!user || user.passwordHash !== hashPassword(password)) {
     res.status(401).json({ error: "Invalid credentials" });

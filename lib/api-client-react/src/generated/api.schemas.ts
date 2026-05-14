@@ -16,6 +16,7 @@ export interface HealthStatus {
 }
 
 export interface LoginRequest {
+  /** E-mail ou CPF (apenas dígitos, 11 caracteres) */
   email: string;
   password: string;
 }
