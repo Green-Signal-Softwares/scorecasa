@@ -13,6 +13,8 @@ import { Imoveis } from "@/pages/Imoveis";
 import { Financeiro } from "@/pages/Financeiro";
 import { Historico } from "@/pages/Historico";
 import { Avaliacoes } from "@/pages/Avaliacoes";
+import { Termos } from "@/pages/Termos";
+import { Privacidade } from "@/pages/Privacidade";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ClientPortal } from "@/pages/ClientPortal";
 import { ClientRegister } from "@/pages/ClientRegister";
@@ -26,6 +28,8 @@ function Router() {
       <Route path="/" component={Login} />
       <Route path="/login" component={Login} />
       <Route path="/cadastro" component={ClientRegister} />
+      <Route path="/termos" component={Termos} />
+      <Route path="/privacidade" component={Privacidade} />
       <Route path="/portal/meus-dados" component={ClientMeusDados} />
       <Route path="/portal" component={ClientPortal} />
 

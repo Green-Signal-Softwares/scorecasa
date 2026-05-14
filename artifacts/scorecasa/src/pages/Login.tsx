@@ -244,6 +244,31 @@ export function Login() {
                 {" / "}
                 <span className="font-mono" style={{ color: "#6B7280" }}>admin123</span>
               </p>
+              <div className="flex items-center justify-center gap-3 pt-1">
+                <a
+                  href="/termos"
+                  className="text-xs hover:underline transition-colors"
+                  style={{ color: "#9CA3AF" }}
+                >
+                  Termos de Uso
+                </a>
+                <span style={{ color: "#D1D5DB" }}>·</span>
+                <a
+                  href="/privacidade"
+                  className="text-xs hover:underline transition-colors"
+                  style={{ color: "#9CA3AF" }}
+                >
+                  Privacidade
+                </a>
+                <span style={{ color: "#D1D5DB" }}>·</span>
+                <a
+                  href="mailto:contato@scorecasa.com.br"
+                  className="text-xs hover:underline transition-colors"
+                  style={{ color: "#9CA3AF" }}
+                >
+                  Contato
+                </a>
+              </div>
             </div>
           </div>
         </div>

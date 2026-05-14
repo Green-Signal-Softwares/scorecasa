@@ -48,6 +48,7 @@ export function ClientRegister() {
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [acceptedTerms, setAcceptedTerms] = useState(false);
 
   const set = (key: keyof typeof form) => (e: React.ChangeEvent<HTMLInputElement>) => {
     let val = e.target.value;
@@ -69,6 +70,7 @@ export function ClientRegister() {
     if (form.password.length < 6) errs.password = "Senha mínima de 6 caracteres";
     if (parseCurrency(form.income) <= 0) errs.income = "Informe sua renda mensal";
     if (parseCurrency(form.propertyValue) <= 0) errs.propertyValue = "Informe o valor do imóvel";
+    if (!acceptedTerms) errs.terms = "Você precisa aceitar os Termos de Uso e a Política de Privacidade";
     return errs;
   };
 
@@ -206,6 +208,53 @@ export function ClientRegister() {
                   <Field label="Renda mensal" field="income" placeholder="R$ 0,00" error={errors.income} />
                   <Field label="Valor do imóvel" field="propertyValue" placeholder="R$ 0,00" error={errors.propertyValue} />
                 </div>
+              </div>
+
+              {/* Terms acceptance */}
+              <div className="pt-2 space-y-2">
+                <label className="flex items-start gap-3 cursor-pointer group">
+                  <div className="mt-0.5 flex-shrink-0">
+                    <input
+                      type="checkbox"
+                      checked={acceptedTerms}
+                      onChange={(e) => {
+                        setAcceptedTerms(e.target.checked);
+                        setErrors((prev) => ({ ...prev, terms: "" }));
+                      }}
+                      className="w-4 h-4 rounded border-gray-300 accent-[#0D1B8C] cursor-pointer"
+                    />
+                  </div>
+                  <span className="text-xs text-gray-600 leading-relaxed group-hover:text-gray-800 transition-colors">
+                    Li e aceito os{" "}
+                    <a
+                      href="/termos"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-semibold hover:underline"
+                      style={{ color: "#0D1B8C" }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      Termos de Uso
+                    </a>
+                    {" "}e a{" "}
+                    <a
+                      href="/privacidade"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="font-semibold hover:underline"
+                      style={{ color: "#0D1B8C" }}
+                      onClick={(e) => e.stopPropagation()}
+                    >
+                      Política de Privacidade
+                    </a>
+                    {" "}da ScoreCasa, incluindo o tratamento dos meus dados pessoais conforme a LGPD.
+                  </span>
+                </label>
+                {errors.terms && (
+                  <p className="text-red-500 text-xs flex items-center gap-1">
+                    <span>⚠</span> {errors.terms}
+                  </p>
+                )}
               </div>
 
               <button
