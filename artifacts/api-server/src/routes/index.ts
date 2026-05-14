@@ -13,6 +13,8 @@ import subscriptionsRouter from "./subscriptions";
 import ratingsRouter from "./ratings";
 import salesHistoryRouter from "./sales-history";
 import bureauOcrRouter from "./bureau-ocr";
+import storageRouter from "./storage";
+import processesRouter from "./processes";
 
 const router: IRouter = Router();
 
@@ -30,5 +32,7 @@ router.use("/subscriptions", subscriptionsRouter);
 router.use("/ratings", ratingsRouter);
 router.use("/sales-history", salesHistoryRouter);
 router.use("/bureau-ocr", bureauOcrRouter);
+router.use(storageRouter);
+router.use("/correspondent/processes", processesRouter);
 
 export default router;

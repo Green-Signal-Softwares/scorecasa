@@ -818,6 +818,150 @@ paths:
                 items:
                   $ref: "#/components/schemas/LeadRanking"
 
+  /storage/uploads/request-url:
+    post:
+      tags: [storage]
+      operationId: requestUploadUrl
+      summary: Request a presigned URL for file upload
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UploadUrlRequest'
+      responses:
+        '200':
+          description: Presigned upload URL generated.
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/UploadUrlResponse'
+
+  /correspondent/processes:
+    get:
+      tags: [processes]
+      operationId: listProcesses
+      summary: List leads in the correspondent pipeline
+      parameters:
+        - name: stage
+          in: query
+          schema:
+            type: string
+            enum: [analise, aprovacao, engenharia, conformidade, assinatura, concluido]
+      responses:
+        '200':
+          description: Process list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: '#/components/schemas/ProcessSummary'
+
+  /correspondent/processes/{leadId}:
+    get:
+      tags: [processes]
+      operationId: getProcess
+      parameters:
+        - name: leadId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '200':
+          description: Process detail
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessDetail'
+
+  /correspondent/processes/{leadId}/stage:
+    put:
+      tags: [processes]
+      operationId: changeProcessStage
+      parameters:
+        - name: leadId
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/ChangeStageRequest'
+      responses:
+        '200':
+          description: Stage updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessDetail'
+
+  /correspondent/processes/{leadId}/documents:
+    post:
+      tags: [processes]
+      operationId: registerProcessDocument
+      parameters:
+        - name: leadId
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/RegisterDocumentRequest'
+      responses:
+        '201':
+          description: Document registered
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessDocument'
+
+  /correspondent/processes/{leadId}/documents/{docId}:
+    put:
+      tags: [processes]
+      operationId: updateProcessDocument
+      parameters:
+        - name: leadId
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: docId
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: '#/components/schemas/UpdateDocumentRequest'
+      responses:
+        '200':
+          description: Document updated
+          content:
+            application/json:
+              schema:
+                $ref: '#/components/schemas/ProcessDocument'
+    delete:
+      tags: [processes]
+      operationId: deleteProcessDocument
+      parameters:
+        - name: leadId
+          in: path
+          required: true
+          schema: { type: integer }
+        - name: docId
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        '204':
+          description: Deleted
 components:
   schemas:
     HealthStatus:
@@ -2032,3 +2176,138 @@ components:
           format: date-time
         notes:
           type: string
+
+    UploadUrlRequest:
+      type: object
+      required: [name, size, contentType]
+      properties:
+        name: { type: string, minLength: 1 }
+        size: { type: integer, minimum: 1 }
+        contentType: { type: string, minLength: 1 }
+    UploadUrlResponse:
+      type: object
+      required: [uploadURL, objectPath]
+      properties:
+        uploadURL: { type: string }
+        objectPath: { type: string }
+        metadata:
+          $ref: '#/components/schemas/UploadUrlRequest'
+
+    ProcessSummary:
+      type: object
+      required: [leadId, leadName, leadCpf, propertyValue, stage, documentsCount]
+      properties:
+        leadId: { type: integer }
+        leadName: { type: string }
+        leadCpf: { type: string }
+        propertyValue: { type: number }
+        propertyCity: { type: string }
+        propertyState: { type: string }
+        stage:
+          type: string
+          enum: [analise, aprovacao, engenharia, conformidade, assinatura, concluido]
+        brokerName: { type: string }
+        correspondentName: { type: string }
+        documentsCount: { type: integer }
+        documentsApproved: { type: integer }
+        documentsPending: { type: integer }
+        lastUpdate: { type: string, format: date-time }
+
+    ProcessDocument:
+      type: object
+      required: [id, leadId, stage, slug, name, fileUrl, status, createdAt]
+      properties:
+        id: { type: integer }
+        leadId: { type: integer }
+        stage:
+          type: string
+          enum: [analise, aprovacao, engenharia, conformidade, assinatura, concluido]
+        slug: { type: string }
+        name: { type: string }
+        fileUrl: { type: string }
+        contentType: { type: string }
+        status:
+          type: string
+          enum: [pending, approved, rejected]
+        notes: { type: string }
+        uploadedByName: { type: string }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    ProcessHistoryEntry:
+      type: object
+      required: [id, leadId, toStage, createdAt]
+      properties:
+        id: { type: integer }
+        leadId: { type: integer }
+        fromStage:
+          type: string
+          enum: [analise, aprovacao, engenharia, conformidade, assinatura, concluido]
+        toStage:
+          type: string
+          enum: [analise, aprovacao, engenharia, conformidade, assinatura, concluido]
+        changedByName: { type: string }
+        notes: { type: string }
+        createdAt: { type: string, format: date-time }
+
+    ProcessChecklistItem:
+      type: object
+      required: [stage, slug, label, required]
+      properties:
+        stage:
+          type: string
+          enum: [analise, aprovacao, engenharia, conformidade, assinatura, concluido]
+        slug: { type: string }
+        label: { type: string }
+        required: { type: boolean }
+        description: { type: string }
+
+    ProcessDetail:
+      type: object
+      required: [summary, documents, history, checklist]
+      properties:
+        summary:
+          $ref: '#/components/schemas/ProcessSummary'
+        documents:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProcessDocument'
+        history:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProcessHistoryEntry'
+        checklist:
+          type: array
+          items:
+            $ref: '#/components/schemas/ProcessChecklistItem'
+
+    ChangeStageRequest:
+      type: object
+      required: [stage]
+      properties:
+        stage:
+          type: string
+          enum: [analise, aprovacao, engenharia, conformidade, assinatura, concluido]
+        notes: { type: string }
+
+    RegisterDocumentRequest:
+      type: object
+      required: [stage, slug, name, fileUrl]
+      properties:
+        stage:
+          type: string
+          enum: [analise, aprovacao, engenharia, conformidade, assinatura, concluido]
+        slug: { type: string }
+        name: { type: string }
+        fileUrl: { type: string }
+        contentType: { type: string }
+        notes: { type: string }
+
+    UpdateDocumentRequest:
+      type: object
+      properties:
+        status:
+          type: string
+          enum: [pending, approved, rejected]
+        notes: { type: string }
+        name: { type: string }

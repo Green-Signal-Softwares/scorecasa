@@ -1968,3 +1968,325 @@ export const GetLeadRankingResponseItem = zod.object({
   status: zod.string(),
 });
 export const GetLeadRankingResponse = zod.array(GetLeadRankingResponseItem);
+
+/**
+ * @summary Request a presigned URL for file upload
+ */
+
+export const RequestUploadUrlBody = zod.object({
+  name: zod.string().min(1),
+  size: zod.number().min(1),
+  contentType: zod.string().min(1),
+});
+
+export const RequestUploadUrlResponse = zod.object({
+  uploadURL: zod.string(),
+  objectPath: zod.string(),
+  metadata: zod
+    .object({
+      name: zod.string().min(1),
+      size: zod.number().min(1),
+      contentType: zod.string().min(1),
+    })
+    .optional(),
+});
+
+/**
+ * @summary List leads in the correspondent pipeline
+ */
+export const ListProcessesQueryParams = zod.object({
+  stage: zod
+    .enum([
+      "analise",
+      "aprovacao",
+      "engenharia",
+      "conformidade",
+      "assinatura",
+      "concluido",
+    ])
+    .optional(),
+});
+
+export const ListProcessesResponseItem = zod.object({
+  leadId: zod.number(),
+  leadName: zod.string(),
+  leadCpf: zod.string(),
+  propertyValue: zod.number(),
+  propertyCity: zod.string().optional(),
+  propertyState: zod.string().optional(),
+  stage: zod.enum([
+    "analise",
+    "aprovacao",
+    "engenharia",
+    "conformidade",
+    "assinatura",
+    "concluido",
+  ]),
+  brokerName: zod.string().optional(),
+  correspondentName: zod.string().optional(),
+  documentsCount: zod.number(),
+  documentsApproved: zod.number().optional(),
+  documentsPending: zod.number().optional(),
+  lastUpdate: zod.coerce.date().optional(),
+});
+export const ListProcessesResponse = zod.array(ListProcessesResponseItem);
+
+export const GetProcessParams = zod.object({
+  leadId: zod.coerce.number(),
+});
+
+export const GetProcessResponse = zod.object({
+  summary: zod.object({
+    leadId: zod.number(),
+    leadName: zod.string(),
+    leadCpf: zod.string(),
+    propertyValue: zod.number(),
+    propertyCity: zod.string().optional(),
+    propertyState: zod.string().optional(),
+    stage: zod.enum([
+      "analise",
+      "aprovacao",
+      "engenharia",
+      "conformidade",
+      "assinatura",
+      "concluido",
+    ]),
+    brokerName: zod.string().optional(),
+    correspondentName: zod.string().optional(),
+    documentsCount: zod.number(),
+    documentsApproved: zod.number().optional(),
+    documentsPending: zod.number().optional(),
+    lastUpdate: zod.coerce.date().optional(),
+  }),
+  documents: zod.array(
+    zod.object({
+      id: zod.number(),
+      leadId: zod.number(),
+      stage: zod.enum([
+        "analise",
+        "aprovacao",
+        "engenharia",
+        "conformidade",
+        "assinatura",
+        "concluido",
+      ]),
+      slug: zod.string(),
+      name: zod.string(),
+      fileUrl: zod.string(),
+      contentType: zod.string().optional(),
+      status: zod.enum(["pending", "approved", "rejected"]),
+      notes: zod.string().optional(),
+      uploadedByName: zod.string().optional(),
+      createdAt: zod.coerce.date(),
+      updatedAt: zod.coerce.date().optional(),
+    }),
+  ),
+  history: zod.array(
+    zod.object({
+      id: zod.number(),
+      leadId: zod.number(),
+      fromStage: zod
+        .enum([
+          "analise",
+          "aprovacao",
+          "engenharia",
+          "conformidade",
+          "assinatura",
+          "concluido",
+        ])
+        .optional(),
+      toStage: zod.enum([
+        "analise",
+        "aprovacao",
+        "engenharia",
+        "conformidade",
+        "assinatura",
+        "concluido",
+      ]),
+      changedByName: zod.string().optional(),
+      notes: zod.string().optional(),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
+  checklist: zod.array(
+    zod.object({
+      stage: zod.enum([
+        "analise",
+        "aprovacao",
+        "engenharia",
+        "conformidade",
+        "assinatura",
+        "concluido",
+      ]),
+      slug: zod.string(),
+      label: zod.string(),
+      required: zod.boolean(),
+      description: zod.string().optional(),
+    }),
+  ),
+});
+
+export const ChangeProcessStageParams = zod.object({
+  leadId: zod.coerce.number(),
+});
+
+export const ChangeProcessStageBody = zod.object({
+  stage: zod.enum([
+    "analise",
+    "aprovacao",
+    "engenharia",
+    "conformidade",
+    "assinatura",
+    "concluido",
+  ]),
+  notes: zod.string().optional(),
+});
+
+export const ChangeProcessStageResponse = zod.object({
+  summary: zod.object({
+    leadId: zod.number(),
+    leadName: zod.string(),
+    leadCpf: zod.string(),
+    propertyValue: zod.number(),
+    propertyCity: zod.string().optional(),
+    propertyState: zod.string().optional(),
+    stage: zod.enum([
+      "analise",
+      "aprovacao",
+      "engenharia",
+      "conformidade",
+      "assinatura",
+      "concluido",
+    ]),
+    brokerName: zod.string().optional(),
+    correspondentName: zod.string().optional(),
+    documentsCount: zod.number(),
+    documentsApproved: zod.number().optional(),
+    documentsPending: zod.number().optional(),
+    lastUpdate: zod.coerce.date().optional(),
+  }),
+  documents: zod.array(
+    zod.object({
+      id: zod.number(),
+      leadId: zod.number(),
+      stage: zod.enum([
+        "analise",
+        "aprovacao",
+        "engenharia",
+        "conformidade",
+        "assinatura",
+        "concluido",
+      ]),
+      slug: zod.string(),
+      name: zod.string(),
+      fileUrl: zod.string(),
+      contentType: zod.string().optional(),
+      status: zod.enum(["pending", "approved", "rejected"]),
+      notes: zod.string().optional(),
+      uploadedByName: zod.string().optional(),
+      createdAt: zod.coerce.date(),
+      updatedAt: zod.coerce.date().optional(),
+    }),
+  ),
+  history: zod.array(
+    zod.object({
+      id: zod.number(),
+      leadId: zod.number(),
+      fromStage: zod
+        .enum([
+          "analise",
+          "aprovacao",
+          "engenharia",
+          "conformidade",
+          "assinatura",
+          "concluido",
+        ])
+        .optional(),
+      toStage: zod.enum([
+        "analise",
+        "aprovacao",
+        "engenharia",
+        "conformidade",
+        "assinatura",
+        "concluido",
+      ]),
+      changedByName: zod.string().optional(),
+      notes: zod.string().optional(),
+      createdAt: zod.coerce.date(),
+    }),
+  ),
+  checklist: zod.array(
+    zod.object({
+      stage: zod.enum([
+        "analise",
+        "aprovacao",
+        "engenharia",
+        "conformidade",
+        "assinatura",
+        "concluido",
+      ]),
+      slug: zod.string(),
+      label: zod.string(),
+      required: zod.boolean(),
+      description: zod.string().optional(),
+    }),
+  ),
+});
+
+export const RegisterProcessDocumentParams = zod.object({
+  leadId: zod.coerce.number(),
+});
+
+export const RegisterProcessDocumentBody = zod.object({
+  stage: zod.enum([
+    "analise",
+    "aprovacao",
+    "engenharia",
+    "conformidade",
+    "assinatura",
+    "concluido",
+  ]),
+  slug: zod.string(),
+  name: zod.string(),
+  fileUrl: zod.string(),
+  contentType: zod.string().optional(),
+  notes: zod.string().optional(),
+});
+
+export const UpdateProcessDocumentParams = zod.object({
+  leadId: zod.coerce.number(),
+  docId: zod.coerce.number(),
+});
+
+export const UpdateProcessDocumentBody = zod.object({
+  status: zod.enum(["pending", "approved", "rejected"]).optional(),
+  notes: zod.string().optional(),
+  name: zod.string().optional(),
+});
+
+export const UpdateProcessDocumentResponse = zod.object({
+  id: zod.number(),
+  leadId: zod.number(),
+  stage: zod.enum([
+    "analise",
+    "aprovacao",
+    "engenharia",
+    "conformidade",
+    "assinatura",
+    "concluido",
+  ]),
+  slug: zod.string(),
+  name: zod.string(),
+  fileUrl: zod.string(),
+  contentType: zod.string().optional(),
+  status: zod.enum(["pending", "approved", "rejected"]),
+  notes: zod.string().optional(),
+  uploadedByName: zod.string().optional(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date().optional(),
+});
+
+export const DeleteProcessDocumentParams = zod.object({
+  leadId: zod.coerce.number(),
+  docId: zod.coerce.number(),
+});

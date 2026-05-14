@@ -856,6 +856,199 @@ export interface UpdateSaleRequest {
   notes?: string;
 }
 
+export interface UploadUrlRequest {
+  /** @minLength 1 */
+  name: string;
+  /** @minimum 1 */
+  size: number;
+  /** @minLength 1 */
+  contentType: string;
+}
+
+export interface UploadUrlResponse {
+  uploadURL: string;
+  objectPath: string;
+  metadata?: UploadUrlRequest;
+}
+
+export type ProcessSummaryStage =
+  (typeof ProcessSummaryStage)[keyof typeof ProcessSummaryStage];
+
+export const ProcessSummaryStage = {
+  analise: "analise",
+  aprovacao: "aprovacao",
+  engenharia: "engenharia",
+  conformidade: "conformidade",
+  assinatura: "assinatura",
+  concluido: "concluido",
+} as const;
+
+export interface ProcessSummary {
+  leadId: number;
+  leadName: string;
+  leadCpf: string;
+  propertyValue: number;
+  propertyCity?: string;
+  propertyState?: string;
+  stage: ProcessSummaryStage;
+  brokerName?: string;
+  correspondentName?: string;
+  documentsCount: number;
+  documentsApproved?: number;
+  documentsPending?: number;
+  lastUpdate?: string;
+}
+
+export type ProcessDocumentStage =
+  (typeof ProcessDocumentStage)[keyof typeof ProcessDocumentStage];
+
+export const ProcessDocumentStage = {
+  analise: "analise",
+  aprovacao: "aprovacao",
+  engenharia: "engenharia",
+  conformidade: "conformidade",
+  assinatura: "assinatura",
+  concluido: "concluido",
+} as const;
+
+export type ProcessDocumentStatus =
+  (typeof ProcessDocumentStatus)[keyof typeof ProcessDocumentStatus];
+
+export const ProcessDocumentStatus = {
+  pending: "pending",
+  approved: "approved",
+  rejected: "rejected",
+} as const;
+
+export interface ProcessDocument {
+  id: number;
+  leadId: number;
+  stage: ProcessDocumentStage;
+  slug: string;
+  name: string;
+  fileUrl: string;
+  contentType?: string;
+  status: ProcessDocumentStatus;
+  notes?: string;
+  uploadedByName?: string;
+  createdAt: string;
+  updatedAt?: string;
+}
+
+export type ProcessHistoryEntryFromStage =
+  (typeof ProcessHistoryEntryFromStage)[keyof typeof ProcessHistoryEntryFromStage];
+
+export const ProcessHistoryEntryFromStage = {
+  analise: "analise",
+  aprovacao: "aprovacao",
+  engenharia: "engenharia",
+  conformidade: "conformidade",
+  assinatura: "assinatura",
+  concluido: "concluido",
+} as const;
+
+export type ProcessHistoryEntryToStage =
+  (typeof ProcessHistoryEntryToStage)[keyof typeof ProcessHistoryEntryToStage];
+
+export const ProcessHistoryEntryToStage = {
+  analise: "analise",
+  aprovacao: "aprovacao",
+  engenharia: "engenharia",
+  conformidade: "conformidade",
+  assinatura: "assinatura",
+  concluido: "concluido",
+} as const;
+
+export interface ProcessHistoryEntry {
+  id: number;
+  leadId: number;
+  fromStage?: ProcessHistoryEntryFromStage;
+  toStage: ProcessHistoryEntryToStage;
+  changedByName?: string;
+  notes?: string;
+  createdAt: string;
+}
+
+export type ProcessChecklistItemStage =
+  (typeof ProcessChecklistItemStage)[keyof typeof ProcessChecklistItemStage];
+
+export const ProcessChecklistItemStage = {
+  analise: "analise",
+  aprovacao: "aprovacao",
+  engenharia: "engenharia",
+  conformidade: "conformidade",
+  assinatura: "assinatura",
+  concluido: "concluido",
+} as const;
+
+export interface ProcessChecklistItem {
+  stage: ProcessChecklistItemStage;
+  slug: string;
+  label: string;
+  required: boolean;
+  description?: string;
+}
+
+export interface ProcessDetail {
+  summary: ProcessSummary;
+  documents: ProcessDocument[];
+  history: ProcessHistoryEntry[];
+  checklist: ProcessChecklistItem[];
+}
+
+export type ChangeStageRequestStage =
+  (typeof ChangeStageRequestStage)[keyof typeof ChangeStageRequestStage];
+
+export const ChangeStageRequestStage = {
+  analise: "analise",
+  aprovacao: "aprovacao",
+  engenharia: "engenharia",
+  conformidade: "conformidade",
+  assinatura: "assinatura",
+  concluido: "concluido",
+} as const;
+
+export interface ChangeStageRequest {
+  stage: ChangeStageRequestStage;
+  notes?: string;
+}
+
+export type RegisterDocumentRequestStage =
+  (typeof RegisterDocumentRequestStage)[keyof typeof RegisterDocumentRequestStage];
+
+export const RegisterDocumentRequestStage = {
+  analise: "analise",
+  aprovacao: "aprovacao",
+  engenharia: "engenharia",
+  conformidade: "conformidade",
+  assinatura: "assinatura",
+  concluido: "concluido",
+} as const;
+
+export interface RegisterDocumentRequest {
+  stage: RegisterDocumentRequestStage;
+  slug: string;
+  name: string;
+  fileUrl: string;
+  contentType?: string;
+  notes?: string;
+}
+
+export type UpdateDocumentRequestStatus =
+  (typeof UpdateDocumentRequestStatus)[keyof typeof UpdateDocumentRequestStatus];
+
+export const UpdateDocumentRequestStatus = {
+  pending: "pending",
+  approved: "approved",
+  rejected: "rejected",
+} as const;
+
+export interface UpdateDocumentRequest {
+  status?: UpdateDocumentRequestStatus;
+  notes?: string;
+  name?: string;
+}
+
 export type MarkAllNotificationsRead200 = {
   ok: boolean;
 };
@@ -902,3 +1095,19 @@ export const GetLeadsStatus = {
 export type GetBrokersParams = {
   search?: string;
 };
+
+export type ListProcessesParams = {
+  stage?: ListProcessesStage;
+};
+
+export type ListProcessesStage =
+  (typeof ListProcessesStage)[keyof typeof ListProcessesStage];
+
+export const ListProcessesStage = {
+  analise: "analise",
+  aprovacao: "aprovacao",
+  engenharia: "engenharia",
+  conformidade: "conformidade",
+  assinatura: "assinatura",
+  concluido: "concluido",
+} as const;

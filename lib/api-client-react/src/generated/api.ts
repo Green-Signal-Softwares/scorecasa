@@ -21,6 +21,7 @@ import type {
   Broker,
   BrokerRanking,
   CaixaEnrichRequest,
+  ChangeStageRequest,
   ClientProfile,
   CreateBrokerRequest,
   CreateLeadRequest,
@@ -38,23 +39,31 @@ import type {
   Lead,
   LeadList,
   LeadRanking,
+  ListProcessesParams,
   LoginRequest,
   MarkAllNotificationsRead200,
   MarkNotificationRead200,
   NotificationsResult,
+  ProcessDetail,
+  ProcessDocument,
+  ProcessSummary,
   Property,
   Rating,
   RatingSummary,
+  RegisterDocumentRequest,
   RegisterRequest,
   SaleHistory,
   Subscription,
   TogglePropertyInterest200,
   UpdateBrokerRequest,
   UpdateClientProfileRequest,
+  UpdateDocumentRequest,
   UpdateLeadRequest,
   UpdatePropertyRequest,
   UpdateSaleRequest,
   UpdateSubscriptionRequest,
+  UploadUrlRequest,
+  UploadUrlResponse,
   User,
 } from "./api.schemas";
 
@@ -3700,3 +3709,590 @@ export function useGetLeadRanking<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Request a presigned URL for file upload
+ */
+export const getRequestUploadUrlUrl = () => {
+  return `/api/storage/uploads/request-url`;
+};
+
+export const requestUploadUrl = async (
+  uploadUrlRequest: UploadUrlRequest,
+  options?: RequestInit,
+): Promise<UploadUrlResponse> => {
+  return customFetch<UploadUrlResponse>(getRequestUploadUrlUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(uploadUrlRequest),
+  });
+};
+
+export const getRequestUploadUrlMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof requestUploadUrl>>,
+    TError,
+    { data: BodyType<UploadUrlRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof requestUploadUrl>>,
+  TError,
+  { data: BodyType<UploadUrlRequest> },
+  TContext
+> => {
+  const mutationKey = ["requestUploadUrl"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof requestUploadUrl>>,
+    { data: BodyType<UploadUrlRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return requestUploadUrl(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RequestUploadUrlMutationResult = NonNullable<
+  Awaited<ReturnType<typeof requestUploadUrl>>
+>;
+export type RequestUploadUrlMutationBody = BodyType<UploadUrlRequest>;
+export type RequestUploadUrlMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Request a presigned URL for file upload
+ */
+export const useRequestUploadUrl = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof requestUploadUrl>>,
+    TError,
+    { data: BodyType<UploadUrlRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof requestUploadUrl>>,
+  TError,
+  { data: BodyType<UploadUrlRequest> },
+  TContext
+> => {
+  return useMutation(getRequestUploadUrlMutationOptions(options));
+};
+
+/**
+ * @summary List leads in the correspondent pipeline
+ */
+export const getListProcessesUrl = (params?: ListProcessesParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/correspondent/processes?${stringifiedParams}`
+    : `/api/correspondent/processes`;
+};
+
+export const listProcesses = async (
+  params?: ListProcessesParams,
+  options?: RequestInit,
+): Promise<ProcessSummary[]> => {
+  return customFetch<ProcessSummary[]>(getListProcessesUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getListProcessesQueryKey = (params?: ListProcessesParams) => {
+  return [`/api/correspondent/processes`, ...(params ? [params] : [])] as const;
+};
+
+export const getListProcessesQueryOptions = <
+  TData = Awaited<ReturnType<typeof listProcesses>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListProcessesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listProcesses>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getListProcessesQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof listProcesses>>> = ({
+    signal,
+  }) => listProcesses(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof listProcesses>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type ListProcessesQueryResult = NonNullable<
+  Awaited<ReturnType<typeof listProcesses>>
+>;
+export type ListProcessesQueryError = ErrorType<unknown>;
+
+/**
+ * @summary List leads in the correspondent pipeline
+ */
+
+export function useListProcesses<
+  TData = Awaited<ReturnType<typeof listProcesses>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: ListProcessesParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof listProcesses>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getListProcessesQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getGetProcessUrl = (leadId: number) => {
+  return `/api/correspondent/processes/${leadId}`;
+};
+
+export const getProcess = async (
+  leadId: number,
+  options?: RequestInit,
+): Promise<ProcessDetail> => {
+  return customFetch<ProcessDetail>(getGetProcessUrl(leadId), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetProcessQueryKey = (leadId: number) => {
+  return [`/api/correspondent/processes/${leadId}`] as const;
+};
+
+export const getGetProcessQueryOptions = <
+  TData = Awaited<ReturnType<typeof getProcess>>,
+  TError = ErrorType<unknown>,
+>(
+  leadId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getProcess>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetProcessQueryKey(leadId);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getProcess>>> = ({
+    signal,
+  }) => getProcess(leadId, { signal, ...requestOptions });
+
+  return {
+    queryKey,
+    queryFn,
+    enabled: !!leadId,
+    ...queryOptions,
+  } as UseQueryOptions<
+    Awaited<ReturnType<typeof getProcess>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetProcessQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getProcess>>
+>;
+export type GetProcessQueryError = ErrorType<unknown>;
+
+export function useGetProcess<
+  TData = Awaited<ReturnType<typeof getProcess>>,
+  TError = ErrorType<unknown>,
+>(
+  leadId: number,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getProcess>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetProcessQueryOptions(leadId, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+export const getChangeProcessStageUrl = (leadId: number) => {
+  return `/api/correspondent/processes/${leadId}/stage`;
+};
+
+export const changeProcessStage = async (
+  leadId: number,
+  changeStageRequest: ChangeStageRequest,
+  options?: RequestInit,
+): Promise<ProcessDetail> => {
+  return customFetch<ProcessDetail>(getChangeProcessStageUrl(leadId), {
+    ...options,
+    method: "PUT",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(changeStageRequest),
+  });
+};
+
+export const getChangeProcessStageMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof changeProcessStage>>,
+    TError,
+    { leadId: number; data: BodyType<ChangeStageRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof changeProcessStage>>,
+  TError,
+  { leadId: number; data: BodyType<ChangeStageRequest> },
+  TContext
+> => {
+  const mutationKey = ["changeProcessStage"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof changeProcessStage>>,
+    { leadId: number; data: BodyType<ChangeStageRequest> }
+  > = (props) => {
+    const { leadId, data } = props ?? {};
+
+    return changeProcessStage(leadId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ChangeProcessStageMutationResult = NonNullable<
+  Awaited<ReturnType<typeof changeProcessStage>>
+>;
+export type ChangeProcessStageMutationBody = BodyType<ChangeStageRequest>;
+export type ChangeProcessStageMutationError = ErrorType<unknown>;
+
+export const useChangeProcessStage = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof changeProcessStage>>,
+    TError,
+    { leadId: number; data: BodyType<ChangeStageRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof changeProcessStage>>,
+  TError,
+  { leadId: number; data: BodyType<ChangeStageRequest> },
+  TContext
+> => {
+  return useMutation(getChangeProcessStageMutationOptions(options));
+};
+
+export const getRegisterProcessDocumentUrl = (leadId: number) => {
+  return `/api/correspondent/processes/${leadId}/documents`;
+};
+
+export const registerProcessDocument = async (
+  leadId: number,
+  registerDocumentRequest: RegisterDocumentRequest,
+  options?: RequestInit,
+): Promise<ProcessDocument> => {
+  return customFetch<ProcessDocument>(getRegisterProcessDocumentUrl(leadId), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(registerDocumentRequest),
+  });
+};
+
+export const getRegisterProcessDocumentMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof registerProcessDocument>>,
+    TError,
+    { leadId: number; data: BodyType<RegisterDocumentRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof registerProcessDocument>>,
+  TError,
+  { leadId: number; data: BodyType<RegisterDocumentRequest> },
+  TContext
+> => {
+  const mutationKey = ["registerProcessDocument"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof registerProcessDocument>>,
+    { leadId: number; data: BodyType<RegisterDocumentRequest> }
+  > = (props) => {
+    const { leadId, data } = props ?? {};
+
+    return registerProcessDocument(leadId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RegisterProcessDocumentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof registerProcessDocument>>
+>;
+export type RegisterProcessDocumentMutationBody =
+  BodyType<RegisterDocumentRequest>;
+export type RegisterProcessDocumentMutationError = ErrorType<unknown>;
+
+export const useRegisterProcessDocument = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof registerProcessDocument>>,
+    TError,
+    { leadId: number; data: BodyType<RegisterDocumentRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof registerProcessDocument>>,
+  TError,
+  { leadId: number; data: BodyType<RegisterDocumentRequest> },
+  TContext
+> => {
+  return useMutation(getRegisterProcessDocumentMutationOptions(options));
+};
+
+export const getUpdateProcessDocumentUrl = (leadId: number, docId: number) => {
+  return `/api/correspondent/processes/${leadId}/documents/${docId}`;
+};
+
+export const updateProcessDocument = async (
+  leadId: number,
+  docId: number,
+  updateDocumentRequest: UpdateDocumentRequest,
+  options?: RequestInit,
+): Promise<ProcessDocument> => {
+  return customFetch<ProcessDocument>(
+    getUpdateProcessDocumentUrl(leadId, docId),
+    {
+      ...options,
+      method: "PUT",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(updateDocumentRequest),
+    },
+  );
+};
+
+export const getUpdateProcessDocumentMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateProcessDocument>>,
+    TError,
+    { leadId: number; docId: number; data: BodyType<UpdateDocumentRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateProcessDocument>>,
+  TError,
+  { leadId: number; docId: number; data: BodyType<UpdateDocumentRequest> },
+  TContext
+> => {
+  const mutationKey = ["updateProcessDocument"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateProcessDocument>>,
+    { leadId: number; docId: number; data: BodyType<UpdateDocumentRequest> }
+  > = (props) => {
+    const { leadId, docId, data } = props ?? {};
+
+    return updateProcessDocument(leadId, docId, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateProcessDocumentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateProcessDocument>>
+>;
+export type UpdateProcessDocumentMutationBody = BodyType<UpdateDocumentRequest>;
+export type UpdateProcessDocumentMutationError = ErrorType<unknown>;
+
+export const useUpdateProcessDocument = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateProcessDocument>>,
+    TError,
+    { leadId: number; docId: number; data: BodyType<UpdateDocumentRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateProcessDocument>>,
+  TError,
+  { leadId: number; docId: number; data: BodyType<UpdateDocumentRequest> },
+  TContext
+> => {
+  return useMutation(getUpdateProcessDocumentMutationOptions(options));
+};
+
+export const getDeleteProcessDocumentUrl = (leadId: number, docId: number) => {
+  return `/api/correspondent/processes/${leadId}/documents/${docId}`;
+};
+
+export const deleteProcessDocument = async (
+  leadId: number,
+  docId: number,
+  options?: RequestInit,
+): Promise<void> => {
+  return customFetch<void>(getDeleteProcessDocumentUrl(leadId, docId), {
+    ...options,
+    method: "DELETE",
+  });
+};
+
+export const getDeleteProcessDocumentMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteProcessDocument>>,
+    TError,
+    { leadId: number; docId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof deleteProcessDocument>>,
+  TError,
+  { leadId: number; docId: number },
+  TContext
+> => {
+  const mutationKey = ["deleteProcessDocument"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof deleteProcessDocument>>,
+    { leadId: number; docId: number }
+  > = (props) => {
+    const { leadId, docId } = props ?? {};
+
+    return deleteProcessDocument(leadId, docId, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type DeleteProcessDocumentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof deleteProcessDocument>>
+>;
+
+export type DeleteProcessDocumentMutationError = ErrorType<unknown>;
+
+export const useDeleteProcessDocument = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof deleteProcessDocument>>,
+    TError,
+    { leadId: number; docId: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof deleteProcessDocument>>,
+  TError,
+  { leadId: number; docId: number },
+  TContext
+> => {
+  return useMutation(getDeleteProcessDocumentMutationOptions(options));
+};

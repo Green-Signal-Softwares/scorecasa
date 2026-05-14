@@ -6,3 +6,4 @@ export * from "./properties";
 export * from "./subscriptions";
 export * from "./ratings";
 export * from "./sales-history";
+export * from "./processes";

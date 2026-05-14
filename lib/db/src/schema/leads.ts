@@ -53,6 +53,10 @@ export const leadsTable = pgTable("leads", {
   scoreCaixa: integer("score_caixa").notNull().default(0),
   scoreMCMV: integer("score_mcmv").notNull().default(0),
   brokerId: integer("broker_id"),
+  correspondentId: integer("correspondent_id"),
+  processStage: text("process_stage", {
+    enum: ["analise", "aprovacao", "engenharia", "conformidade", "assinatura", "concluido"],
+  }),
   aiRecommendation: text("ai_recommendation"),
 
   // ── Enriquecimento bureaus & Caixa ───────────────────────────

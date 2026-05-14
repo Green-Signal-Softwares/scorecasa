@@ -15,6 +15,8 @@ import { Imoveis } from "@/pages/Imoveis";
 import { Financeiro } from "@/pages/Financeiro";
 import { Historico } from "@/pages/Historico";
 import { Avaliacoes } from "@/pages/Avaliacoes";
+import { Processos } from "@/pages/Processos";
+import { ProcessDetails } from "@/pages/ProcessDetails";
 import { Termos } from "@/pages/Termos";
 import { Privacidade } from "@/pages/Privacidade";
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -146,6 +148,26 @@ function Router() {
           <StaffOnly>
             <AppLayout>
               <Avaliacoes />
+            </AppLayout>
+          </StaffOnly>
+        )}
+      </Route>
+
+      <Route path="/processos/:id">
+        {(params) => (
+          <StaffOnly>
+            <AppLayout>
+              <ProcessDetails leadId={Number(params?.id)} />
+            </AppLayout>
+          </StaffOnly>
+        )}
+      </Route>
+
+      <Route path="/processos">
+        {() => (
+          <StaffOnly>
+            <AppLayout>
+              <Processos />
             </AppLayout>
           </StaffOnly>
         )}
