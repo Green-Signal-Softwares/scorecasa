@@ -170,6 +170,225 @@ paths:
                   ok:
                     type: boolean
 
+  /properties:
+    get:
+      operationId: getProperties
+      summary: List properties (marketplace)
+      tags: [properties]
+      parameters:
+        - name: city
+          in: query
+          schema: { type: string }
+        - name: type
+          in: query
+          schema: { type: string }
+        - name: minPrice
+          in: query
+          schema: { type: number }
+        - name: maxPrice
+          in: query
+          schema: { type: number }
+        - name: status
+          in: query
+          schema: { type: string }
+        - name: brokerId
+          in: query
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Properties list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Property"
+    post:
+      operationId: createProperty
+      summary: Create a new property listing
+      tags: [properties]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePropertyRequest"
+      responses:
+        "201":
+          description: Property created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Property"
+
+  /properties/{id}:
+    get:
+      operationId: getProperty
+      summary: Get a single property
+      tags: [properties]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Property
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Property"
+        "404":
+          description: Not found
+    patch:
+      operationId: updateProperty
+      summary: Update a property
+      tags: [properties]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePropertyRequest"
+      responses:
+        "200":
+          description: Updated property
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Property"
+    delete:
+      operationId: deleteProperty
+      summary: Delete a property
+      tags: [properties]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Deleted
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [ok]
+                properties:
+                  ok: { type: boolean }
+
+  /properties/{id}/interest:
+    post:
+      operationId: togglePropertyInterest
+      summary: Toggle client interest in a property
+      tags: [properties]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Interest toggled
+          content:
+            application/json:
+              schema:
+                type: object
+                required: [interested]
+                properties:
+                  interested: { type: boolean }
+
+  /properties/interests/me:
+    get:
+      operationId: getMyInterests
+      summary: Get properties the current client has shown interest in
+      tags: [properties]
+      responses:
+        "200":
+          description: List of interested property IDs
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  type: integer
+
+  /subscriptions/me:
+    get:
+      operationId: getMySubscription
+      summary: Get current user subscription
+      tags: [subscriptions]
+      responses:
+        "200":
+          description: Subscription info
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+        "404":
+          description: No subscription found
+
+  /subscriptions:
+    get:
+      operationId: getAllSubscriptions
+      summary: Admin — list all subscriptions
+      tags: [subscriptions]
+      responses:
+        "200":
+          description: All subscriptions
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Subscription"
+    post:
+      operationId: createSubscription
+      summary: Create subscription for a user
+      tags: [subscriptions]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreateSubscriptionRequest"
+      responses:
+        "201":
+          description: Subscription created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+
+  /subscriptions/{id}:
+    patch:
+      operationId: updateSubscription
+      summary: Admin — update subscription status or plan
+      tags: [subscriptions]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdateSubscriptionRequest"
+      responses:
+        "200":
+          description: Updated subscription
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Subscription"
+
   /dashboard:
     get:
       operationId: getDashboard
@@ -1099,3 +1318,317 @@ components:
             $ref: "#/components/schemas/Notification"
         unreadCount:
           type: integer
+
+    Property:
+      type: object
+      required: [id, title, type, price, city, state, areaSqm, status, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        title:
+          type: string
+        description:
+          type: string
+          nullable: true
+        type:
+          type: string
+          enum: [apartamento, casa, comercial, terreno, cobertura, studio]
+        price:
+          type: number
+        condominiumFee:
+          type: number
+          nullable: true
+        iptu:
+          type: number
+          nullable: true
+        address:
+          type: string
+          nullable: true
+        neighborhood:
+          type: string
+          nullable: true
+        city:
+          type: string
+        state:
+          type: string
+        zipCode:
+          type: string
+          nullable: true
+        areaSqm:
+          type: number
+        bedrooms:
+          type: integer
+          nullable: true
+        bathrooms:
+          type: integer
+          nullable: true
+        parkingSpots:
+          type: integer
+          nullable: true
+        hasFurnished:
+          type: boolean
+          nullable: true
+        hasPool:
+          type: boolean
+          nullable: true
+        hasGym:
+          type: boolean
+          nullable: true
+        hasBalcony:
+          type: boolean
+          nullable: true
+        imageUrl:
+          type: string
+          nullable: true
+        imageUrl2:
+          type: string
+          nullable: true
+        imageUrl3:
+          type: string
+          nullable: true
+        acceptsFgts:
+          type: boolean
+          nullable: true
+        acceptsMcmv:
+          type: boolean
+          nullable: true
+        acceptsSbpe:
+          type: boolean
+          nullable: true
+        status:
+          type: string
+          enum: [available, reserved, sold, inactive]
+        brokerId:
+          type: integer
+          nullable: true
+        brokerName:
+          type: string
+          nullable: true
+        brokerPhone:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreatePropertyRequest:
+      type: object
+      required: [title, type, price, city, state, areaSqm]
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+          enum: [apartamento, casa, comercial, terreno, cobertura, studio]
+        price:
+          type: number
+        condominiumFee:
+          type: number
+        iptu:
+          type: number
+        address:
+          type: string
+        neighborhood:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        zipCode:
+          type: string
+        areaSqm:
+          type: number
+        bedrooms:
+          type: integer
+        bathrooms:
+          type: integer
+        parkingSpots:
+          type: integer
+        hasFurnished:
+          type: boolean
+        hasPool:
+          type: boolean
+        hasGym:
+          type: boolean
+        hasBalcony:
+          type: boolean
+        imageUrl:
+          type: string
+        imageUrl2:
+          type: string
+        imageUrl3:
+          type: string
+        acceptsFgts:
+          type: boolean
+        acceptsMcmv:
+          type: boolean
+        acceptsSbpe:
+          type: boolean
+        brokerId:
+          type: integer
+        brokerName:
+          type: string
+        brokerPhone:
+          type: string
+
+    UpdatePropertyRequest:
+      type: object
+      properties:
+        title:
+          type: string
+        description:
+          type: string
+        type:
+          type: string
+          enum: [apartamento, casa, comercial, terreno, cobertura, studio]
+        price:
+          type: number
+        condominiumFee:
+          type: number
+        iptu:
+          type: number
+        address:
+          type: string
+        neighborhood:
+          type: string
+        city:
+          type: string
+        state:
+          type: string
+        zipCode:
+          type: string
+        areaSqm:
+          type: number
+        bedrooms:
+          type: integer
+        bathrooms:
+          type: integer
+        parkingSpots:
+          type: integer
+        hasFurnished:
+          type: boolean
+        hasPool:
+          type: boolean
+        hasGym:
+          type: boolean
+        hasBalcony:
+          type: boolean
+        imageUrl:
+          type: string
+        imageUrl2:
+          type: string
+        imageUrl3:
+          type: string
+        acceptsFgts:
+          type: boolean
+        acceptsMcmv:
+          type: boolean
+        acceptsSbpe:
+          type: boolean
+        status:
+          type: string
+          enum: [available, reserved, sold, inactive]
+        brokerId:
+          type: integer
+        brokerName:
+          type: string
+        brokerPhone:
+          type: string
+
+    Subscription:
+      type: object
+      required: [id, userId, userName, userEmail, userRole, plan, status, priceMonthly, billingDay, createdAt, updatedAt]
+      properties:
+        id:
+          type: integer
+        userId:
+          type: integer
+        userName:
+          type: string
+        userEmail:
+          type: string
+        userRole:
+          type: string
+        plan:
+          type: string
+          enum: [client, corretor, correspondent]
+        status:
+          type: string
+          enum: [trial, active, overdue, cancelled, inactive]
+        priceMonthly:
+          type: number
+        billingDay:
+          type: integer
+        trialEndsAt:
+          type: string
+          format: date-time
+          nullable: true
+        lastPaymentAt:
+          type: string
+          format: date-time
+          nullable: true
+        nextDueAt:
+          type: string
+          format: date-time
+          nullable: true
+        cancelledAt:
+          type: string
+          format: date-time
+          nullable: true
+        notes:
+          type: string
+          nullable: true
+        createdAt:
+          type: string
+          format: date-time
+        updatedAt:
+          type: string
+          format: date-time
+
+    CreateSubscriptionRequest:
+      type: object
+      required: [userId, userName, userEmail, userRole, plan]
+      properties:
+        userId:
+          type: integer
+        userName:
+          type: string
+        userEmail:
+          type: string
+        userRole:
+          type: string
+        plan:
+          type: string
+          enum: [client, corretor, correspondent]
+        status:
+          type: string
+          enum: [trial, active, overdue, cancelled, inactive]
+        billingDay:
+          type: integer
+        notes:
+          type: string
+
+    UpdateSubscriptionRequest:
+      type: object
+      properties:
+        plan:
+          type: string
+          enum: [client, corretor, correspondent]
+        status:
+          type: string
+          enum: [trial, active, overdue, cancelled, inactive]
+        billingDay:
+          type: integer
+        lastPaymentAt:
+          type: string
+          format: date-time
+        nextDueAt:
+          type: string
+          format: date-time
+        notes:
+          type: string

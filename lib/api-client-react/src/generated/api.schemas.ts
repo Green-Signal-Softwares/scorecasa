@@ -415,12 +415,282 @@ export interface NotificationsResult {
   unreadCount: number;
 }
 
+export type PropertyTypeProperty =
+  (typeof PropertyTypeProperty)[keyof typeof PropertyTypeProperty];
+
+export const PropertyTypeProperty = {
+  apartamento: "apartamento",
+  casa: "casa",
+  comercial: "comercial",
+  terreno: "terreno",
+  cobertura: "cobertura",
+  studio: "studio",
+} as const;
+
+export type PropertyStatus =
+  (typeof PropertyStatus)[keyof typeof PropertyStatus];
+
+export const PropertyStatus = {
+  available: "available",
+  reserved: "reserved",
+  sold: "sold",
+  inactive: "inactive",
+} as const;
+
+export interface Property {
+  id: number;
+  title: string;
+  description?: string | null;
+  type: PropertyTypeProperty;
+  price: number;
+  condominiumFee?: number | null;
+  iptu?: number | null;
+  address?: string | null;
+  neighborhood?: string | null;
+  city: string;
+  state: string;
+  zipCode?: string | null;
+  areaSqm: number;
+  bedrooms?: number | null;
+  bathrooms?: number | null;
+  parkingSpots?: number | null;
+  hasFurnished?: boolean | null;
+  hasPool?: boolean | null;
+  hasGym?: boolean | null;
+  hasBalcony?: boolean | null;
+  imageUrl?: string | null;
+  imageUrl2?: string | null;
+  imageUrl3?: string | null;
+  acceptsFgts?: boolean | null;
+  acceptsMcmv?: boolean | null;
+  acceptsSbpe?: boolean | null;
+  status: PropertyStatus;
+  brokerId?: number | null;
+  brokerName?: string | null;
+  brokerPhone?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CreatePropertyRequestType =
+  (typeof CreatePropertyRequestType)[keyof typeof CreatePropertyRequestType];
+
+export const CreatePropertyRequestType = {
+  apartamento: "apartamento",
+  casa: "casa",
+  comercial: "comercial",
+  terreno: "terreno",
+  cobertura: "cobertura",
+  studio: "studio",
+} as const;
+
+export interface CreatePropertyRequest {
+  title: string;
+  description?: string;
+  type: CreatePropertyRequestType;
+  price: number;
+  condominiumFee?: number;
+  iptu?: number;
+  address?: string;
+  neighborhood?: string;
+  city: string;
+  state: string;
+  zipCode?: string;
+  areaSqm: number;
+  bedrooms?: number;
+  bathrooms?: number;
+  parkingSpots?: number;
+  hasFurnished?: boolean;
+  hasPool?: boolean;
+  hasGym?: boolean;
+  hasBalcony?: boolean;
+  imageUrl?: string;
+  imageUrl2?: string;
+  imageUrl3?: string;
+  acceptsFgts?: boolean;
+  acceptsMcmv?: boolean;
+  acceptsSbpe?: boolean;
+  brokerId?: number;
+  brokerName?: string;
+  brokerPhone?: string;
+}
+
+export type UpdatePropertyRequestType =
+  (typeof UpdatePropertyRequestType)[keyof typeof UpdatePropertyRequestType];
+
+export const UpdatePropertyRequestType = {
+  apartamento: "apartamento",
+  casa: "casa",
+  comercial: "comercial",
+  terreno: "terreno",
+  cobertura: "cobertura",
+  studio: "studio",
+} as const;
+
+export type UpdatePropertyRequestStatus =
+  (typeof UpdatePropertyRequestStatus)[keyof typeof UpdatePropertyRequestStatus];
+
+export const UpdatePropertyRequestStatus = {
+  available: "available",
+  reserved: "reserved",
+  sold: "sold",
+  inactive: "inactive",
+} as const;
+
+export interface UpdatePropertyRequest {
+  title?: string;
+  description?: string;
+  type?: UpdatePropertyRequestType;
+  price?: number;
+  condominiumFee?: number;
+  iptu?: number;
+  address?: string;
+  neighborhood?: string;
+  city?: string;
+  state?: string;
+  zipCode?: string;
+  areaSqm?: number;
+  bedrooms?: number;
+  bathrooms?: number;
+  parkingSpots?: number;
+  hasFurnished?: boolean;
+  hasPool?: boolean;
+  hasGym?: boolean;
+  hasBalcony?: boolean;
+  imageUrl?: string;
+  imageUrl2?: string;
+  imageUrl3?: string;
+  acceptsFgts?: boolean;
+  acceptsMcmv?: boolean;
+  acceptsSbpe?: boolean;
+  status?: UpdatePropertyRequestStatus;
+  brokerId?: number;
+  brokerName?: string;
+  brokerPhone?: string;
+}
+
+export type SubscriptionPlan =
+  (typeof SubscriptionPlan)[keyof typeof SubscriptionPlan];
+
+export const SubscriptionPlan = {
+  client: "client",
+  corretor: "corretor",
+  correspondent: "correspondent",
+} as const;
+
+export type SubscriptionStatus =
+  (typeof SubscriptionStatus)[keyof typeof SubscriptionStatus];
+
+export const SubscriptionStatus = {
+  trial: "trial",
+  active: "active",
+  overdue: "overdue",
+  cancelled: "cancelled",
+  inactive: "inactive",
+} as const;
+
+export interface Subscription {
+  id: number;
+  userId: number;
+  userName: string;
+  userEmail: string;
+  userRole: string;
+  plan: SubscriptionPlan;
+  status: SubscriptionStatus;
+  priceMonthly: number;
+  billingDay: number;
+  trialEndsAt?: string | null;
+  lastPaymentAt?: string | null;
+  nextDueAt?: string | null;
+  cancelledAt?: string | null;
+  notes?: string | null;
+  createdAt: string;
+  updatedAt: string;
+}
+
+export type CreateSubscriptionRequestPlan =
+  (typeof CreateSubscriptionRequestPlan)[keyof typeof CreateSubscriptionRequestPlan];
+
+export const CreateSubscriptionRequestPlan = {
+  client: "client",
+  corretor: "corretor",
+  correspondent: "correspondent",
+} as const;
+
+export type CreateSubscriptionRequestStatus =
+  (typeof CreateSubscriptionRequestStatus)[keyof typeof CreateSubscriptionRequestStatus];
+
+export const CreateSubscriptionRequestStatus = {
+  trial: "trial",
+  active: "active",
+  overdue: "overdue",
+  cancelled: "cancelled",
+  inactive: "inactive",
+} as const;
+
+export interface CreateSubscriptionRequest {
+  userId: number;
+  userName: string;
+  userEmail: string;
+  userRole: string;
+  plan: CreateSubscriptionRequestPlan;
+  status?: CreateSubscriptionRequestStatus;
+  billingDay?: number;
+  notes?: string;
+}
+
+export type UpdateSubscriptionRequestPlan =
+  (typeof UpdateSubscriptionRequestPlan)[keyof typeof UpdateSubscriptionRequestPlan];
+
+export const UpdateSubscriptionRequestPlan = {
+  client: "client",
+  corretor: "corretor",
+  correspondent: "correspondent",
+} as const;
+
+export type UpdateSubscriptionRequestStatus =
+  (typeof UpdateSubscriptionRequestStatus)[keyof typeof UpdateSubscriptionRequestStatus];
+
+export const UpdateSubscriptionRequestStatus = {
+  trial: "trial",
+  active: "active",
+  overdue: "overdue",
+  cancelled: "cancelled",
+  inactive: "inactive",
+} as const;
+
+export interface UpdateSubscriptionRequest {
+  plan?: UpdateSubscriptionRequestPlan;
+  status?: UpdateSubscriptionRequestStatus;
+  billingDay?: number;
+  lastPaymentAt?: string;
+  nextDueAt?: string;
+  notes?: string;
+}
+
 export type MarkAllNotificationsRead200 = {
   ok: boolean;
 };
 
 export type MarkNotificationRead200 = {
   ok: boolean;
+};
+
+export type GetPropertiesParams = {
+  city?: string;
+  type?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  status?: string;
+  brokerId?: number;
+};
+
+export type DeleteProperty200 = {
+  ok: boolean;
+};
+
+export type TogglePropertyInterest200 = {
+  interested: boolean;
 };
 
 export type GetLeadsParams = {

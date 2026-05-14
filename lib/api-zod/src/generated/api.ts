@@ -374,6 +374,369 @@ export const MarkNotificationReadResponse = zod.object({
 });
 
 /**
+ * @summary List properties (marketplace)
+ */
+export const GetPropertiesQueryParams = zod.object({
+  city: zod.coerce.string().optional(),
+  type: zod.coerce.string().optional(),
+  minPrice: zod.coerce.number().optional(),
+  maxPrice: zod.coerce.number().optional(),
+  status: zod.coerce.string().optional(),
+  brokerId: zod.coerce.number().optional(),
+});
+
+export const GetPropertiesResponseItem = zod.object({
+  id: zod.number(),
+  title: zod.string(),
+  description: zod.string().nullish(),
+  type: zod.enum([
+    "apartamento",
+    "casa",
+    "comercial",
+    "terreno",
+    "cobertura",
+    "studio",
+  ]),
+  price: zod.number(),
+  condominiumFee: zod.number().nullish(),
+  iptu: zod.number().nullish(),
+  address: zod.string().nullish(),
+  neighborhood: zod.string().nullish(),
+  city: zod.string(),
+  state: zod.string(),
+  zipCode: zod.string().nullish(),
+  areaSqm: zod.number(),
+  bedrooms: zod.number().nullish(),
+  bathrooms: zod.number().nullish(),
+  parkingSpots: zod.number().nullish(),
+  hasFurnished: zod.boolean().nullish(),
+  hasPool: zod.boolean().nullish(),
+  hasGym: zod.boolean().nullish(),
+  hasBalcony: zod.boolean().nullish(),
+  imageUrl: zod.string().nullish(),
+  imageUrl2: zod.string().nullish(),
+  imageUrl3: zod.string().nullish(),
+  acceptsFgts: zod.boolean().nullish(),
+  acceptsMcmv: zod.boolean().nullish(),
+  acceptsSbpe: zod.boolean().nullish(),
+  status: zod.enum(["available", "reserved", "sold", "inactive"]),
+  brokerId: zod.number().nullish(),
+  brokerName: zod.string().nullish(),
+  brokerPhone: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+export const GetPropertiesResponse = zod.array(GetPropertiesResponseItem);
+
+/**
+ * @summary Create a new property listing
+ */
+export const CreatePropertyBody = zod.object({
+  title: zod.string(),
+  description: zod.string().optional(),
+  type: zod.enum([
+    "apartamento",
+    "casa",
+    "comercial",
+    "terreno",
+    "cobertura",
+    "studio",
+  ]),
+  price: zod.number(),
+  condominiumFee: zod.number().optional(),
+  iptu: zod.number().optional(),
+  address: zod.string().optional(),
+  neighborhood: zod.string().optional(),
+  city: zod.string(),
+  state: zod.string(),
+  zipCode: zod.string().optional(),
+  areaSqm: zod.number(),
+  bedrooms: zod.number().optional(),
+  bathrooms: zod.number().optional(),
+  parkingSpots: zod.number().optional(),
+  hasFurnished: zod.boolean().optional(),
+  hasPool: zod.boolean().optional(),
+  hasGym: zod.boolean().optional(),
+  hasBalcony: zod.boolean().optional(),
+  imageUrl: zod.string().optional(),
+  imageUrl2: zod.string().optional(),
+  imageUrl3: zod.string().optional(),
+  acceptsFgts: zod.boolean().optional(),
+  acceptsMcmv: zod.boolean().optional(),
+  acceptsSbpe: zod.boolean().optional(),
+  brokerId: zod.number().optional(),
+  brokerName: zod.string().optional(),
+  brokerPhone: zod.string().optional(),
+});
+
+/**
+ * @summary Get a single property
+ */
+export const GetPropertyParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const GetPropertyResponse = zod.object({
+  id: zod.number(),
+  title: zod.string(),
+  description: zod.string().nullish(),
+  type: zod.enum([
+    "apartamento",
+    "casa",
+    "comercial",
+    "terreno",
+    "cobertura",
+    "studio",
+  ]),
+  price: zod.number(),
+  condominiumFee: zod.number().nullish(),
+  iptu: zod.number().nullish(),
+  address: zod.string().nullish(),
+  neighborhood: zod.string().nullish(),
+  city: zod.string(),
+  state: zod.string(),
+  zipCode: zod.string().nullish(),
+  areaSqm: zod.number(),
+  bedrooms: zod.number().nullish(),
+  bathrooms: zod.number().nullish(),
+  parkingSpots: zod.number().nullish(),
+  hasFurnished: zod.boolean().nullish(),
+  hasPool: zod.boolean().nullish(),
+  hasGym: zod.boolean().nullish(),
+  hasBalcony: zod.boolean().nullish(),
+  imageUrl: zod.string().nullish(),
+  imageUrl2: zod.string().nullish(),
+  imageUrl3: zod.string().nullish(),
+  acceptsFgts: zod.boolean().nullish(),
+  acceptsMcmv: zod.boolean().nullish(),
+  acceptsSbpe: zod.boolean().nullish(),
+  status: zod.enum(["available", "reserved", "sold", "inactive"]),
+  brokerId: zod.number().nullish(),
+  brokerName: zod.string().nullish(),
+  brokerPhone: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Update a property
+ */
+export const UpdatePropertyParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdatePropertyBody = zod.object({
+  title: zod.string().optional(),
+  description: zod.string().optional(),
+  type: zod
+    .enum([
+      "apartamento",
+      "casa",
+      "comercial",
+      "terreno",
+      "cobertura",
+      "studio",
+    ])
+    .optional(),
+  price: zod.number().optional(),
+  condominiumFee: zod.number().optional(),
+  iptu: zod.number().optional(),
+  address: zod.string().optional(),
+  neighborhood: zod.string().optional(),
+  city: zod.string().optional(),
+  state: zod.string().optional(),
+  zipCode: zod.string().optional(),
+  areaSqm: zod.number().optional(),
+  bedrooms: zod.number().optional(),
+  bathrooms: zod.number().optional(),
+  parkingSpots: zod.number().optional(),
+  hasFurnished: zod.boolean().optional(),
+  hasPool: zod.boolean().optional(),
+  hasGym: zod.boolean().optional(),
+  hasBalcony: zod.boolean().optional(),
+  imageUrl: zod.string().optional(),
+  imageUrl2: zod.string().optional(),
+  imageUrl3: zod.string().optional(),
+  acceptsFgts: zod.boolean().optional(),
+  acceptsMcmv: zod.boolean().optional(),
+  acceptsSbpe: zod.boolean().optional(),
+  status: zod.enum(["available", "reserved", "sold", "inactive"]).optional(),
+  brokerId: zod.number().optional(),
+  brokerName: zod.string().optional(),
+  brokerPhone: zod.string().optional(),
+});
+
+export const UpdatePropertyResponse = zod.object({
+  id: zod.number(),
+  title: zod.string(),
+  description: zod.string().nullish(),
+  type: zod.enum([
+    "apartamento",
+    "casa",
+    "comercial",
+    "terreno",
+    "cobertura",
+    "studio",
+  ]),
+  price: zod.number(),
+  condominiumFee: zod.number().nullish(),
+  iptu: zod.number().nullish(),
+  address: zod.string().nullish(),
+  neighborhood: zod.string().nullish(),
+  city: zod.string(),
+  state: zod.string(),
+  zipCode: zod.string().nullish(),
+  areaSqm: zod.number(),
+  bedrooms: zod.number().nullish(),
+  bathrooms: zod.number().nullish(),
+  parkingSpots: zod.number().nullish(),
+  hasFurnished: zod.boolean().nullish(),
+  hasPool: zod.boolean().nullish(),
+  hasGym: zod.boolean().nullish(),
+  hasBalcony: zod.boolean().nullish(),
+  imageUrl: zod.string().nullish(),
+  imageUrl2: zod.string().nullish(),
+  imageUrl3: zod.string().nullish(),
+  acceptsFgts: zod.boolean().nullish(),
+  acceptsMcmv: zod.boolean().nullish(),
+  acceptsSbpe: zod.boolean().nullish(),
+  status: zod.enum(["available", "reserved", "sold", "inactive"]),
+  brokerId: zod.number().nullish(),
+  brokerName: zod.string().nullish(),
+  brokerPhone: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Delete a property
+ */
+export const DeletePropertyParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const DeletePropertyResponse = zod.object({
+  ok: zod.boolean(),
+});
+
+/**
+ * @summary Toggle client interest in a property
+ */
+export const TogglePropertyInterestParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const TogglePropertyInterestResponse = zod.object({
+  interested: zod.boolean(),
+});
+
+/**
+ * @summary Get properties the current client has shown interest in
+ */
+export const GetMyInterestsResponseItem = zod.number();
+export const GetMyInterestsResponse = zod.array(GetMyInterestsResponseItem);
+
+/**
+ * @summary Get current user subscription
+ */
+export const GetMySubscriptionResponse = zod.object({
+  id: zod.number(),
+  userId: zod.number(),
+  userName: zod.string(),
+  userEmail: zod.string(),
+  userRole: zod.string(),
+  plan: zod.enum(["client", "corretor", "correspondent"]),
+  status: zod.enum(["trial", "active", "overdue", "cancelled", "inactive"]),
+  priceMonthly: zod.number(),
+  billingDay: zod.number(),
+  trialEndsAt: zod.coerce.date().nullish(),
+  lastPaymentAt: zod.coerce.date().nullish(),
+  nextDueAt: zod.coerce.date().nullish(),
+  cancelledAt: zod.coerce.date().nullish(),
+  notes: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Admin — list all subscriptions
+ */
+export const GetAllSubscriptionsResponseItem = zod.object({
+  id: zod.number(),
+  userId: zod.number(),
+  userName: zod.string(),
+  userEmail: zod.string(),
+  userRole: zod.string(),
+  plan: zod.enum(["client", "corretor", "correspondent"]),
+  status: zod.enum(["trial", "active", "overdue", "cancelled", "inactive"]),
+  priceMonthly: zod.number(),
+  billingDay: zod.number(),
+  trialEndsAt: zod.coerce.date().nullish(),
+  lastPaymentAt: zod.coerce.date().nullish(),
+  nextDueAt: zod.coerce.date().nullish(),
+  cancelledAt: zod.coerce.date().nullish(),
+  notes: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+export const GetAllSubscriptionsResponse = zod.array(
+  GetAllSubscriptionsResponseItem,
+);
+
+/**
+ * @summary Create subscription for a user
+ */
+export const CreateSubscriptionBody = zod.object({
+  userId: zod.number(),
+  userName: zod.string(),
+  userEmail: zod.string(),
+  userRole: zod.string(),
+  plan: zod.enum(["client", "corretor", "correspondent"]),
+  status: zod
+    .enum(["trial", "active", "overdue", "cancelled", "inactive"])
+    .optional(),
+  billingDay: zod.number().optional(),
+  notes: zod.string().optional(),
+});
+
+/**
+ * @summary Admin — update subscription status or plan
+ */
+export const UpdateSubscriptionParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateSubscriptionBody = zod.object({
+  plan: zod.enum(["client", "corretor", "correspondent"]).optional(),
+  status: zod
+    .enum(["trial", "active", "overdue", "cancelled", "inactive"])
+    .optional(),
+  billingDay: zod.number().optional(),
+  lastPaymentAt: zod.coerce.date().optional(),
+  nextDueAt: zod.coerce.date().optional(),
+  notes: zod.string().optional(),
+});
+
+export const UpdateSubscriptionResponse = zod.object({
+  id: zod.number(),
+  userId: zod.number(),
+  userName: zod.string(),
+  userEmail: zod.string(),
+  userRole: zod.string(),
+  plan: zod.enum(["client", "corretor", "correspondent"]),
+  status: zod.enum(["trial", "active", "overdue", "cancelled", "inactive"]),
+  priceMonthly: zod.number(),
+  billingDay: zod.number(),
+  trialEndsAt: zod.coerce.date().nullish(),
+  lastPaymentAt: zod.coerce.date().nullish(),
+  nextDueAt: zod.coerce.date().nullish(),
+  cancelledAt: zod.coerce.date().nullish(),
+  notes: zod.string().nullish(),
+  createdAt: zod.coerce.date(),
+  updatedAt: zod.coerce.date(),
+});
+
+/**
  * @summary Get dashboard summary stats
  */
 export const GetDashboardResponse = zod.object({

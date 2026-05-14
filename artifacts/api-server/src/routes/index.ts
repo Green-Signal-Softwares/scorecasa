@@ -8,6 +8,8 @@ import funnelRouter from "./funnel";
 import rankingRouter from "./ranking";
 import notificationsRouter from "./notifications";
 import clientRouter from "./client";
+import propertiesRouter from "./properties";
+import subscriptionsRouter from "./subscriptions";
 
 const router: IRouter = Router();
 
@@ -20,5 +22,7 @@ router.use("/funnel", funnelRouter);
 router.use("/ranking", rankingRouter);
 router.use("/notifications", notificationsRouter);
 router.use("/client", clientRouter);
+router.use("/properties", propertiesRouter);
+router.use("/subscriptions", subscriptionsRouter);
 
 export default router;

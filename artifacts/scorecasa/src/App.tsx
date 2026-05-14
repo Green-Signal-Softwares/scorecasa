@@ -9,6 +9,8 @@ import { Leads } from "@/pages/Leads";
 import { LeadDetails } from "@/pages/LeadDetails";
 import { Brokers } from "@/pages/Brokers";
 import { Ranking } from "@/pages/Ranking";
+import { Imoveis } from "@/pages/Imoveis";
+import { Financeiro } from "@/pages/Financeiro";
 import { AppLayout } from "@/components/layout/AppLayout";
 import { ClientPortal } from "@/pages/ClientPortal";
 import { ClientRegister } from "@/pages/ClientRegister";
@@ -61,6 +63,22 @@ function Router() {
         {() => (
           <AppLayout>
             <Ranking />
+          </AppLayout>
+        )}
+      </Route>
+
+      <Route path="/imoveis">
+        {() => (
+          <AppLayout>
+            <Imoveis />
+          </AppLayout>
+        )}
+      </Route>
+
+      <Route path="/financeiro">
+        {() => (
+          <AppLayout>
+            <Financeiro />
           </AppLayout>
         )}
       </Route>
