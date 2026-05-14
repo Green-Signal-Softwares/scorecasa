@@ -303,6 +303,29 @@ export function ClientRegister() {
     const errs = validate();
     if (Object.keys(errs).length > 0) {
       setErrors(errs);
+      const labels: Record<string, string> = {
+        name: "Nome completo",
+        cpf: "CPF",
+        cnpj: "CNPJ",
+        creci: "CRECI",
+        email: "Email",
+        phone: "Telefone",
+        password: "Senha",
+        income: "Renda mensal",
+        propertyValue: "Valor do imóvel",
+        terms: "Aceite dos Termos de Uso",
+      };
+      const missing = Object.keys(errs).map((k) => labels[k] ?? k).join(", ");
+      toast({
+        title: "Preencha os campos obrigatórios",
+        description: missing,
+      });
+      const firstKey = Object.keys(errs)[0];
+      const firstEl = document.querySelector(`[data-testid="input-${firstKey === "propertyValue" ? "property" : firstKey}"]`) as HTMLElement | null;
+      if (firstEl) {
+        firstEl.scrollIntoView({ behavior: "smooth", block: "center" });
+        firstEl.focus?.();
+      }
       return;
     }
     if (!profile || !planId) {
@@ -708,7 +731,7 @@ export function ClientRegister() {
                         Dados financeiros
                       </p>
                       <div className="grid grid-cols-2 gap-3">
-                        <FieldRow label="Renda mensal" error={errors.income}>
+                        <FieldRow label="Renda mensal *" error={errors.income}>
                           <input
                             type="text"
                             value={form.income}
@@ -718,7 +741,7 @@ export function ClientRegister() {
                             data-testid="input-income"
                           />
                         </FieldRow>
-                        <FieldRow label="Valor do imóvel" error={errors.propertyValue}>
+                        <FieldRow label="Valor do imóvel *" error={errors.propertyValue}>
                           <input
                             type="text"
                             value={form.propertyValue}
