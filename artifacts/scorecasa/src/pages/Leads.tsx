@@ -485,7 +485,7 @@ function ScoreResult({ lead, onViewLead, onNewLead }: {
       {/* AI recommendation */}
       {lead.aiRecommendation && (
         <div className="p-3 rounded-xl text-xs text-gray-700 leading-relaxed border" style={{ background: "#EFF6FF", borderColor: "#BFDBFE" }}>
-          <span className="font-semibold" style={{ color: "#0D1B8C" }}>Recomendação da IA: </span>
+          <span className="font-semibold" style={{ color: "#0D1B8C" }}>Recomendação Índice de Aprovação: </span>
           {lead.aiRecommendation}
         </div>
       )}

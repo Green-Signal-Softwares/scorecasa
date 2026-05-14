@@ -449,10 +449,10 @@ export function LeadReport({ lead, score, gpsSteps, generatedAt }: LeadReportPro
             </View>
           )}
 
-          {/* 6. Recomendacao IA */}
+          {/* 6. Recomendacao Indice de Aprovacao */}
           {lead.aiRecommendation && (
             <View style={s.section}>
-              <Text style={s.sectionTitle}>Recomendacao da IA</Text>
+              <Text style={s.sectionTitle}>Recomendacao Indice de Aprovacao</Text>
               <View style={s.recBox}>
                 <Text style={s.recText}>{lead.aiRecommendation}</Text>
               </View>

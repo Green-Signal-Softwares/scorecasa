@@ -753,7 +753,7 @@ export function LeadDetails({ id }: { id: number }) {
           {/* AI Recommendation */}
           {lead.aiRecommendation && (
             <div className="bg-card rounded-xl border border-card-border p-5 shadow-sm">
-              <div className="text-sm font-semibold text-foreground mb-2">Recomendacao IA</div>
+              <div className="text-sm font-semibold text-foreground mb-2">Recomendação Índice de Aprovação</div>
               <p className="text-sm text-muted-foreground leading-relaxed">{lead.aiRecommendation}</p>
             </div>
           )}
