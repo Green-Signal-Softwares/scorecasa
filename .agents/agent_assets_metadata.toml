@@ -1,0 +1,8 @@
+uploads = []
+generated = []
+
+[[outputs]]
+id = "yxiwZaoWZY1yK7RYERd5K"
+uri = "file://attached_assets/screenshots/4d14031f-f287-450c-8db1-c19eea7442b2-00-1g3rysvidw4ff_riker_replit_dev_mockup_preview_scorecasa-client_Portal.png"
+type = "image"
+title = "Portal do Cliente — Nova Sidebar"
