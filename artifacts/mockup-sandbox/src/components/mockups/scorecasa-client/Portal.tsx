@@ -7,11 +7,13 @@ import {
   X,
   Bell,
   Calculator,
+  Building2,
 } from "lucide-react";
 
 const NAV_ITEMS = [
   { key: "dashboard", label: "Dashboard", icon: LayoutDashboard },
   { key: "simulador", label: "Simulador", icon: Calculator },
+  { key: "imoveis", label: "Imóveis", icon: Building2 },
   { key: "meus-dados", label: "Meus dados", icon: Users },
 ] as const;
 
