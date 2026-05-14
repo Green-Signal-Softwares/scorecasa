@@ -20,7 +20,7 @@ import {
   FileDown, ShieldCheck, ShieldX, AlertTriangle, Landmark, Clock,
   BadgeCheck, ChevronDown, ChevronUp, BarChart3, SlidersHorizontal,
   Navigation, CreditCard, Car, Wallet, Upload, Sparkles, FileImage,
-  XCircle, CheckCircle2,
+  XCircle, CheckCircle2, ExternalLink,
 } from "lucide-react";
 import { BankComparison } from "@/components/BankComparison";
 import { CreditGPS, computeGpsSteps } from "@/components/CreditGPS";
@@ -1113,6 +1113,39 @@ export function LeadDetails({ id }: { id: number }) {
                   <p className="text-xs text-muted-foreground mb-3">
                     Informe parcelas mensais ativas — impactam diretamente na margem de crédito disponível.
                   </p>
+
+                  {/* Acesso rápido ao Registrato BCB via gov.br */}
+                  <div
+                    className="rounded-lg border p-3 mb-3 flex items-center gap-3"
+                    style={{ borderColor: "#0D1B8C33", backgroundColor: "#F4F6FF" }}
+                  >
+                    <div
+                      className="w-9 h-9 rounded-md flex items-center justify-center flex-shrink-0"
+                      style={{ backgroundColor: "#0D1B8C" }}
+                    >
+                      <Landmark className="w-5 h-5 text-white" />
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <div className="text-xs font-semibold" style={{ color: "#07113A" }}>
+                        Consulte o Registrato no Banco Central
+                      </div>
+                      <div className="text-[11px] text-muted-foreground leading-snug">
+                        Acesse o relatório oficial de empréstimos e financiamentos do cliente via login gov.br (nível prata ou ouro).
+                      </div>
+                    </div>
+                    <a
+                      href="https://www.bcb.gov.br/meubc/registrato"
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-1.5 px-3 py-2 rounded-md text-xs font-semibold text-white whitespace-nowrap transition-opacity hover:opacity-90"
+                      style={{ backgroundColor: "#0D1B8C" }}
+                      data-testid="link-bcb-registrato"
+                    >
+                      Acessar gov.br
+                      <ExternalLink className="w-3 h-3" />
+                    </a>
+                  </div>
+
                   <div className="grid grid-cols-2 gap-3">
                     <div>
                       <label className="text-xs text-muted-foreground block mb-1 flex items-center gap-1">
