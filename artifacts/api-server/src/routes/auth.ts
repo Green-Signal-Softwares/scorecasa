@@ -1,18 +1,24 @@
 import { Router } from "express";
-import { db, usersTable, leadsTable } from "@workspace/db";
+import { db, usersTable, leadsTable, subscriptionsTable, PLAN_TIERS, type PlanTierId } from "@workspace/db";
 import { eq } from "drizzle-orm";
 import { LoginBody } from "@workspace/api-zod";
 import crypto from "crypto";
 import { z } from "zod";
 
+const PLAN_IDS = Object.keys(PLAN_TIERS) as [PlanTierId, ...PlanTierId[]];
+
 const RegisterBody = z.object({
+  role: z.enum(["client", "broker", "correspondent"]).default("client"),
+  plan: z.enum(PLAN_IDS).optional(),
   name: z.string().min(2),
-  cpf: z.string().min(11),
   email: z.string().email(),
   phone: z.string().min(8),
   password: z.string().min(6),
-  income: z.number().positive(),
-  propertyValue: z.number().positive(),
+  cpf: z.string().optional(),
+  cnpj: z.string().optional(),
+  creci: z.string().optional(),
+  income: z.number().positive().optional(),
+  propertyValue: z.number().positive().optional(),
 });
 
 const router = Router();
@@ -30,50 +36,109 @@ declare module "express-serve-static-core" {
 router.post("/register", async (req, res) => {
   const parsed = RegisterBody.safeParse(req.body);
   if (!parsed.success) {
-    res.status(400).json({ error: "Invalid request body" });
+    res.status(400).json({ error: "Invalid request body", details: parsed.error.issues });
     return;
   }
 
-  const { name, cpf, email, phone, password, income, propertyValue } = parsed.data;
+  const { role, plan, name, email, phone, password, cpf, cnpj, creci, income, propertyValue } = parsed.data;
+
+  // Resolve and validate plan against role
+  const planId: PlanTierId = (plan ??
+    (role === "client" ? "individual" : role === "broker" ? "corretor_50" : "correspondent_50")) as PlanTierId;
+  const planTier = PLAN_TIERS[planId];
+  if (!planTier || planTier.role !== role) {
+    res.status(400).json({ error: "Plan does not match the selected profile" });
+    return;
+  }
+
+  // Profile-specific validation
+  if (role === "client") {
+    if (!cpf || cpf.length !== 11) {
+      res.status(400).json({ error: "CPF é obrigatório (11 dígitos) para conta cliente." });
+      return;
+    }
+    if (!income || !propertyValue) {
+      res.status(400).json({ error: "Renda e valor do imóvel são obrigatórios para conta cliente." });
+      return;
+    }
+  } else if (cpf && cpf.length !== 11) {
+    res.status(400).json({ error: "CPF inválido (deve ter 11 dígitos)." });
+    return;
+  }
 
   const [existing] = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
   if (existing) {
-    res.status(409).json({ error: "Email already in use" });
+    res.status(409).json({ error: "Email já cadastrado." });
     return;
   }
 
-  const ratio = propertyValue / (income * 12);
-  const maxRatio = 4.5;
-  const baseChance = Math.max(0, Math.min(100, 100 - (ratio / maxRatio) * 60));
-  const approvalChance = Math.round(Math.max(0, Math.min(100, baseChance + (Math.random() * 20 - 10))));
-  const scoreCaixa = Math.round(300 + (approvalChance / 100) * 550 + (Math.random() * 80 - 40));
-  const scoreMCMV = income <= 8000 ? Math.round(600 + Math.random() * 250) : Math.round(300 + Math.random() * 200);
-  let recommendation = "";
-  if (approvalChance >= 70) recommendation = "Perfil com alta chance de aprovação. Recomendamos prosseguir com a análise completa.";
-  else if (approvalChance >= 50) recommendation = "Perfil com chances moderadas. Ajustando o comprometimento de renda, a aprovação pode ser garantida.";
-  else recommendation = "Perfil com chances baixas. Sugerimos rever o valor do imóvel ou aumentar a renda comprovada.";
+  // Build pro-account metadata note
+  const noteParts: string[] = [];
+  if (planTier.enterprise) noteParts.push("Plano empresarial — equipe comercial entrará em contato.");
+  if (cnpj) noteParts.push("CNPJ: " + cnpj);
+  if (creci) noteParts.push("CRECI: " + creci);
 
-  const [lead] = await db.insert(leadsTable).values({
-    name,
-    cpf,
-    email,
-    phone,
-    income,
-    propertyValue,
-    status: "pending",
-    approvalChance,
-    scoreCaixa,
-    scoreMCMV,
-    aiRecommendation: recommendation,
-  }).returning();
+  // Atomic write: lead (client only) + user + subscription
+  let user: typeof usersTable.$inferSelect;
+  let trialEnd = new Date();
+  trialEnd.setDate(trialEnd.getDate() + 14);
+  const nextDue = new Date();
+  nextDue.setDate(nextDue.getDate() + 14);
 
-  const [user] = await db.insert(usersTable).values({
-    name,
-    email,
-    passwordHash: hashPassword(password),
-    role: "client",
-    leadId: lead.id,
-  }).returning();
+  try {
+    user = await db.transaction(async (tx) => {
+      let leadId: number | null = null;
+
+      if (role === "client" && income && propertyValue && cpf) {
+        const ratio = propertyValue / (income * 12);
+        const maxRatio = 4.5;
+        const baseChance = Math.max(0, Math.min(100, 100 - (ratio / maxRatio) * 60));
+        const approvalChance = Math.round(Math.max(0, Math.min(100, baseChance + (Math.random() * 20 - 10))));
+        const scoreCaixa = Math.round(300 + (approvalChance / 100) * 550 + (Math.random() * 80 - 40));
+        const scoreMCMV = income <= 8000 ? Math.round(600 + Math.random() * 250) : Math.round(300 + Math.random() * 200);
+        let recommendation = "";
+        if (approvalChance >= 70) recommendation = "Perfil com alta chance de aprovação. Recomendamos prosseguir com a análise completa.";
+        else if (approvalChance >= 50) recommendation = "Perfil com chances moderadas. Ajustando o comprometimento de renda, a aprovação pode ser garantida.";
+        else recommendation = "Perfil com chances baixas. Sugerimos rever o valor do imóvel ou aumentar a renda comprovada.";
+
+        const [lead] = await tx.insert(leadsTable).values({
+          name, cpf, email, phone, income, propertyValue,
+          status: "pending",
+          approvalChance, scoreCaixa, scoreMCMV,
+          aiRecommendation: recommendation,
+        }).returning();
+        leadId = lead.id;
+      }
+
+      const [createdUser] = await tx.insert(usersTable).values({
+        name,
+        email,
+        passwordHash: hashPassword(password),
+        role,
+        leadId,
+      }).returning();
+
+      await tx.insert(subscriptionsTable).values({
+        userId: createdUser.id,
+        userName: createdUser.name,
+        userEmail: createdUser.email,
+        userRole: createdUser.role,
+        plan: planId,
+        status: "trial",
+        priceMonthly: planTier.priceMonthly,
+        billingDay: 1,
+        trialEndsAt: trialEnd,
+        nextDueAt: nextDue,
+        notes: noteParts.length > 0 ? noteParts.join(" | ") : null,
+      });
+
+      return createdUser;
+    });
+  } catch (err) {
+    req.log.error({ err }, "registration transaction failed");
+    res.status(500).json({ error: "Erro ao criar conta. Tente novamente." });
+    return;
+  }
 
   (req as any).session = (req as any).session ?? {};
   (req as any).session.userId = user.id;
@@ -87,11 +152,12 @@ router.post("/register", async (req, res) => {
       avatarUrl: user.avatarUrl ?? null,
       leadId: user.leadId,
     },
-    lead: {
-      ...lead,
-      brokerName: null,
-      createdAt: lead.createdAt.toISOString(),
-      updatedAt: lead.updatedAt.toISOString(),
+    plan: {
+      id: planId,
+      label: planTier.label,
+      priceMonthly: planTier.priceMonthly,
+      enterprise: planTier.enterprise,
+      trialEndsAt: trialEnd.toISOString(),
     },
   });
 });
