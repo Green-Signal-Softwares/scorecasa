@@ -317,6 +317,12 @@ function PartnerPlansTable({ group, currentPlanId }: { group: "corretor" | "corr
     </div>
   ) : null;
 
+  const setupFeeNote = (
+    <div className="mt-3 p-3 rounded-xl text-xs leading-relaxed border" style={{ borderColor: color, color }}>
+      <strong>Implantação / setup do sistema</strong> a partir de <strong>R$ 590,00</strong> (obrigatório na contratação). Valores ajustados de acordo com o projeto. Consulte nossa equipe comercial.
+    </div>
+  );
+
   return (
     <div>
       <div className="text-sm font-bold mb-3" style={{ color }}>{title}</div>
@@ -327,6 +333,7 @@ function PartnerPlansTable({ group, currentPlanId }: { group: "corretor" | "corr
       </div>
       {correspondentNote}
       {corretorNote}
+      {setupFeeNote}
     </div>
   );
 }

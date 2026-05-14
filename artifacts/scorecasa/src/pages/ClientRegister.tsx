@@ -619,6 +619,11 @@ export function ClientRegister() {
                         ? "Plano sob consulta — equipe comercial entrará em contato."
                         : `${brl(selectedPlan.priceMonthly)}/mês após o trial de 14 dias`}
                     </div>
+                    {(profile === "broker" || profile === "correspondent") && (
+                      <div className="text-[10px] mt-1 font-medium" style={{ color: selectedProfile.color }}>
+                        + Implantação a partir de R$ 590,00 (obrigatório na contratação). Valor ajustado conforme o projeto — consulte nossa equipe comercial.
+                      </div>
+                    )}
                   </div>
                   <button
                     type="button"
