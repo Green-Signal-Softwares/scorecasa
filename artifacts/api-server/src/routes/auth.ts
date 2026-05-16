@@ -68,8 +68,21 @@ router.post("/register", async (req, res) => {
 
   const [existing] = await db.select().from(usersTable).where(eq(usersTable.email, email)).limit(1);
   if (existing) {
-    res.status(409).json({ error: "Email já cadastrado." });
+    res.status(409).json({ error: "Email já cadastrado. Faça login ou recupere sua senha." });
     return;
+  }
+
+  // CPF unique pre-check (evita 500 por violação de unique constraint).
+  // Só aplica quando enviamos cpf para a tabela users (role=client).
+  if (role === "client" && cpf) {
+    const cpfDigits = cpf.replace(/\D/g, "");
+    const [byCpf] = await db.select().from(usersTable).where(eq(usersTable.cpf, cpfDigits)).limit(1);
+    if (byCpf) {
+      res.status(409).json({
+        error: "Este CPF já tem uma conta na ScoreCasa. Faça login com seu CPF e senha, ou recupere sua senha.",
+      });
+      return;
+    }
   }
 
   // Build pro-account metadata note
@@ -110,10 +123,13 @@ router.post("/register", async (req, res) => {
         leadId = lead.id;
       }
 
+      // Só persistimos CPF em users quando o perfil exige (cliente PF).
+      // Corretores/correspondentes não devem ocupar o índice único de CPF.
+      const userCpf = role === "client" && cpf ? cpf.replace(/\D/g, "") : null;
       const [createdUser] = await tx.insert(usersTable).values({
         name,
         email,
-        cpf: cpf ? cpf.replace(/\D/g, "") : null,
+        cpf: userCpf,
         passwordHash: hashPassword(password),
         role,
         leadId,
@@ -135,7 +151,23 @@ router.post("/register", async (req, res) => {
 
       return createdUser;
     });
-  } catch (err) {
+  } catch (err: any) {
+    // Fallback para corridas que escapem do pré-check (dois requests no mesmo
+    // milissegundo com mesmo email/cpf). PostgreSQL retorna SQLSTATE 23505.
+    const code = err?.code ?? err?.cause?.code;
+    const constraint = (err?.constraint ?? err?.cause?.constraint ?? "").toString();
+    if (code === "23505") {
+      if (constraint.includes("cpf")) {
+        res.status(409).json({
+          error: "Este CPF já tem uma conta na ScoreCasa. Faça login com seu CPF e senha, ou recupere sua senha.",
+        });
+        return;
+      }
+      if (constraint.includes("email")) {
+        res.status(409).json({ error: "Email já cadastrado. Faça login ou recupere sua senha." });
+        return;
+      }
+    }
     req.log.error({ err }, "registration transaction failed");
     res.status(500).json({ error: "Erro ao criar conta. Tente novamente." });
     return;
