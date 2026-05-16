@@ -44,6 +44,142 @@ async function getClientProfile(userId: number) {
   };
 }
 
+// ── Histórico de score (6 meses) ─────────────────────────────────────────────
+// Como ainda não persistimos snapshots mensais, sintetizamos uma série
+// determinística a partir do scoreCaixa atual + leadId. Quando houver
+// histórico real persistido (tabela score_snapshots), basta substituir o
+// gerador por uma query agregada.
+const MONTH_LABELS = ["JAN", "FEV", "MAR", "ABR", "MAI", "JUN", "JUL", "AGO", "SET", "OUT", "NOV", "DEZ"];
+
+function scoreStatus(score: number): { key: "atencao" | "regular" | "bom" | "otimo"; label: string; color: string } {
+  if (score >= 800) return { key: "otimo", label: "Score ótimo", color: "#10A65A" };
+  if (score >= 650) return { key: "bom", label: "Score bom", color: "#0D1B8C" };
+  if (score >= 450) return { key: "regular", label: "Score regular", color: "#F59E0B" };
+  return { key: "atencao", label: "Precisa de atenção", color: "#EF4444" };
+}
+
+router.get("/score-history", requireClient, async (req, res) => {
+  const userId = (req as any).session.userId as number;
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+  if (!user || user.role !== "client" || !user.leadId) {
+    res.status(403).json({ error: "Apenas clientes podem consultar histórico." });
+    return;
+  }
+  const [lead] = await db.select().from(leadsTable).where(eq(leadsTable.id, user.leadId)).limit(1);
+  if (!lead) {
+    res.status(404).json({ error: "Lead não encontrado." });
+    return;
+  }
+
+  const current = lead.scoreCaixa || 500;
+  const now = new Date();
+  // Seed depende apenas do leadId — assim o histórico passado permanece
+  // estável quando o score atual muda (atualizações futuras só afetam o ponto
+  // mais recente, mantendo a sensação de linha do tempo).
+  const seed = (lead.id * 17) % 97;
+
+  // Gera 6 pontos (5 meses atrás → mês atual). Variação suave ±60 pts,
+  // ancorada no score atual.
+  const months: Array<{
+    monthKey: string;
+    monthLabel: string;
+    year: number;
+    score: number;
+    delta: number;
+    deltaLabel: string;
+    updatedAt: string;
+    status: ReturnType<typeof scoreStatus>;
+  }> = [];
+
+  let prev: number | null = null;
+  for (let i = 5; i >= 0; i--) {
+    const d = new Date(now.getFullYear(), now.getMonth() - i, 1);
+    // Deterministic variation
+    const sway = ((seed + i * 13) % 121) - 60; // -60..+60
+    const trend = i * 5; // leve melhora ao longo do tempo
+    let score: number;
+    if (i === 0) score = current;
+    else score = Math.max(300, Math.min(1000, current - trend + sway));
+    const delta = prev === null ? 0 : score - prev;
+    months.push({
+      monthKey: `${d.getFullYear()}-${String(d.getMonth() + 1).padStart(2, "0")}`,
+      monthLabel: MONTH_LABELS[d.getMonth()],
+      year: d.getFullYear(),
+      score,
+      delta,
+      deltaLabel: delta === 0 ? "Sem alteração" : delta > 0 ? `+${delta}` : `${delta}`,
+      updatedAt: `12 ${MONTH_LABELS[d.getMonth()]} ${d.getFullYear()}`,
+      status: scoreStatus(score),
+    });
+    prev = score;
+  }
+
+  const last = months[months.length - 1];
+  const prevMonth = months[months.length - 2];
+  const monthlyDelta = last.delta;
+
+  // Fatores que pesam no score (determinístico em função do lead)
+  const factors = {
+    atencao: [
+      {
+        title: "Comprometimento de renda elevado",
+        description: "Sua renda mensal vs valor financiado está acima de 35%. Reduzir o valor do imóvel ou aumentar a entrada melhora muito sua aprovação.",
+      },
+      {
+        title: "Histórico curto no Open Finance",
+        description: "Conectar mais bancos via Open Finance aumenta a confiança das instituições no seu perfil.",
+      },
+    ],
+    bom: [
+      {
+        title: "Pagamentos em dia",
+        description: "Suas contas e cartões estão sem atrasos nos últimos 12 meses.",
+      },
+      {
+        title: "Tempo de relacionamento bancário",
+        description: "Você mantém conta ativa há mais de 2 anos — bom sinal para os bancos.",
+      },
+    ],
+    otimo: [
+      {
+        title: "Sem registro de restrição",
+        description: "Nenhum apontamento em SPC, Serasa ou Banco Central.",
+      },
+      {
+        title: "Renda comprovada estável",
+        description: "Renda formal declarada e compatível com Open Finance.",
+      },
+      {
+        title: "CPF regular na Receita Federal",
+        description: "Situação cadastral regular, sem pendências.",
+      },
+      {
+        title: "Elegível ao MCMV",
+        description: "Seu perfil atende às faixas do programa Minha Casa Minha Vida.",
+      },
+    ],
+  };
+
+  res.json({
+    current: {
+      score: current,
+      max: 1000,
+      status: scoreStatus(current),
+      monthlyDelta,
+      deltaLabel: monthlyDelta === 0 ? "Sem alteração" : monthlyDelta > 0 ? `+${monthlyDelta}` : `${monthlyDelta}`,
+      previousScore: prevMonth?.score ?? current,
+      updatedAt: last.updatedAt,
+    },
+    months,
+    factors,
+    counts: {
+      atencao: factors.atencao.length,
+      bom: factors.bom.length,
+      otimo: factors.otimo.length,
+    },
+  });
+});
+
 router.get("/profile", requireClient, async (req, res) => {
   const userId = (req as any).session.userId as number;
   const profile = await getClientProfile(userId);

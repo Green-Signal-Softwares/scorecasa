@@ -27,6 +27,7 @@ import { ClientRegister } from "@/pages/ClientRegister";
 import { ClientMeusDados } from "@/pages/ClientMeusDados";
 import { ClientSimulador } from "@/pages/ClientSimulador";
 import { ClientImoveis } from "@/pages/ClientImoveis";
+import { ClientHistoricoScore } from "@/pages/ClientHistoricoScore";
 import RecuperarSenha from "@/pages/RecuperarSenha";
 
 const queryClient = new QueryClient();
@@ -81,6 +82,7 @@ function Router() {
       <Route path="/portal/meus-dados" component={ClientMeusDados} />
       <Route path="/portal/simulador" component={ClientSimulador} />
       <Route path="/portal/imoveis" component={ClientImoveis} />
+      <Route path="/portal/score" component={ClientHistoricoScore} />
       <Route path="/portal" component={ClientPortal} />
 
       <Route path="/leads/:id">
