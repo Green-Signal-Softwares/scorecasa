@@ -15,6 +15,7 @@ import salesHistoryRouter from "./sales-history";
 import bureauOcrRouter from "./bureau-ocr";
 import storageRouter from "./storage";
 import processesRouter from "./processes";
+import cpfLookupRouter from "./cpf-lookup";
 
 const router: IRouter = Router();
 
@@ -34,5 +35,6 @@ router.use("/sales-history", salesHistoryRouter);
 router.use("/bureau-ocr", bureauOcrRouter);
 router.use(storageRouter);
 router.use("/correspondent/processes", processesRouter);
+router.use("/cpf", cpfLookupRouter);
 
 export default router;

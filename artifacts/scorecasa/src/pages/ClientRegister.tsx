@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useLocation, Link } from "wouter";
 import {
   Eye, EyeOff, ArrowRight, ArrowLeft, Building2, User, Briefcase,
-  Landmark, ShieldCheck, Check, Lock, Sparkles,
+  Landmark, ShieldCheck, Check, Lock, Sparkles, Search,
 } from "lucide-react";
 import { ScoreCasaLogo, ScoreCasaWordmark } from "@/components/ScoreCasaLogo";
 import { useQueryClient } from "@tanstack/react-query";
@@ -234,6 +234,7 @@ export function ClientRegister() {
   const [form, setForm] = useState({
     name: "",
     cpf: "",
+    birthDate: "",
     cnpj: "",
     creci: "",
     email: "",
@@ -244,6 +245,7 @@ export function ClientRegister() {
   });
   const [showPassword, setShowPassword] = useState(false);
   const [loading, setLoading] = useState(false);
+  const [lookupLoading, setLookupLoading] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [acceptedTerms, setAcceptedTerms] = useState(false);
 
@@ -252,9 +254,54 @@ export function ClientRegister() {
     if (key === "cpf") val = maskCPF(val);
     else if (key === "cnpj") val = maskCNPJ(val);
     else if (key === "phone") val = maskPhone(val);
+    else if (key === "birthDate") {
+      const d = val.replace(/\D/g, "").slice(0, 8);
+      if (d.length <= 2) val = d;
+      else if (d.length <= 4) val = `${d.slice(0, 2)}/${d.slice(2)}`;
+      else val = `${d.slice(0, 2)}/${d.slice(2, 4)}/${d.slice(4)}`;
+    }
     else if (key === "income" || key === "propertyValue") val = formatCurrency(val);
     setForm((f) => ({ ...f, [key]: val }));
     setErrors((e) => ({ ...e, [key]: "" }));
+  };
+
+  const lookupCpf = async () => {
+    const cpfDigits = form.cpf.replace(/\D/g, "");
+    if (cpfDigits.length !== 11) {
+      setErrors((e) => ({ ...e, cpf: "Informe um CPF válido (11 dígitos)" }));
+      return;
+    }
+    if (!/^\d{2}\/\d{2}\/\d{4}$/.test(form.birthDate)) {
+      setErrors((e) => ({ ...e, birthDate: "Informe a data de nascimento (DD/MM/AAAA)" }));
+      return;
+    }
+    setLookupLoading(true);
+    try {
+      const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const resp = await fetch(`${BASE}/api/cpf/lookup`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cpf: cpfDigits, birthDate: form.birthDate }),
+      });
+      const data = await resp.json().catch(() => ({}));
+      if (!resp.ok || !data.found) {
+        toast({
+          title: "Não foi possível encontrar o cadastro",
+          description: (data as { error?: string }).error ?? "Verifique CPF e data de nascimento.",
+        });
+        return;
+      }
+      setForm((f) => ({ ...f, name: data.name as string }));
+      setErrors((e) => ({ ...e, name: "" }));
+      toast({
+        title: "Dados encontrados",
+        description: `Nome preenchido automaticamente para ${data.name}.`,
+      });
+    } catch {
+      toast({ title: "Erro na consulta", description: "Tente novamente em instantes." });
+    } finally {
+      setLookupLoading(false);
+    }
   };
 
   const profilePlans = profile ? PLANS.filter((p) => p.role === profile) : [];
@@ -641,17 +688,6 @@ export function ClientRegister() {
                 </div>
 
                 <form onSubmit={handleSubmit} className="space-y-4">
-                  <FieldRow label="Nome completo" error={errors.name}>
-                    <input
-                      type="text"
-                      value={form.name}
-                      onChange={set("name")}
-                      placeholder={profile === "client" ? "João da Silva" : "Seu nome"}
-                      className={inputCls(!!errors.name)}
-                      data-testid="input-name"
-                    />
-                  </FieldRow>
-
                   <div className="grid grid-cols-2 gap-3">
                     <FieldRow label="CPF" error={errors.cpf}>
                       <input
@@ -663,17 +699,61 @@ export function ClientRegister() {
                         data-testid="input-cpf"
                       />
                     </FieldRow>
-                    <FieldRow label="Telefone" error={errors.phone}>
+                    <FieldRow label="Data de nascimento" error={errors.birthDate}>
                       <input
-                        type="tel"
-                        value={form.phone}
-                        onChange={set("phone")}
-                        placeholder="(11) 99999-9999"
-                        className={inputCls(!!errors.phone)}
-                        data-testid="input-phone"
+                        type="text"
+                        value={form.birthDate}
+                        onChange={set("birthDate")}
+                        placeholder="DD/MM/AAAA"
+                        inputMode="numeric"
+                        className={inputCls(!!errors.birthDate)}
+                        data-testid="input-birth-date"
                       />
                     </FieldRow>
                   </div>
+
+                  <button
+                    type="button"
+                    onClick={lookupCpf}
+                    disabled={lookupLoading}
+                    className="w-full h-11 rounded-xl text-sm font-semibold border-2 transition-all hover:opacity-90 disabled:opacity-50 flex items-center justify-center gap-2"
+                    style={{ borderColor: "#10A65A", color: "#10A65A", background: "rgba(16, 166, 90, 0.06)" }}
+                    data-testid="button-lookup-cpf"
+                  >
+                    {lookupLoading ? (
+                      <>
+                        <span className="w-4 h-4 border-2 border-current border-t-transparent rounded-full animate-spin" />
+                        Consultando Receita...
+                      </>
+                    ) : (
+                      <>
+                        <Search className="w-4 h-4" />
+                        Buscar nome na Receita Federal
+                      </>
+                    )}
+                  </button>
+
+                  <FieldRow label="Nome completo" error={errors.name}>
+                    <input
+                      type="text"
+                      value={form.name}
+                      onChange={set("name")}
+                      placeholder={profile === "client" ? "Preenchido pela Receita ao buscar" : "Seu nome"}
+                      className={inputCls(!!errors.name)}
+                      data-testid="input-name"
+                    />
+                  </FieldRow>
+
+                  <FieldRow label="Telefone" error={errors.phone}>
+                    <input
+                      type="tel"
+                      value={form.phone}
+                      onChange={set("phone")}
+                      placeholder="(11) 99999-9999"
+                      className={inputCls(!!errors.phone)}
+                      data-testid="input-phone"
+                    />
+                  </FieldRow>
 
                   {/* Optional CNPJ/CRECI for pro profiles */}
                   {profile !== "client" && (
