@@ -7,3 +7,4 @@ export * from "./subscriptions";
 export * from "./ratings";
 export * from "./sales-history";
 export * from "./processes";
+export * from "./client-payments";

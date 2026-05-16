@@ -1,5 +1,5 @@
 import { useLocation, Link } from "wouter";
-import { LogOut, LayoutDashboard, Users, Menu, X, Calculator, Building2, LineChart } from "lucide-react";
+import { LogOut, LayoutDashboard, Users, Menu, X, Calculator, Building2, LineChart, Wallet } from "lucide-react";
 import { useState } from "react";
 import { useLogout } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -9,7 +9,7 @@ import { ScoreCasaIcon, ScoreCasaWordmark } from "@/components/ScoreCasaLogo";
 interface ClientLayoutProps {
   children: React.ReactNode;
   userName?: string;
-  activePage?: "dashboard" | "score" | "simulador" | "imoveis" | "meus-dados";
+  activePage?: "dashboard" | "score" | "pagamentos" | "simulador" | "imoveis" | "meus-dados";
 }
 
 const NAV_ITEMS: Array<{
@@ -20,6 +20,7 @@ const NAV_ITEMS: Array<{
 }> = [
   { key: "dashboard",  href: "/portal",            label: "Resumo",         icon: LayoutDashboard },
   { key: "score",      href: "/portal/score",      label: "Histórico Score", icon: LineChart },
+  { key: "pagamentos", href: "/portal/pagamentos", label: "Pagamentos",      icon: Wallet },
   { key: "simulador",  href: "/portal/simulador",  label: "Simulador",       icon: Calculator },
   { key: "imoveis",    href: "/portal/imoveis",    label: "Imóveis",         icon: Building2 },
   { key: "meus-dados", href: "/portal/meus-dados", label: "Meus dados",      icon: Users },
