@@ -37,14 +37,17 @@ const router = Router();
 router.use(requireAuth);
 
 // ── Privacidade: campos de dívida/BCB são privados do cliente ────────────────
-// Igual ao Open Finance: corretor/correspondente/admin NAO recebem esses
-// valores brutos do lead. Eles são preenchidos pelo cliente no portal e
-// influenciam apenas o score agregado (que sim é visível ao corretor).
-const CLIENT_PRIVATE_FIELDS = [
+// Campos preenchidos pelo cliente que o staff NUNCA pode escrever via /enrich.
+// Os 8 campos BCB ficam ocultos para staff (igual Open Finance); os 4 campos
+// de dívidas gerais (parcelas/cartão) ficam visíveis em modo somente-leitura
+// para análise de crédito imobiliário.
+const STAFF_VISIBLE_DEBT_FIELDS = [
   "vehicleLoanMonthly",
   "otherLoansMonthly",
   "creditCardLimit",
   "creditCardUsage",
+] as const;
+const BCB_PRIVATE_FIELDS = [
   "bcbTotalDebt",
   "bcbMonthlyCommitment",
   "bcbOperationsCount",
@@ -54,9 +57,15 @@ const CLIENT_PRIVATE_FIELDS = [
   "bcbCreditLimits",
   "bcbOperationsJson",
 ] as const;
+// Conjunto bloqueado para escrita por staff via /enrich — soma os dois grupos.
+const CLIENT_PRIVATE_FIELDS = [
+  ...STAFF_VISIBLE_DEBT_FIELDS,
+  ...BCB_PRIVATE_FIELDS,
+] as const;
 
 // Remove campos privados de um lead a menos que o solicitante seja o próprio
-// dono daquele lead (perfil "client" com leadId batendo).
+// dono daquele lead (perfil "client" com leadId batendo). Para staff, apenas
+// os 8 campos BCB são zerados; as dívidas gerais permanecem visíveis.
 function redactPrivateForViewer<T extends { id: number } & Record<string, any>>(
   lead: T,
   viewer: { role: string; leadId: number | null } | null,
@@ -64,7 +73,7 @@ function redactPrivateForViewer<T extends { id: number } & Record<string, any>>(
   const isOwner = viewer?.role === "client" && viewer.leadId === lead.id;
   if (isOwner) return lead;
   const copy: any = { ...lead };
-  for (const f of CLIENT_PRIVATE_FIELDS) copy[f] = null;
+  for (const f of BCB_PRIVATE_FIELDS) copy[f] = null;
   return copy as T;
 }
 

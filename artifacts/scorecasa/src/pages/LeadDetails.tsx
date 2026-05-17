@@ -111,17 +111,15 @@ export function LeadDetails({ id }: { id: number }) {
   const enrichLead = useEnrichLead();
   const [enrichOpen, setEnrichOpen] = useState(false);
   const [ocrLoading, setOcrLoading] = useState(false);
-  const [ocrDocType, setOcrDocType] = useState<"cca" | "bcb">("cca");
   const [ocrResult, setOcrResult] = useState<null | { ok: boolean; message: string; details?: string }>(null);
+  // Dados de dívida (parcelas, cartão) e BCB/Registrato/gov.br são exclusivos do
+  // cliente — staff não edita aqui. Mantemos no form apenas os campos que o staff
+  // pode enriquecer (bureaus, SIRIC, FGTS, score Caixa).
   const [enrichForm, setEnrichForm] = useState({
     serasaScore: "",
     hasNegativations: false,
     negativationsValue: "",
     hasProtests: false,
-    bcbTotalDebt: "",
-    bcbMonthlyCommitment: "",
-    bcbOperationsCount: "",
-    bcbQueryDate: "",
     protestsValue: "",
     siricStatus: "" as "" | "regular" | "irregular" | "pendente",
     siricObservation: "",
@@ -129,10 +127,6 @@ export function LeadDetails({ id }: { id: number }) {
     fgtsMonthlyAvg: "",
     caixaScoreReal: "",
     enrichedBy: "",
-    vehicleLoanMonthly: "",
-    creditCardLimit: "",
-    creditCardUsage: "",
-    otherLoansMonthly: "",
   });
 
   useEffect(() => {
@@ -149,14 +143,6 @@ export function LeadDetails({ id }: { id: number }) {
         fgtsMonthlyAvg: lead.fgtsMonthlyAvg != null ? String(lead.fgtsMonthlyAvg) : "",
         caixaScoreReal: lead.caixaScoreReal != null ? String(lead.caixaScoreReal) : "",
         enrichedBy: lead.enrichedBy ?? "",
-        vehicleLoanMonthly: lead.vehicleLoanMonthly != null ? String(lead.vehicleLoanMonthly) : "",
-        creditCardLimit: lead.creditCardLimit != null ? String(lead.creditCardLimit) : "",
-        creditCardUsage: lead.creditCardUsage != null ? String(lead.creditCardUsage) : "",
-        otherLoansMonthly: lead.otherLoansMonthly != null ? String(lead.otherLoansMonthly) : "",
-        bcbTotalDebt: (lead as any).bcbTotalDebt != null ? String((lead as any).bcbTotalDebt) : "",
-        bcbMonthlyCommitment: (lead as any).bcbMonthlyCommitment != null ? String((lead as any).bcbMonthlyCommitment) : "",
-        bcbOperationsCount: (lead as any).bcbOperationsCount != null ? String((lead as any).bcbOperationsCount) : "",
-        bcbQueryDate: (lead as any).bcbQueryDate ?? "",
       });
     }
   }, [lead?.enrichedAt]);
@@ -176,7 +162,7 @@ export function LeadDetails({ id }: { id: number }) {
         method: "POST",
         headers: { "Content-Type": "application/json" },
         credentials: "include",
-        body: JSON.stringify({ imageBase64, mimeType: file.type, docType: ocrDocType }),
+        body: JSON.stringify({ imageBase64, mimeType: file.type, docType: "cca" }),
       });
 
       if (!resp.ok) {
@@ -192,61 +178,34 @@ export function LeadDetails({ id }: { id: number }) {
 
       const ef = data.enrichFields;
 
-      if (data.docType === "bcb") {
-        setEnrichForm((f) => ({
-          ...f,
-          bcbTotalDebt: ef.bcbTotalDebt != null ? String((ef.bcbTotalDebt as number).toFixed(2)) : f.bcbTotalDebt,
-          bcbMonthlyCommitment: ef.bcbMonthlyCommitment != null ? String((ef.bcbMonthlyCommitment as number).toFixed(2)) : f.bcbMonthlyCommitment,
-          bcbOperationsCount: ef.bcbOperationsCount != null ? String(ef.bcbOperationsCount) : f.bcbOperationsCount,
-          bcbQueryDate: ef.bcbQueryDate ?? f.bcbQueryDate,
-          creditCardLimit: ef.creditCardLimit != null ? String((ef.creditCardLimit as number).toFixed(2)) : f.creditCardLimit,
-          creditCardUsage: ef.creditCardUsage != null ? String((ef.creditCardUsage as number).toFixed(1)) : f.creditCardUsage,
-          vehicleLoanMonthly: ef.vehicleLoanMonthly != null ? String((ef.vehicleLoanMonthly as number).toFixed(2)) : f.vehicleLoanMonthly,
-          otherLoansMonthly: ef.otherLoansMonthly != null ? String((ef.otherLoansMonthly as number).toFixed(2)) : f.otherLoansMonthly,
-        }));
+      // Staff só importa CCA Caixa (bureaus). Dados de dívida/BCB são exclusivos
+      // do cliente, mesmo quando o servidor responde com outros campos.
+      setEnrichForm((f) => ({
+        ...f,
+        hasNegativations: ef.hasNegativations ?? f.hasNegativations,
+        negativationsValue: ef.negativationsValue != null ? String((ef.negativationsValue as number).toFixed(2)) : f.negativationsValue,
+        hasProtests: ef.hasProtests ?? f.hasProtests,
+        protestsValue: ef.protestsValue != null ? String((ef.protestsValue as number).toFixed(2)) : f.protestsValue,
+        siricStatus: (ef.siricStatus as any) ?? f.siricStatus,
+        siricObservation: ef.siricObservation ?? f.siricObservation,
+      }));
 
-        const s = data.summary;
-        const details = [
-          s.quantidadeOperacoes ? `${s.quantidadeOperacoes} operação(ões) ativa(s)` : null,
-          s.totalDividaAtiva ? `Saldo devedor: R$ ${Number(s.totalDividaAtiva).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : null,
-          s.parcelaMensalTotal ? `Parcelas/mês: R$ ${Number(s.parcelaMensalTotal).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : null,
-          s.inadimplencia ? `⚠ Inadimplência: R$ ${Number(s.valorInadimplente).toLocaleString("pt-BR", { minimumFractionDigits: 2 })}` : null,
-        ].filter(Boolean).join(" · ") || "Sem operações de crédito identificadas";
+      const s = data.summary;
+      const details = s.nadaConsta
+        ? "Nada consta — cliente sem restrições."
+        : [
+            s.serasaOcorrencias ? `Serasa: ${s.serasaOcorrencias} ocorrência(s)` : null,
+            s.protestosCount ? `Protestos: ${s.protestosCount}` : null,
+            s.scpcCount ? `SCPC: ${s.scpcCount} registro(s)` : null,
+            s.cadinContratos ? `CADIN: ${s.cadinContratos} contrato(s) em atraso` : null,
+          ].filter(Boolean).join(" · ") || "Sem pendências identificadas";
 
-        setOcrResult({
-          ok: true,
-          message: s.nomeCliente ? `Dados BCB de ${s.nomeCliente} extraídos com sucesso` : "Dados Registrato BCB extraídos",
-          details,
-        });
-        toast({ title: "Registrato BCB importado", description: "Comprometimento financeiro preenchido pela IA." });
-      } else {
-        setEnrichForm((f) => ({
-          ...f,
-          hasNegativations: ef.hasNegativations ?? f.hasNegativations,
-          negativationsValue: ef.negativationsValue != null ? String((ef.negativationsValue as number).toFixed(2)) : f.negativationsValue,
-          hasProtests: ef.hasProtests ?? f.hasProtests,
-          protestsValue: ef.protestsValue != null ? String((ef.protestsValue as number).toFixed(2)) : f.protestsValue,
-          siricStatus: (ef.siricStatus as any) ?? f.siricStatus,
-          siricObservation: ef.siricObservation ?? f.siricObservation,
-        }));
-
-        const s = data.summary;
-        const details = s.nadaConsta
-          ? "Nada consta — cliente sem restrições."
-          : [
-              s.serasaOcorrencias ? `Serasa: ${s.serasaOcorrencias} ocorrência(s)` : null,
-              s.protestosCount ? `Protestos: ${s.protestosCount}` : null,
-              s.scpcCount ? `SCPC: ${s.scpcCount} registro(s)` : null,
-              s.cadinContratos ? `CADIN: ${s.cadinContratos} contrato(s) em atraso` : null,
-            ].filter(Boolean).join(" · ") || "Sem pendências identificadas";
-
-        setOcrResult({
-          ok: true,
-          message: s.nomeCliente ? `Dados de ${s.nomeCliente} extraídos com sucesso` : "Dados extraídos com sucesso",
-          details,
-        });
-        toast({ title: "CCA Caixa importado", description: "Campos preenchidos automaticamente pela IA." });
-      }
+      setOcrResult({
+        ok: true,
+        message: s.nomeCliente ? `Dados de ${s.nomeCliente} extraídos com sucesso` : "Dados extraídos com sucesso",
+        details,
+      });
+      toast({ title: "CCA Caixa importado", description: "Campos preenchidos automaticamente pela IA." });
     } catch (err: any) {
       setOcrResult({ ok: false, message: err.message ?? "Erro ao processar imagem" });
       toast({ title: "Erro na leitura", description: err.message ?? "Tente novamente com outra imagem." });
@@ -256,6 +215,8 @@ export function LeadDetails({ id }: { id: number }) {
   };
 
   const handleEnrichSave = () => {
+    // Staff só envia campos de bureaus/SIRIC/FGTS/Caixa. Dívidas e BCB são
+    // exclusivos do cliente — o backend também filtra esses campos por segurança.
     const payload = {
       serasaScore: enrichForm.serasaScore ? Number(enrichForm.serasaScore) : undefined,
       hasNegativations: enrichForm.hasNegativations,
@@ -268,14 +229,6 @@ export function LeadDetails({ id }: { id: number }) {
       fgtsMonthlyAvg: enrichForm.fgtsMonthlyAvg ? Number(enrichForm.fgtsMonthlyAvg) : undefined,
       caixaScoreReal: enrichForm.caixaScoreReal ? Number(enrichForm.caixaScoreReal) : undefined,
       enrichedBy: enrichForm.enrichedBy || undefined,
-      vehicleLoanMonthly: enrichForm.vehicleLoanMonthly ? Number(enrichForm.vehicleLoanMonthly) : undefined,
-      creditCardLimit: enrichForm.creditCardLimit ? Number(enrichForm.creditCardLimit) : undefined,
-      creditCardUsage: enrichForm.creditCardUsage ? Number(enrichForm.creditCardUsage) : undefined,
-      otherLoansMonthly: enrichForm.otherLoansMonthly ? Number(enrichForm.otherLoansMonthly) : undefined,
-      bcbTotalDebt: enrichForm.bcbTotalDebt ? Number(enrichForm.bcbTotalDebt) : undefined,
-      bcbMonthlyCommitment: enrichForm.bcbMonthlyCommitment ? Number(enrichForm.bcbMonthlyCommitment) : undefined,
-      bcbOperationsCount: enrichForm.bcbOperationsCount ? Number(enrichForm.bcbOperationsCount) : undefined,
-      bcbQueryDate: enrichForm.bcbQueryDate || undefined,
     } as any;
     enrichLead.mutate(
       { id, data: payload },
@@ -805,6 +758,81 @@ export function LeadDetails({ id }: { id: number }) {
             </div>
           )}
 
+          {/* ── Compromissos financeiros do cliente (somente leitura) ──
+              Sempre visível para staff (corretor/correspondente) ao abrir o lead.
+              Edição é exclusiva do cliente (via portal). Dados BCB/Registrato/gov.br
+              ficam restritos ao dono do lead e não aparecem aqui. */}
+          <div className="bg-card rounded-xl border border-card-border shadow-sm overflow-hidden">
+            <div className="flex items-center gap-3 px-5 py-4 border-b border-border">
+              <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "#EFF6FF" }}>
+                <Landmark className="w-4 h-4" style={{ color: "#0D1B8C" }} />
+              </div>
+              <div>
+                <div className="text-sm font-semibold text-foreground">Compromissos financeiros do cliente</div>
+                <div className="text-xs text-muted-foreground mt-0.5">Informado pelo cliente no portal — somente leitura</div>
+              </div>
+            </div>
+            <div className="p-5">
+              {(() => {
+                const vehicle = lead.vehicleLoanMonthly ?? null;
+                const others = lead.otherLoansMonthly ?? null;
+                const ccLimit = lead.creditCardLimit ?? null;
+                const ccUsagePct = lead.creditCardUsage ?? null;
+                const allEmpty = vehicle == null && others == null && ccLimit == null && ccUsagePct == null;
+
+                if (allEmpty) {
+                  return (
+                    <div className="rounded-lg border border-dashed border-border bg-muted/30 px-3 py-4 text-xs text-muted-foreground" data-testid="text-debts-empty">
+                      Cliente ainda não informou seus compromissos financeiros.
+                    </div>
+                  );
+                }
+
+                const ccUsageBRL = ccUsagePct != null && ccLimit != null ? (ccUsagePct / 100) * ccLimit : null;
+                const totalMonthly = (vehicle ?? 0) + (others ?? 0) + (ccUsageBRL ?? 0);
+                const fmt = (v: number | null) => v == null ? "—" : formatBRL(v);
+
+                const rows: Array<{ label: string; value: string }> = [
+                  { label: "Parcela de veículo", value: fmt(vehicle) },
+                  { label: "Outras parcelas", value: fmt(others) },
+                  { label: "Limite de cartão de crédito", value: fmt(ccLimit) },
+                  {
+                    label: "Uso do cartão",
+                    value: ccUsagePct == null
+                      ? "—"
+                      : ccUsageBRL != null
+                        ? `${fmt(ccUsageBRL)} (${ccUsagePct.toFixed(0)}%)`
+                        : `${ccUsagePct.toFixed(0)}%`,
+                  },
+                ];
+
+                return (
+                  <div className="rounded-lg border border-border overflow-hidden" data-testid="table-debts">
+                    <table className="w-full text-xs">
+                      <tbody>
+                        {rows.map((r) => (
+                          <tr key={r.label} className="border-b border-border/60 last:border-0">
+                            <td className="px-3 py-2 text-muted-foreground">{r.label}</td>
+                            <td className="px-3 py-2 text-right font-medium text-foreground">{r.value}</td>
+                          </tr>
+                        ))}
+                        <tr className="bg-muted/40">
+                          <td className="px-3 py-2 font-semibold text-foreground">Total mensal</td>
+                          <td className="px-3 py-2 text-right font-bold text-foreground" data-testid="text-debts-total">
+                            {formatBRL(totalMonthly)}
+                          </td>
+                        </tr>
+                      </tbody>
+                    </table>
+                    <p className="px-3 py-2 text-[10px] text-muted-foreground bg-muted/20 border-t border-border/60">
+                      Apenas o cliente pode editar estes valores.
+                    </p>
+                  </div>
+                );
+              })()}
+            </div>
+          </div>
+
           {/* ── Enrichment panel ── */}
           <div className="bg-card rounded-xl border border-card-border shadow-sm overflow-hidden">
             {/* Header */}
@@ -841,47 +869,20 @@ export function LeadDetails({ id }: { id: number }) {
             {enrichOpen && (
               <div className="px-5 pb-5 space-y-5 border-t border-border">
 
-                {/* ── OCR Import (CCA Caixa + BCB Registrato) ── */}
+                {/* ── OCR Import (CCA Caixa) ──
+                    Staff só pode importar CCA Caixa (bureaus). Dados de dívida
+                    e Registrato/BCB são exclusivos do cliente. */}
                 <div className="pt-4 space-y-3">
-                  {/* Tab selector */}
-                  <div className="flex rounded-lg overflow-hidden border" style={{ borderColor: "#E2E8F0" }}>
-                    {(["cca", "bcb"] as const).map((t) => (
-                      <button
-                        key={t}
-                        type="button"
-                        onClick={() => { setOcrDocType(t); setOcrResult(null); }}
-                        className="flex-1 py-2 text-xs font-semibold transition-all"
-                        style={{
-                          background: ocrDocType === t ? "#0D1B8C" : "#F8FAFC",
-                          color: ocrDocType === t ? "#fff" : "#64748B",
-                        }}
-                      >
-                        {t === "cca" ? "📋 CCA Caixa" : "🏦 BCB Registrato"}
-                      </button>
-                    ))}
-                  </div>
-
                   <div className="rounded-xl border-2 border-dashed p-4" style={{ borderColor: "#CBD5E1", background: "#F8FAFC" }}>
                     <div className="flex items-start gap-3">
                       <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "#EEF2FF" }}>
                         <Sparkles className="w-4 h-4" style={{ color: "#0D1B8C" }} />
                       </div>
                       <div className="flex-1 min-w-0">
-                        {ocrDocType === "cca" ? (
-                          <>
-                            <div className="text-sm font-semibold mb-0.5" style={{ color: "#07113A" }}>Importar CCA Caixa com IA</div>
-                            <p className="text-xs text-gray-500 leading-relaxed">
-                              Envie a imagem ou PDF da Pesquisa Cadastral Simplificada (Caixa Aqui). Extrai Serasa, SCPC, Protestos e CADIN automaticamente.
-                            </p>
-                          </>
-                        ) : (
-                          <>
-                            <div className="text-sm font-semibold mb-0.5" style={{ color: "#07113A" }}>Importar Registrato BCB com IA</div>
-                            <p className="text-xs text-gray-500 leading-relaxed">
-                              Envie o relatório "Resumo de Empréstimos e Financiamentos" do Banco Central (Registrato). Extrai dívidas totais, parcelas mensais e operações ativas.
-                            </p>
-                          </>
-                        )}
+                        <div className="text-sm font-semibold mb-0.5" style={{ color: "#07113A" }}>Importar CCA Caixa com IA</div>
+                        <p className="text-xs text-gray-500 leading-relaxed">
+                          Envie a imagem ou PDF da Pesquisa Cadastral Simplificada (Caixa Aqui). Extrai Serasa, SCPC, Protestos e CADIN automaticamente.
+                        </p>
 
                         {/* Result feedback */}
                         {ocrResult && (
@@ -1104,12 +1105,6 @@ export function LeadDetails({ id }: { id: number }) {
                     </div>
                   </div>
                 </div>
-
-                {/* Dados de dívidas (parcelas, cartões) e Registrato/BCB são preenchidos
-                    pelo próprio cliente no portal — igual Open Finance. Não aparecem aqui
-                    no perfil corretor/correspondente. Mantemos apenas o resumo somente-leitura
-                    abaixo (já renderizado em outra parte da tela) quando houver dados vindos
-                    do cliente. */}
 
                 {/* Responsavel */}
                 <div>
