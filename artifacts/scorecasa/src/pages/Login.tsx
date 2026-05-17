@@ -203,9 +203,7 @@ export function Login() {
       {
         onSuccess: handleSuccess,
         onError: () =>
-          brokerForm.setError("password", {
-            message: "Credenciais inválidas. Verifique CPF, e-mail, CRECI e senha.",
-          }),
+          brokerForm.setError("password", { message: "Credenciais inválidas" }),
       },
     );
   };
@@ -224,9 +222,7 @@ export function Login() {
       {
         onSuccess: handleSuccess,
         onError: () =>
-          correspondentForm.setError("password", {
-            message: "Credenciais inválidas. Verifique CNPJ, e-mail, código CCA e senha.",
-          }),
+          correspondentForm.setError("password", { message: "Credenciais inválidas" }),
       },
     );
   };

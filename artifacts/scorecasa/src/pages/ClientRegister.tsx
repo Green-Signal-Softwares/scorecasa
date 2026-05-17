@@ -346,8 +346,7 @@ export function ClientRegister() {
       if (cpfDigits.length !== 11) errs.cpf = "CPF inválido";
       if (!form.creci.trim()) errs.creci = "CRECI obrigatório";
     } else if (profile === "correspondent") {
-      const cpfDigits = form.cpf.replace(/\D/g, "");
-      if (cpfDigits.length !== 11) errs.cpf = "CPF inválido";
+      // Correspondente: identidade jurídica (CNPJ) + CCA são suficientes.
       const cnpjDigits = form.cnpj.replace(/\D/g, "");
       if (cnpjDigits.length !== 14) errs.cnpj = "CNPJ inválido (14 dígitos)";
       if (!form.ccaCode.trim()) errs.ccaCode = "Código CCA obrigatório";
