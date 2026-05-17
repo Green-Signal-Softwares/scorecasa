@@ -15,10 +15,32 @@ export interface HealthStatus {
   status: HealthStatusStatus;
 }
 
+/**
+ * Perfil escolhido na aba do login. Se "broker" ou "correspondent", exige campos extras.
+ */
+export type LoginRequestProfile =
+  (typeof LoginRequestProfile)[keyof typeof LoginRequestProfile];
+
+export const LoginRequestProfile = {
+  client: "client",
+  broker: "broker",
+  correspondent: "correspondent",
+} as const;
+
 export interface LoginRequest {
   /** E-mail ou CPF (apenas dígitos, 11 caracteres) */
   email: string;
   password: string;
+  /** Perfil escolhido na aba do login. Se "broker" ou "correspondent", exige campos extras. */
+  profile?: LoginRequestProfile;
+  /** CPF do corretor (apenas dígitos, 11) — obrigatório quando profile=broker. */
+  cpf?: string;
+  /** CRECI do corretor — obrigatório quando profile=broker. */
+  creci?: string;
+  /** CNPJ do correspondente (apenas dígitos, 14) — obrigatório quando profile=correspondent. */
+  cnpj?: string;
+  /** Código CCA do correspondente Caixa — obrigatório quando profile=correspondent. */
+  ccaCode?: string;
 }
 
 export type UserRole = (typeof UserRole)[keyof typeof UserRole];
@@ -44,14 +66,32 @@ export interface AuthResult {
   user: User;
 }
 
+export type RegisterRequestRole =
+  (typeof RegisterRequestRole)[keyof typeof RegisterRequestRole];
+
+export const RegisterRequestRole = {
+  client: "client",
+  broker: "broker",
+  correspondent: "correspondent",
+} as const;
+
 export interface RegisterRequest {
+  role?: RegisterRequestRole;
+  plan?: string;
   name: string;
-  cpf: string;
+  /** Apenas dígitos. Obrigatório para client e broker. */
+  cpf?: string;
+  /** Apenas dígitos (14). Obrigatório para correspondent. */
+  cnpj?: string;
+  /** Obrigatório para broker. */
+  creci?: string;
+  /** Obrigatório para correspondent. */
+  ccaCode?: string;
   email: string;
   phone: string;
   password: string;
-  income: number;
-  propertyValue: number;
+  income?: number;
+  propertyValue?: number;
 }
 
 export interface UpdateClientProfileRequest {

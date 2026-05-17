@@ -981,6 +981,22 @@ components:
           description: E-mail ou CPF (apenas dígitos, 11 caracteres)
         password:
           type: string
+        profile:
+          type: string
+          enum: [client, broker, correspondent]
+          description: Perfil escolhido na aba do login. Se "broker" ou "correspondent", exige campos extras.
+        cpf:
+          type: string
+          description: CPF do corretor (apenas dígitos, 11) — obrigatório quando profile=broker.
+        creci:
+          type: string
+          description: CRECI do corretor — obrigatório quando profile=broker.
+        cnpj:
+          type: string
+          description: CNPJ do correspondente (apenas dígitos, 14) — obrigatório quando profile=correspondent.
+        ccaCode:
+          type: string
+          description: Código CCA do correspondente Caixa — obrigatório quando profile=correspondent.
 
     AuthResult:
       type: object
@@ -1011,12 +1027,27 @@ components:
 
     RegisterRequest:
       type: object
-      required: [name, cpf, email, phone, password, income, propertyValue]
+      required: [name, email, phone, password]
       properties:
+        role:
+          type: string
+          enum: [client, broker, correspondent]
+        plan:
+          type: string
         name:
           type: string
         cpf:
           type: string
+          description: Apenas dígitos. Obrigatório para client e broker.
+        cnpj:
+          type: string
+          description: Apenas dígitos (14). Obrigatório para correspondent.
+        creci:
+          type: string
+          description: Obrigatório para broker.
+        ccaCode:
+          type: string
+          description: Obrigatório para correspondent.
         email:
           type: string
           format: email

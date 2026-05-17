@@ -8,6 +8,7 @@ import { useQueryClient } from "@tanstack/react-query";
 import {
   Lock, User as UserIcon, Eye, EyeOff, ArrowRight, ShieldCheck,
   TrendingUp, Landmark, Home, Brain, Star, CheckCircle2, Sparkles,
+  Briefcase, Building2, Mail, IdCard, Hash,
 } from "lucide-react";
 import { ScoreCasaLogo, ScoreCasaIcon } from "@/components/ScoreCasaLogo";
 import { Button } from "@/components/ui/button";
@@ -16,8 +17,10 @@ import { Form, FormControl, FormField, FormItem, FormMessage } from "@/component
 import { useToast } from "@/hooks/use-toast";
 import { useRedirectIfAuthenticated } from "@/hooks/use-auth";
 
-// Aceita e-mail OU CPF (11 dígitos, com ou sem máscara)
-const loginSchema = z.object({
+type ProfileTab = "client" | "broker" | "correspondent";
+
+// Cliente: aceita e-mail OU CPF (11 dígitos, com ou sem máscara)
+const clientSchema = z.object({
   email: z.string().min(1, "Informe seu e-mail ou CPF").refine((v) => {
     const trimmed = v.trim();
     const digits = trimmed.replace(/\D/g, "");
@@ -27,7 +30,39 @@ const loginSchema = z.object({
   password: z.string().min(1, "Senha obrigatória"),
 });
 
-type LoginForm = z.infer<typeof loginSchema>;
+const brokerSchema = z.object({
+  cpf: z.string().refine((v) => v.replace(/\D/g, "").length === 11, "CPF inválido (11 dígitos)"),
+  email: z.string().email("E-mail inválido"),
+  creci: z.string().min(2, "Informe seu CRECI"),
+  password: z.string().min(1, "Senha obrigatória"),
+});
+
+const correspondentSchema = z.object({
+  cnpj: z.string().refine((v) => v.replace(/\D/g, "").length === 14, "CNPJ inválido (14 dígitos)"),
+  email: z.string().email("E-mail inválido"),
+  ccaCode: z.string().min(2, "Informe seu código CCA"),
+  password: z.string().min(1, "Senha obrigatória"),
+});
+
+type ClientForm = z.infer<typeof clientSchema>;
+type BrokerForm = z.infer<typeof brokerSchema>;
+type CorrespondentForm = z.infer<typeof correspondentSchema>;
+
+function maskCPF(v: string) {
+  const d = v.replace(/\D/g, "").slice(0, 11);
+  if (d.length <= 3) return d;
+  if (d.length <= 6) return `${d.slice(0, 3)}.${d.slice(3)}`;
+  if (d.length <= 9) return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6)}`;
+  return `${d.slice(0, 3)}.${d.slice(3, 6)}.${d.slice(6, 9)}-${d.slice(9)}`;
+}
+function maskCNPJ(v: string) {
+  const d = v.replace(/\D/g, "").slice(0, 14);
+  if (d.length <= 2) return d;
+  if (d.length <= 5) return `${d.slice(0, 2)}.${d.slice(2)}`;
+  if (d.length <= 8) return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5)}`;
+  if (d.length <= 12) return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8)}`;
+  return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`;
+}
 
 function formatLoginIdentifier(raw: string): string {
   const trimmed = raw.trim();
@@ -119,30 +154,80 @@ export function Login() {
   const { isLoading: checkingAuth } = useRedirectIfAuthenticated();
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(false);
+  const [profileTab, setProfileTab] = useState<ProfileTab>("client");
 
-  const form = useForm<LoginForm>({
-    resolver: zodResolver(loginSchema),
+  const clientForm = useForm<ClientForm>({
+    resolver: zodResolver(clientSchema),
     defaultValues: { email: "", password: "" },
   });
+  const brokerForm = useForm<BrokerForm>({
+    resolver: zodResolver(brokerSchema),
+    defaultValues: { cpf: "", email: "", creci: "", password: "" },
+  });
+  const correspondentForm = useForm<CorrespondentForm>({
+    resolver: zodResolver(correspondentSchema),
+    defaultValues: { cnpj: "", email: "", ccaCode: "", password: "" },
+  });
 
-  const onSubmit = (data: LoginForm) => {
-    // Normaliza: se for CPF mascarado, envia apenas dígitos; senão, e-mail em lowercase
+  const handleSuccess = (data: unknown) => {
+    queryClient.invalidateQueries();
+    const role = (data as { user?: { role?: string } })?.user?.role;
+    setLocation(role === "client" ? "/portal" : "/dashboard");
+  };
+
+  const onClientSubmit = (data: ClientForm) => {
     const trimmed = data.email.trim();
     const digits = trimmed.replace(/\D/g, "");
     const looksLikeCpf = /^[\d.\-\s]+$/.test(trimmed) && digits.length === 11;
     const normalized = looksLikeCpf ? digits : trimmed.toLowerCase();
     login.mutate(
-      { data: { ...data, email: normalized } },
+      { data: { email: normalized, password: data.password, profile: "client" } },
       {
-        onSuccess: (data) => {
-          queryClient.invalidateQueries();
-          const role = (data as any)?.user?.role;
-          setLocation(role === "client" ? "/portal" : "/dashboard");
+        onSuccess: handleSuccess,
+        onError: () => clientForm.setError("password", { message: "Credenciais inválidas" }),
+      },
+    );
+  };
+
+  const onBrokerSubmit = (data: BrokerForm) => {
+    login.mutate(
+      {
+        data: {
+          email: data.email.trim().toLowerCase(),
+          password: data.password,
+          profile: "broker",
+          cpf: data.cpf.replace(/\D/g, ""),
+          creci: data.creci.trim(),
         },
-        onError: () => {
-          form.setError("password", { message: "E-mail ou senha inválidos" });
+      },
+      {
+        onSuccess: handleSuccess,
+        onError: () =>
+          brokerForm.setError("password", {
+            message: "Credenciais inválidas. Verifique CPF, e-mail, CRECI e senha.",
+          }),
+      },
+    );
+  };
+
+  const onCorrespondentSubmit = (data: CorrespondentForm) => {
+    login.mutate(
+      {
+        data: {
+          email: data.email.trim().toLowerCase(),
+          password: data.password,
+          profile: "correspondent",
+          cnpj: data.cnpj.replace(/\D/g, ""),
+          ccaCode: data.ccaCode.trim(),
         },
-      }
+      },
+      {
+        onSuccess: handleSuccess,
+        onError: () =>
+          correspondentForm.setError("password", {
+            message: "Credenciais inválidas. Verifique CNPJ, e-mail, código CCA e senha.",
+          }),
+      },
     );
   };
 
@@ -337,101 +422,338 @@ export function Login() {
               </p>
             </div>
 
-            <Form {...form}>
-              <form onSubmit={form.handleSubmit(onSubmit)} className="space-y-4">
-                <FormField
-                  control={form.control}
-                  name="email"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <div className="relative">
-                          <UserIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#9CA3AF" }} />
-                          <Input
-                            {...field}
-                            type="text"
-                            inputMode="email"
-                            autoComplete="username"
-                            placeholder="E-mail ou CPF"
-                            className="pl-11 h-12 rounded-xl bg-gray-50 border-gray-200"
-                            onChange={(e) => field.onChange(formatLoginIdentifier(e.target.value))}
-                            data-testid="input-email"
-                          />
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <FormField
-                  control={form.control}
-                  name="password"
-                  render={({ field }) => (
-                    <FormItem>
-                      <FormControl>
-                        <div className="relative">
-                          <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#9CA3AF" }} />
-                          <Input
-                            {...field}
-                            type={showPassword ? "text" : "password"}
-                            placeholder="Senha"
-                            className="pl-11 pr-11 h-12 rounded-xl bg-gray-50 border-gray-200"
-                            data-testid="input-password"
-                          />
-                          <button
-                            type="button"
-                            onClick={() => setShowPassword((v) => !v)}
-                            className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-gray-200 transition-colors"
-                            aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
-                            data-testid="button-toggle-password"
-                          >
-                            {showPassword ? (
-                              <EyeOff className="w-4 h-4" style={{ color: "#9CA3AF" }} />
-                            ) : (
-                              <Eye className="w-4 h-4" style={{ color: "#9CA3AF" }} />
-                            )}
-                          </button>
-                        </div>
-                      </FormControl>
-                      <FormMessage />
-                    </FormItem>
-                  )}
-                />
-
-                <div className="flex items-center justify-between text-sm">
-                  <label className="flex items-center gap-2 cursor-pointer select-none" style={{ color: "#475569" }}>
-                    <input
-                      type="checkbox"
-                      checked={remember}
-                      onChange={(e) => setRemember(e.target.checked)}
-                      className="w-4 h-4 rounded border-gray-300"
-                      style={{ accentColor: "#0D1B8C" }}
-                      data-testid="checkbox-remember"
-                    />
-                    Lembrar meu acesso
-                  </label>
-                  <a
-                    href="/recuperar-senha"
-                    className="font-medium hover:underline"
-                    style={{ color: "#0D1B8C" }}
-                    data-testid="link-forgot-password"
+            {/* Profile tabs */}
+            <div
+              className="grid grid-cols-3 gap-1 p-1 rounded-xl mb-5"
+              style={{ background: "#F1F5F9" }}
+              role="tablist"
+              aria-label="Tipo de acesso"
+            >
+              {([
+                { id: "client" as const, label: "Cliente", icon: UserIcon, testid: "tab-client" },
+                { id: "broker" as const, label: "Corretor", icon: Briefcase, testid: "tab-broker" },
+                { id: "correspondent" as const, label: "Correspondente", icon: Building2, testid: "tab-correspondent" },
+              ]).map((t) => {
+                const active = profileTab === t.id;
+                return (
+                  <button
+                    key={t.id}
+                    type="button"
+                    role="tab"
+                    aria-selected={active}
+                    onClick={() => setProfileTab(t.id)}
+                    className="flex items-center justify-center gap-1.5 h-10 rounded-lg text-[12px] font-semibold transition-all"
+                    style={{
+                      background: active ? "#FFFFFF" : "transparent",
+                      color: active ? "#0D1B8C" : "#64748B",
+                      boxShadow: active ? "0 1px 3px rgba(13,27,140,0.12)" : "none",
+                    }}
+                    data-testid={t.testid}
                   >
-                    Esqueci minha senha
-                  </a>
-                </div>
+                    <t.icon className="w-3.5 h-3.5" />
+                    {t.label}
+                  </button>
+                );
+              })}
+            </div>
 
-                <Button
-                  type="submit"
-                  className="w-full h-12 font-semibold rounded-xl text-white text-sm transition-all hover:opacity-90"
-                  style={{ background: "#0D1B8C" }}
-                  disabled={login.isPending}
-                  data-testid="button-submit"
-                >
-                  {login.isPending ? "Entrando..." : "Entrar na plataforma"}
-                </Button>
-              </form>
-            </Form>
+            {profileTab === "client" && (
+              <Form {...clientForm}>
+                <form onSubmit={clientForm.handleSubmit(onClientSubmit)} className="space-y-4">
+                  <FormField
+                    control={clientForm.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <div className="relative">
+                            <UserIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#9CA3AF" }} />
+                            <Input
+                              {...field}
+                              type="text"
+                              inputMode="email"
+                              autoComplete="username"
+                              placeholder="E-mail ou CPF"
+                              className="pl-11 h-12 rounded-xl bg-gray-50 border-gray-200"
+                              onChange={(e) => field.onChange(formatLoginIdentifier(e.target.value))}
+                              data-testid="input-email"
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={clientForm.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <div className="relative">
+                            <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#9CA3AF" }} />
+                            <Input
+                              {...field}
+                              type={showPassword ? "text" : "password"}
+                              placeholder="Senha"
+                              className="pl-11 pr-11 h-12 rounded-xl bg-gray-50 border-gray-200"
+                              data-testid="input-password"
+                            />
+                            <button
+                              type="button"
+                              onClick={() => setShowPassword((v) => !v)}
+                              className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-gray-200 transition-colors"
+                              aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}
+                              data-testid="button-toggle-password"
+                            >
+                              {showPassword ? (
+                                <EyeOff className="w-4 h-4" style={{ color: "#9CA3AF" }} />
+                              ) : (
+                                <Eye className="w-4 h-4" style={{ color: "#9CA3AF" }} />
+                              )}
+                            </button>
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <div className="flex items-center justify-between text-sm">
+                    <label className="flex items-center gap-2 cursor-pointer select-none" style={{ color: "#475569" }}>
+                      <input
+                        type="checkbox"
+                        checked={remember}
+                        onChange={(e) => setRemember(e.target.checked)}
+                        className="w-4 h-4 rounded border-gray-300"
+                        style={{ accentColor: "#0D1B8C" }}
+                        data-testid="checkbox-remember"
+                      />
+                      Lembrar meu acesso
+                    </label>
+                    <a href="/recuperar-senha" className="font-medium hover:underline" style={{ color: "#0D1B8C" }} data-testid="link-forgot-password">
+                      Esqueci minha senha
+                    </a>
+                  </div>
+                  <Button
+                    type="submit"
+                    className="w-full h-12 font-semibold rounded-xl text-white text-sm transition-all hover:opacity-90"
+                    style={{ background: "#0D1B8C" }}
+                    disabled={login.isPending}
+                    data-testid="button-submit"
+                  >
+                    {login.isPending ? "Entrando..." : "Entrar na plataforma"}
+                  </Button>
+                </form>
+              </Form>
+            )}
+
+            {profileTab === "broker" && (
+              <Form {...brokerForm}>
+                <form onSubmit={brokerForm.handleSubmit(onBrokerSubmit)} className="space-y-4">
+                  <FormField
+                    control={brokerForm.control}
+                    name="cpf"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <div className="relative">
+                            <IdCard className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#9CA3AF" }} />
+                            <Input
+                              {...field}
+                              inputMode="numeric"
+                              placeholder="CPF"
+                              className="pl-11 h-12 rounded-xl bg-gray-50 border-gray-200"
+                              onChange={(e) => field.onChange(maskCPF(e.target.value))}
+                              data-testid="input-broker-cpf"
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={brokerForm.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <div className="relative">
+                            <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#9CA3AF" }} />
+                            <Input
+                              {...field}
+                              type="email"
+                              autoComplete="email"
+                              placeholder="E-mail"
+                              className="pl-11 h-12 rounded-xl bg-gray-50 border-gray-200"
+                              data-testid="input-broker-email"
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={brokerForm.control}
+                    name="creci"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <div className="relative">
+                            <Hash className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#9CA3AF" }} />
+                            <Input
+                              {...field}
+                              placeholder="CRECI"
+                              className="pl-11 h-12 rounded-xl bg-gray-50 border-gray-200"
+                              data-testid="input-broker-creci"
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={brokerForm.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <div className="relative">
+                            <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#9CA3AF" }} />
+                            <Input
+                              {...field}
+                              type={showPassword ? "text" : "password"}
+                              placeholder="Senha"
+                              className="pl-11 pr-11 h-12 rounded-xl bg-gray-50 border-gray-200"
+                              data-testid="input-broker-password"
+                            />
+                            <button type="button" onClick={() => setShowPassword((v) => !v)} className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-gray-200 transition-colors" aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}>
+                              {showPassword ? <EyeOff className="w-4 h-4" style={{ color: "#9CA3AF" }} /> : <Eye className="w-4 h-4" style={{ color: "#9CA3AF" }} />}
+                            </button>
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <Button
+                    type="submit"
+                    className="w-full h-12 font-semibold rounded-xl text-white text-sm transition-all hover:opacity-90"
+                    style={{ background: "#0D1B8C" }}
+                    disabled={login.isPending}
+                    data-testid="button-submit-broker"
+                  >
+                    {login.isPending ? "Entrando..." : "Entrar como corretor"}
+                  </Button>
+                </form>
+              </Form>
+            )}
+
+            {profileTab === "correspondent" && (
+              <Form {...correspondentForm}>
+                <form onSubmit={correspondentForm.handleSubmit(onCorrespondentSubmit)} className="space-y-4">
+                  <FormField
+                    control={correspondentForm.control}
+                    name="cnpj"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <div className="relative">
+                            <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#9CA3AF" }} />
+                            <Input
+                              {...field}
+                              inputMode="numeric"
+                              placeholder="CNPJ"
+                              className="pl-11 h-12 rounded-xl bg-gray-50 border-gray-200"
+                              onChange={(e) => field.onChange(maskCNPJ(e.target.value))}
+                              data-testid="input-corr-cnpj"
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={correspondentForm.control}
+                    name="email"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <div className="relative">
+                            <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#9CA3AF" }} />
+                            <Input
+                              {...field}
+                              type="email"
+                              autoComplete="email"
+                              placeholder="E-mail"
+                              className="pl-11 h-12 rounded-xl bg-gray-50 border-gray-200"
+                              data-testid="input-corr-email"
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={correspondentForm.control}
+                    name="ccaCode"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <div className="relative">
+                            <Hash className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#9CA3AF" }} />
+                            <Input
+                              {...field}
+                              placeholder="Código CCA (Correspondente Caixa)"
+                              className="pl-11 h-12 rounded-xl bg-gray-50 border-gray-200"
+                              data-testid="input-corr-cca"
+                            />
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <FormField
+                    control={correspondentForm.control}
+                    name="password"
+                    render={({ field }) => (
+                      <FormItem>
+                        <FormControl>
+                          <div className="relative">
+                            <Lock className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#9CA3AF" }} />
+                            <Input
+                              {...field}
+                              type={showPassword ? "text" : "password"}
+                              placeholder="Senha"
+                              className="pl-11 pr-11 h-12 rounded-xl bg-gray-50 border-gray-200"
+                              data-testid="input-corr-password"
+                            />
+                            <button type="button" onClick={() => setShowPassword((v) => !v)} className="absolute right-3.5 top-1/2 -translate-y-1/2 p-1 rounded-md hover:bg-gray-200 transition-colors" aria-label={showPassword ? "Ocultar senha" : "Mostrar senha"}>
+                              {showPassword ? <EyeOff className="w-4 h-4" style={{ color: "#9CA3AF" }} /> : <Eye className="w-4 h-4" style={{ color: "#9CA3AF" }} />}
+                            </button>
+                          </div>
+                        </FormControl>
+                        <FormMessage />
+                      </FormItem>
+                    )}
+                  />
+                  <Button
+                    type="submit"
+                    className="w-full h-12 font-semibold rounded-xl text-white text-sm transition-all hover:opacity-90"
+                    style={{ background: "#0D1B8C" }}
+                    disabled={login.isPending}
+                    data-testid="button-submit-correspondent"
+                  >
+                    {login.isPending ? "Entrando..." : "Entrar como correspondente"}
+                  </Button>
+                </form>
+              </Form>
+            )}
 
             {/* Divider */}
             <div className="flex items-center gap-3 my-5">

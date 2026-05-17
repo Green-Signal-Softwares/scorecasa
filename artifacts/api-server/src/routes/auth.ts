@@ -17,6 +17,7 @@ const RegisterBody = z.object({
   cpf: z.string().optional(),
   cnpj: z.string().optional(),
   creci: z.string().optional(),
+  ccaCode: z.string().optional(),
   income: z.number().positive().optional(),
   propertyValue: z.number().positive().optional(),
 });
@@ -40,7 +41,7 @@ router.post("/register", async (req, res) => {
     return;
   }
 
-  const { role, plan, name, email, phone, password, cpf, cnpj, creci, income, propertyValue } = parsed.data;
+  const { role, plan, name, email, phone, password, cpf, cnpj, creci, ccaCode, income, propertyValue } = parsed.data;
 
   // Resolve and validate plan against role
   const planId: PlanTierId = (plan ??
@@ -61,6 +62,26 @@ router.post("/register", async (req, res) => {
       res.status(400).json({ error: "Renda e valor do imóvel são obrigatórios para conta cliente." });
       return;
     }
+  } else if (role === "broker") {
+    // Corretor precisa de CPF + CRECI para o login multi-perfil funcionar.
+    if (!cpf || cpf.replace(/\D/g, "").length !== 11) {
+      res.status(400).json({ error: "CPF é obrigatório (11 dígitos) para conta corretor." });
+      return;
+    }
+    if (!creci || !creci.trim()) {
+      res.status(400).json({ error: "CRECI é obrigatório para conta corretor." });
+      return;
+    }
+  } else if (role === "correspondent") {
+    // Correspondente precisa de CNPJ + código CCA.
+    if (!cnpj || cnpj.replace(/\D/g, "").length !== 14) {
+      res.status(400).json({ error: "CNPJ é obrigatório (14 dígitos) para conta correspondente." });
+      return;
+    }
+    if (!ccaCode || !ccaCode.trim()) {
+      res.status(400).json({ error: "Código CCA é obrigatório para conta correspondente." });
+      return;
+    }
   } else if (cpf && cpf.length !== 11) {
     res.status(400).json({ error: "CPF inválido (deve ter 11 dígitos)." });
     return;
@@ -72,9 +93,8 @@ router.post("/register", async (req, res) => {
     return;
   }
 
-  // CPF unique pre-check (evita 500 por violação de unique constraint).
-  // Só aplica quando enviamos cpf para a tabela users (role=client).
-  if (role === "client" && cpf) {
+  // CPF unique pre-check (cliente e corretor compartilham o índice único de CPF).
+  if ((role === "client" || role === "broker") && cpf) {
     const cpfDigits = cpf.replace(/\D/g, "");
     const [byCpf] = await db.select().from(usersTable).where(eq(usersTable.cpf, cpfDigits)).limit(1);
     if (byCpf) {
@@ -90,6 +110,7 @@ router.post("/register", async (req, res) => {
   if (planTier.enterprise) noteParts.push("Plano empresarial — equipe comercial entrará em contato.");
   if (cnpj) noteParts.push("CNPJ: " + cnpj);
   if (creci) noteParts.push("CRECI: " + creci);
+  if (ccaCode) noteParts.push("CCA: " + ccaCode);
 
   // Atomic write: lead (client only) + user + subscription
   let user: typeof usersTable.$inferSelect;
@@ -123,9 +144,14 @@ router.post("/register", async (req, res) => {
         leadId = lead.id;
       }
 
-      // Só persistimos CPF em users quando o perfil exige (cliente PF).
-      // Corretores/correspondentes não devem ocupar o índice único de CPF.
-      const userCpf = role === "client" && cpf ? cpf.replace(/\D/g, "") : null;
+      // Persistimos CPF para cliente e corretor (ambos PF). Corretor precisa
+      // do CPF aqui porque o login multi-perfil compara CPF + CRECI + senha.
+      const userCpf = (role === "client" || role === "broker") && cpf ? cpf.replace(/\D/g, "") : null;
+      // Para corretor/correspondente guardamos identidade profissional em colunas
+      // dedicadas para validar no login multi-perfil.
+      const userCreci = role === "broker" && creci ? creci.trim() : null;
+      const userCnpj = role === "correspondent" && cnpj ? cnpj.replace(/\D/g, "") : null;
+      const userCcaCode = role === "correspondent" && ccaCode ? ccaCode.trim() : null;
       const [createdUser] = await tx.insert(usersTable).values({
         name,
         email,
@@ -133,6 +159,9 @@ router.post("/register", async (req, res) => {
         passwordHash: hashPassword(password),
         role,
         leadId,
+        creci: userCreci,
+        cnpj: userCnpj,
+        ccaCode: userCcaCode,
       }).returning();
 
       await tx.insert(subscriptionsTable).values({
@@ -202,9 +231,54 @@ router.post("/login", async (req, res) => {
     return;
   }
 
-  const { email, password } = parsed.data;
+  const { email, password, profile, cpf: cpfInput, creci: creciInput, cnpj: cnpjInput, ccaCode: ccaInput } = parsed.data;
 
-  // Aceita e-mail OU CPF (11 dígitos numéricos)
+  // Mensagem genérica para qualquer falha de credencial — evita revelar quais
+  // campos bateram ou não.
+  const denyGeneric = () => {
+    res.status(401).json({ error: "Invalid credentials" });
+  };
+
+  // ── Perfis Corretor / Correspondente: exigem combinação de identificadores ──
+  if (profile === "broker" || profile === "correspondent") {
+    const emailNorm = email.trim().toLowerCase();
+    if (!emailNorm) return denyGeneric();
+    const [user] = await db.select().from(usersTable).where(eq(usersTable.email, emailNorm)).limit(1);
+    if (!user || user.passwordHash !== hashPassword(password)) return denyGeneric();
+
+    if (profile === "broker") {
+      if (user.role !== "broker") return denyGeneric();
+      const cpfDigits = (cpfInput ?? "").replace(/\D/g, "");
+      const creciNorm = (creciInput ?? "").trim();
+      if (!cpfDigits || !creciNorm) return denyGeneric();
+      // Backward compat: usuários antigos sem coluna preenchida ainda entram
+      // se a senha bater, mas se a coluna existir ela precisa bater exato.
+      if (user.cpf && user.cpf !== cpfDigits) return denyGeneric();
+      if (user.creci && user.creci !== creciNorm) return denyGeneric();
+    } else {
+      if (user.role !== "correspondent") return denyGeneric();
+      const cnpjDigits = (cnpjInput ?? "").replace(/\D/g, "");
+      const ccaNorm = (ccaInput ?? "").trim();
+      if (!cnpjDigits || !ccaNorm) return denyGeneric();
+      if (user.cnpj && user.cnpj !== cnpjDigits) return denyGeneric();
+      if (user.ccaCode && user.ccaCode !== ccaNorm) return denyGeneric();
+    }
+
+    (req as any).session = (req as any).session ?? {};
+    (req as any).session.userId = user.id;
+    res.json({
+      user: {
+        id: user.id,
+        name: user.name,
+        email: user.email,
+        role: user.role,
+        avatarUrl: user.avatarUrl ?? null,
+      },
+    });
+    return;
+  }
+
+  // ── Perfil Cliente (default): aceita e-mail OU CPF (11 dígitos numéricos) ──
   const identifier = email.trim();
   const cpfDigits = identifier.replace(/\D/g, "");
   const isCpf = cpfDigits.length === 11 && /^\d+$/.test(cpfDigits);
@@ -214,8 +288,7 @@ router.post("/login", async (req, res) => {
     : await db.select().from(usersTable).where(eq(usersTable.email, identifier.toLowerCase())).limit(1);
 
   if (!user || user.passwordHash !== hashPassword(password)) {
-    res.status(401).json({ error: "Invalid credentials" });
-    return;
+    return denyGeneric();
   }
 
   (req as any).session = (req as any).session ?? {};

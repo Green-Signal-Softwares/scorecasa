@@ -4,9 +4,20 @@
  * Api
  * OpenAPI spec version: 1.0.0
  */
+import type { LoginRequestProfile } from "./loginRequestProfile";
 
 export interface LoginRequest {
   /** E-mail ou CPF (apenas dígitos, 11 caracteres) */
   email: string;
   password: string;
+  /** Perfil escolhido na aba do login. Se "broker" ou "correspondent", exige campos extras. */
+  profile?: LoginRequestProfile;
+  /** CPF do corretor (apenas dígitos, 11) — obrigatório quando profile=broker. */
+  cpf?: string;
+  /** CRECI do corretor — obrigatório quando profile=broker. */
+  creci?: string;
+  /** CNPJ do correspondente (apenas dígitos, 14) — obrigatório quando profile=correspondent. */
+  cnpj?: string;
+  /** Código CCA do correspondente Caixa — obrigatório quando profile=correspondent. */
+  ccaCode?: string;
 }

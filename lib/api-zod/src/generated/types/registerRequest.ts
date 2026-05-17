@@ -4,13 +4,23 @@
  * Api
  * OpenAPI spec version: 1.0.0
  */
+import type { RegisterRequestRole } from "./registerRequestRole";
 
 export interface RegisterRequest {
+  role?: RegisterRequestRole;
+  plan?: string;
   name: string;
-  cpf: string;
+  /** Apenas dígitos. Obrigatório para client e broker. */
+  cpf?: string;
+  /** Apenas dígitos (14). Obrigatório para correspondent. */
+  cnpj?: string;
+  /** Obrigatório para broker. */
+  creci?: string;
+  /** Obrigatório para correspondent. */
+  ccaCode?: string;
   email: string;
   phone: string;
   password: string;
-  income: number;
-  propertyValue: number;
+  income?: number;
+  propertyValue?: number;
 }

@@ -11,6 +11,11 @@ export const usersTable = pgTable("users", {
   role: text("role", { enum: ["admin", "broker", "analyst", "client", "correspondent"] }).notNull().default("analyst"),
   avatarUrl: text("avatar_url"),
   leadId: integer("lead_id"),
+  // Identificação profissional usada no login do corretor/correspondente.
+  // Nulos para perfis que não usam (cliente, admin).
+  creci: text("creci"),
+  cnpj: text("cnpj"),
+  ccaCode: text("cca_code"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

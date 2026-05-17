@@ -237,6 +237,7 @@ export function ClientRegister() {
     birthDate: "",
     cnpj: "",
     creci: "",
+    ccaCode: "",
     email: "",
     phone: "",
     password: "",
@@ -340,10 +341,16 @@ export function ClientRegister() {
       if (cpfDigits.length !== 11) errs.cpf = "CPF inválido";
       if (parseCurrency(form.income) <= 0) errs.income = "Informe sua renda mensal";
       if (parseCurrency(form.propertyValue) <= 0) errs.propertyValue = "Informe o valor do imóvel";
-    } else {
-      // Broker / Correspondent: CPF required for natural-person registration
+    } else if (profile === "broker") {
       const cpfDigits = form.cpf.replace(/\D/g, "");
       if (cpfDigits.length !== 11) errs.cpf = "CPF inválido";
+      if (!form.creci.trim()) errs.creci = "CRECI obrigatório";
+    } else if (profile === "correspondent") {
+      const cpfDigits = form.cpf.replace(/\D/g, "");
+      if (cpfDigits.length !== 11) errs.cpf = "CPF inválido";
+      const cnpjDigits = form.cnpj.replace(/\D/g, "");
+      if (cnpjDigits.length !== 14) errs.cnpj = "CNPJ inválido (14 dígitos)";
+      if (!form.ccaCode.trim()) errs.ccaCode = "Código CCA obrigatório";
     }
 
     if (!acceptedTerms) errs.terms = "Você precisa aceitar os Termos de Uso e a Política de Privacidade";
@@ -360,6 +367,7 @@ export function ClientRegister() {
         cpf: "CPF",
         cnpj: "CNPJ",
         creci: "CRECI",
+        ccaCode: "Código CCA",
         email: "Email",
         phone: "Telefone",
         password: "Senha",
@@ -400,6 +408,7 @@ export function ClientRegister() {
       };
       if (form.cnpj) body.cnpj = form.cnpj.replace(/\D/g, "");
       if (form.creci) body.creci = form.creci.trim();
+      if (form.ccaCode) body.ccaCode = form.ccaCode.trim();
       if (profile === "client") {
         body.income = parseCurrency(form.income);
         body.propertyValue = parseCurrency(form.propertyValue);
@@ -755,8 +764,8 @@ export function ClientRegister() {
                     />
                   </FieldRow>
 
-                  {/* Optional CNPJ/CRECI for pro profiles */}
-                  {profile !== "client" && (
+                  {/* Profissional: campos obrigatórios para o login multi-perfil */}
+                  {profile === "broker" && (
                     <div className="grid grid-cols-2 gap-3">
                       <FieldRow label="CNPJ (opcional)">
                         <input
@@ -768,18 +777,40 @@ export function ClientRegister() {
                           data-testid="input-cnpj"
                         />
                       </FieldRow>
-                      {profile === "broker" && (
-                        <FieldRow label="CRECI (opcional)">
-                          <input
-                            type="text"
-                            value={form.creci}
-                            onChange={set("creci")}
-                            placeholder="Ex: SP-123456"
-                            className={inputCls(false)}
-                            data-testid="input-creci"
-                          />
-                        </FieldRow>
-                      )}
+                      <FieldRow label="CRECI" error={errors.creci}>
+                        <input
+                          type="text"
+                          value={form.creci}
+                          onChange={set("creci")}
+                          placeholder="Ex: SP-123456"
+                          className={inputCls(!!errors.creci)}
+                          data-testid="input-creci"
+                        />
+                      </FieldRow>
+                    </div>
+                  )}
+                  {profile === "correspondent" && (
+                    <div className="grid grid-cols-2 gap-3">
+                      <FieldRow label="CNPJ" error={errors.cnpj}>
+                        <input
+                          type="text"
+                          value={form.cnpj}
+                          onChange={set("cnpj")}
+                          placeholder="00.000.000/0000-00"
+                          className={inputCls(!!errors.cnpj)}
+                          data-testid="input-cnpj"
+                        />
+                      </FieldRow>
+                      <FieldRow label="Código CCA (Caixa)" error={errors.ccaCode}>
+                        <input
+                          type="text"
+                          value={form.ccaCode}
+                          onChange={set("ccaCode")}
+                          placeholder="Ex: CCA-12345"
+                          className={inputCls(!!errors.ccaCode)}
+                          data-testid="input-cca"
+                        />
+                      </FieldRow>
                     </div>
                   )}
 

@@ -19,6 +19,34 @@ export const HealthCheckResponse = zod.object({
 export const LoginBody = zod.object({
   email: zod.string().describe("E-mail ou CPF (apenas dígitos, 11 caracteres)"),
   password: zod.string(),
+  profile: zod
+    .enum(["client", "broker", "correspondent"])
+    .optional()
+    .describe(
+      'Perfil escolhido na aba do login. Se \"broker\" ou \"correspondent\", exige campos extras.',
+    ),
+  cpf: zod
+    .string()
+    .optional()
+    .describe(
+      "CPF do corretor (apenas dígitos, 11) — obrigatório quando profile=broker.",
+    ),
+  creci: zod
+    .string()
+    .optional()
+    .describe("CRECI do corretor — obrigatório quando profile=broker."),
+  cnpj: zod
+    .string()
+    .optional()
+    .describe(
+      "CNPJ do correspondente (apenas dígitos, 14) — obrigatório quando profile=correspondent.",
+    ),
+  ccaCode: zod
+    .string()
+    .optional()
+    .describe(
+      "Código CCA do correspondente Caixa — obrigatório quando profile=correspondent.",
+    ),
 });
 
 export const LoginResponse = zod.object({
@@ -48,13 +76,24 @@ export const GetMeResponse = zod.object({
  * @summary Register as a client
  */
 export const RegisterBody = zod.object({
+  role: zod.enum(["client", "broker", "correspondent"]).optional(),
+  plan: zod.string().optional(),
   name: zod.string(),
-  cpf: zod.string(),
+  cpf: zod
+    .string()
+    .optional()
+    .describe("Apenas dígitos. Obrigatório para client e broker."),
+  cnpj: zod
+    .string()
+    .optional()
+    .describe("Apenas dígitos (14). Obrigatório para correspondent."),
+  creci: zod.string().optional().describe("Obrigatório para broker."),
+  ccaCode: zod.string().optional().describe("Obrigatório para correspondent."),
   email: zod.string().email(),
   phone: zod.string(),
   password: zod.string(),
-  income: zod.number(),
-  propertyValue: zod.number(),
+  income: zod.number().optional(),
+  propertyValue: zod.number().optional(),
 });
 
 /**
