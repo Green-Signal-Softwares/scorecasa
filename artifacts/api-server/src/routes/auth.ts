@@ -291,6 +291,21 @@ router.post("/login", async (req, res) => {
     return denyGeneric();
   }
 
+  // Bloqueia bypass do login profissional: se o usuário é broker/correspondente,
+  // ele DEVE usar a aba de perfil correspondente (que valida CRECI/CCA).
+  // - profile === "client" explicitamente: rejeita broker/correspondent.
+  // - profile omitido (legacy): rejeita broker/correspondent apenas se a conta
+  //   já tem identidade profissional preenchida (contas antigas sem creci/cca
+  //   continuam logando para não quebrar sessões existentes).
+  if (profile === "client") {
+    if (user.role === "broker" || user.role === "correspondent") {
+      return denyGeneric();
+    }
+  } else {
+    if (user.role === "broker" && user.creci) return denyGeneric();
+    if (user.role === "correspondent" && (user.cnpj || user.ccaCode)) return denyGeneric();
+  }
+
   (req as any).session = (req as any).session ?? {};
   (req as any).session.userId = user.id;
 
