@@ -36,6 +36,38 @@ const router = Router();
 // Todas as rotas de leads exigem autenticação
 router.use(requireAuth);
 
+// ── Privacidade: campos de dívida/BCB são privados do cliente ────────────────
+// Igual ao Open Finance: corretor/correspondente/admin NAO recebem esses
+// valores brutos do lead. Eles são preenchidos pelo cliente no portal e
+// influenciam apenas o score agregado (que sim é visível ao corretor).
+const CLIENT_PRIVATE_FIELDS = [
+  "vehicleLoanMonthly",
+  "otherLoansMonthly",
+  "creditCardLimit",
+  "creditCardUsage",
+  "bcbTotalDebt",
+  "bcbMonthlyCommitment",
+  "bcbOperationsCount",
+  "bcbQueryDate",
+  "bcbDebtsCurrent",
+  "bcbDebtsOverdue",
+  "bcbCreditLimits",
+  "bcbOperationsJson",
+] as const;
+
+// Remove campos privados de um lead a menos que o solicitante seja o próprio
+// dono daquele lead (perfil "client" com leadId batendo).
+function redactPrivateForViewer<T extends { id: number } & Record<string, any>>(
+  lead: T,
+  viewer: { role: string; leadId: number | null } | null,
+): T {
+  const isOwner = viewer?.role === "client" && viewer.leadId === lead.id;
+  if (isOwner) return lead;
+  const copy: any = { ...lead };
+  for (const f of CLIENT_PRIVATE_FIELDS) copy[f] = null;
+  return copy as T;
+}
+
 interface ScoreInput {
   income: number;
   propertyValue: number;
@@ -267,12 +299,13 @@ router.get("/", async (req, res) => {
     brokerMap = Object.fromEntries(brokers.map((b) => [b.id, b.name]));
   }
 
-  const data = leads.map((l) => ({
+  const viewer = sessionUser ? { role: sessionUser.role, leadId: sessionUser.leadId ?? null } : null;
+  const data = leads.map((l) => redactPrivateForViewer({
     ...l,
     brokerName: l.brokerId ? (brokerMap[l.brokerId] ?? null) : null,
     createdAt: l.createdAt.toISOString(),
     updatedAt: l.updatedAt.toISOString(),
-  }));
+  }, viewer));
 
   res.json({ data, total: countResult[0]?.count ?? 0, page, limit });
 });
@@ -340,12 +373,12 @@ router.get("/:id", async (req, res) => {
     brokerName = broker?.name ?? null;
   }
 
-  res.json({
+  res.json(redactPrivateForViewer({
     ...lead,
     brokerName,
     createdAt: lead.createdAt.toISOString(),
     updatedAt: lead.updatedAt.toISOString(),
-  });
+  }, sessionUser ? { role: sessionUser.role, leadId: sessionUser.leadId ?? null } : null));
 });
 
 router.put("/:id", async (req, res) => {
@@ -424,12 +457,12 @@ router.put("/:id", async (req, res) => {
     brokerName = broker?.name ?? null;
   }
 
-  res.json({
+  res.json(redactPrivateForViewer({
     ...updated,
     brokerName,
     createdAt: updated.createdAt.toISOString(),
     updatedAt: updated.updatedAt.toISOString(),
-  });
+  }, sessionUser ? { role: sessionUser.role, leadId: sessionUser.leadId ?? null } : null));
 });
 
 router.delete("/:id", async (req, res) => {
@@ -472,7 +505,14 @@ router.put("/:id/enrich", async (req, res) => {
     return;
   }
 
-  const enrichData = bodyParsed.data;
+  // Bloqueia campos privados do cliente: corretor não pode escrever dívidas/BCB
+  // do lead. Esses dados pertencem ao cliente (igual Open Finance) e são
+  // enviados via /api/client/debts ou /api/client/scr-import pelo próprio dono.
+  const rawEnrich = bodyParsed.data as Record<string, any>;
+  const enrichData: Record<string, any> = { ...rawEnrich };
+  for (const f of CLIENT_PRIVATE_FIELDS) {
+    if (f in enrichData) delete enrichData[f];
+  }
 
   const scores = computeScore({
     income: existing.income,
@@ -492,9 +532,10 @@ router.put("/:id/enrich", async (req, res) => {
     siricStatus: enrichData.siricStatus ?? existing.siricStatus,
     fgtsMonths: enrichData.fgtsMonths ?? existing.fgtsMonths,
     caixaScoreReal: enrichData.caixaScoreReal ?? existing.caixaScoreReal,
-    vehicleLoanMonthly: enrichData.vehicleLoanMonthly ?? existing.vehicleLoanMonthly,
-    creditCardUsage: enrichData.creditCardUsage ?? existing.creditCardUsage,
-    otherLoansMonthly: enrichData.otherLoansMonthly ?? existing.otherLoansMonthly,
+    // Mantém o efeito dos campos privados no score (preservados pelo cliente).
+    vehicleLoanMonthly: existing.vehicleLoanMonthly,
+    creditCardUsage: existing.creditCardUsage,
+    otherLoansMonthly: existing.otherLoansMonthly,
   });
 
   const [updated] = await db
@@ -514,13 +555,13 @@ router.put("/:id/enrich", async (req, res) => {
     brokerName = broker?.name ?? null;
   }
 
-  res.json({
+  res.json(redactPrivateForViewer({
     ...updated,
     brokerName,
     createdAt: updated.createdAt.toISOString(),
     updatedAt: updated.updatedAt.toISOString(),
     enrichedAt: updated.enrichedAt ? updated.enrichedAt.toISOString() : null,
-  });
+  }, sessionUser ? { role: sessionUser.role, leadId: sessionUser.leadId ?? null } : null));
 });
 
 router.get("/:id/score", async (req, res) => {

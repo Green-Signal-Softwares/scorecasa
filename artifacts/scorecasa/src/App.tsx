@@ -29,6 +29,7 @@ import { ClientSimulador } from "@/pages/ClientSimulador";
 import { ClientImoveis } from "@/pages/ClientImoveis";
 import { ClientHistoricoScore } from "@/pages/ClientHistoricoScore";
 import { ClientPagamentos } from "@/pages/ClientPagamentos";
+import { ClientDividas } from "@/pages/ClientDividas";
 import RecuperarSenha from "@/pages/RecuperarSenha";
 import RedefinirSenha from "@/pages/RedefinirSenha";
 import InstallPWA from "@/components/InstallPWA";
@@ -88,6 +89,7 @@ function Router() {
       <Route path="/portal/imoveis" component={ClientImoveis} />
       <Route path="/portal/score" component={ClientHistoricoScore} />
       <Route path="/portal/pagamentos" component={ClientPagamentos} />
+      <Route path="/portal/dividas" component={ClientDividas} />
       <Route path="/portal" component={ClientPortal} />
 
       <Route path="/leads/:id">

@@ -19,8 +19,8 @@ import {
   Building2, Phone, Mail, DollarSign, Pencil, X, Save, RefreshCw,
   FileDown, ShieldCheck, ShieldX, AlertTriangle, Landmark, Clock,
   BadgeCheck, ChevronDown, ChevronUp, BarChart3, SlidersHorizontal,
-  Navigation, CreditCard, Car, Wallet, Upload, Sparkles, FileImage,
-  XCircle, CheckCircle2, ExternalLink,
+  Navigation, Upload, Sparkles, FileImage,
+  XCircle, CheckCircle2,
 } from "lucide-react";
 import { BankComparison } from "@/components/BankComparison";
 import { CreditGPS, computeGpsSteps } from "@/components/CreditGPS";

@@ -371,4 +371,124 @@ router.post("/scr-import", requireClient, async (req, res) => {
   res.json({ ...profile, summary: extraction.summary });
 });
 
+// ── Dívidas & comprometimento (preenchido manualmente pelo cliente) ──────────
+// O cliente pode informar manualmente parcelas ativas (veiculo, outras dividas,
+// cartoes) e os totais do Registrato/BCB. Para o relatorio oficial via OCR/PDF,
+// existe a rota /scr-import — esta rota cobre o caso em que o cliente apenas
+// digita os valores. Recalcula o score na hora.
+router.put("/debts", requireClient, async (req, res) => {
+  const userId = (req as any).session.userId as number;
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+  if (!user || user.role !== "client" || !user.leadId) {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+
+  const body = req.body as Record<string, any>;
+
+  // Validação estrita: rejeita valores inválidos com 400 em vez de ignorar
+  // silenciosamente (impede que o cliente ache que salvou algo que não salvou).
+  // Limites superiores protegem contra overflow em colunas `real` do Postgres.
+  const MAX_MONEY = 1_000_000_000; // R$ 1 bilhão por campo é mais que suficiente
+  const MAX_OPS = 1_000;
+  const errors: string[] = [];
+
+  function money(name: string, v: any): number | null | undefined {
+    if (v === undefined) return undefined;
+    if (v === null || v === "") return null;
+    if (typeof v !== "number" && typeof v !== "string") { errors.push(name); return undefined; }
+    const s = typeof v === "string" ? v.trim().replace(",", ".") : String(v);
+    if (s === "" || !/^-?\d+(\.\d+)?$/.test(s)) { errors.push(name); return undefined; }
+    const n = Number(s);
+    if (!Number.isFinite(n) || n < 0 || n > MAX_MONEY) { errors.push(name); return undefined; }
+    return n;
+  }
+  function pctValue(name: string, v: any): number | null | undefined {
+    const n = money(name, v);
+    if (typeof n !== "number") return n;
+    if (n > 100) { errors.push(name); return undefined; }
+    return n;
+  }
+  function opsValue(name: string, v: any): number | null | undefined {
+    const n = money(name, v);
+    if (typeof n !== "number") return n;
+    if (n > MAX_OPS) { errors.push(name); return undefined; }
+    return Math.round(n);
+  }
+  function dateStr(name: string, v: any): string | null | undefined {
+    if (v === undefined) return undefined;
+    if (v === null || v === "") return null;
+    if (typeof v !== "string") { errors.push(name); return undefined; }
+    const t = v.trim();
+    if (t.length > 32) { errors.push(name); return undefined; }
+    return t;
+  }
+
+  const parsed = {
+    vehicleLoanMonthly: money("vehicleLoanMonthly", body.vehicleLoanMonthly),
+    otherLoansMonthly: money("otherLoansMonthly", body.otherLoansMonthly),
+    creditCardLimit: money("creditCardLimit", body.creditCardLimit),
+    creditCardUsage: pctValue("creditCardUsage", body.creditCardUsage),
+    bcbTotalDebt: money("bcbTotalDebt", body.bcbTotalDebt),
+    bcbMonthlyCommitment: money("bcbMonthlyCommitment", body.bcbMonthlyCommitment),
+    bcbOperationsCount: opsValue("bcbOperationsCount", body.bcbOperationsCount),
+    bcbQueryDate: dateStr("bcbQueryDate", body.bcbQueryDate),
+  };
+
+  if (errors.length > 0) {
+    res.status(400).json({
+      error: `Valores inválidos: ${errors.join(", ")}. Use apenas números positivos (cartão até 100%, operações até ${MAX_OPS}).`,
+      fields: errors,
+    });
+    return;
+  }
+
+  const update: Record<string, any> = { updatedAt: new Date() };
+  for (const [k, v] of Object.entries(parsed)) {
+    if (v !== undefined) update[k] = v;
+  }
+
+  const [existing] = await db.select().from(leadsTable).where(eq(leadsTable.id, user.leadId)).limit(1);
+  if (!existing) {
+    res.status(404).json({ error: "Lead nao encontrado." });
+    return;
+  }
+
+  // Recalcula score com a MESMA logica do scr-import: usa BCB se houver,
+  // caso contrario soma veiculo + outras parcelas.
+  const merged = { ...existing, ...update };
+  const totalIncome = merged.income + (merged.informalIncome ?? 0) * 0.7 + (merged.spouseIncome ?? 0);
+  const ratio = totalIncome > 0 ? merged.propertyValue / (totalIncome * 12) : 99;
+  let baseChance = Math.max(0, Math.min(100, 100 - (ratio / 4.5) * 60));
+
+  const monthlyDebt = merged.bcbMonthlyCommitment ?? ((merged.vehicleLoanMonthly ?? 0) + (merged.otherLoansMonthly ?? 0));
+  const debtRatio = totalIncome > 0 ? monthlyDebt / totalIncome : 0;
+  if (debtRatio > 0.30) baseChance -= 18;
+  else if (debtRatio > 0.20) baseChance -= 10;
+  else if (debtRatio > 0.10) baseChance -= 4;
+
+  const overdue = merged.bcbDebtsOverdue ?? 0;
+  if (overdue > 0) baseChance -= 25;
+
+  const approvalChance = Math.round(Math.max(0, Math.min(100, baseChance)));
+  const scoreCaixa = Math.min(1000, Math.max(300, Math.round(300 + (approvalChance / 100) * 550)));
+  const scoreMCMV = merged.income <= 8000 ? Math.round(600 + Math.random() * 250) : Math.round(300 + Math.random() * 200);
+
+  let recommendation: string;
+  if (overdue > 0) {
+    recommendation = `SCR aponta R$ ${overdue.toLocaleString("pt-BR", { minimumFractionDigits: 2 })} em dividas vencidas. Regularize antes de solicitar financiamento.`;
+  } else if (debtRatio > 0.30) {
+    recommendation = `Comprometimento mensal esta em ${(debtRatio * 100).toFixed(0)}% da renda — acima do limite Caixa de 30%. Reduza dividas ativas antes de prosseguir.`;
+  } else if (approvalChance >= 70) {
+    recommendation = "Perfil com alta chance de aprovacao. Comprometimento dentro do limite.";
+  } else {
+    recommendation = "Perfil viavel. Trabalhe a entrada e mantenha o comprometimento baixo.";
+  }
+  Object.assign(update, { approvalChance, scoreCaixa, scoreMCMV, aiRecommendation: recommendation });
+
+  await db.update(leadsTable).set(update).where(eq(leadsTable.id, user.leadId));
+  const profile = await getClientProfile(userId);
+  res.json(profile);
+});
+
 export default router;
