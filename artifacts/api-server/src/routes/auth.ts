@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { db, usersTable, leadsTable, subscriptionsTable, PLAN_TIERS, type PlanTierId } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { db, usersTable, leadsTable, subscriptionsTable, passwordResetsTable, PLAN_TIERS, type PlanTierId } from "@workspace/db";
+import { and, eq, isNull, gt } from "drizzle-orm";
 import { LoginBody } from "@workspace/api-zod";
 import crypto from "crypto";
 import { z } from "zod";
@@ -230,6 +230,125 @@ router.post("/login", async (req, res) => {
       avatarUrl: user.avatarUrl ?? null,
     },
   });
+});
+
+const ForgotBody = z.object({
+  identifier: z.string().min(1),
+});
+
+const ResetBody = z.object({
+  token: z.string().min(10),
+  password: z.string().min(6),
+});
+
+function hashToken(token: string): string {
+  return crypto.createHash("sha256").update(token).digest("hex");
+}
+
+function buildResetUrl(req: any, token: string): string {
+  const proto = (req.headers["x-forwarded-proto"] as string) ?? req.protocol ?? "https";
+  const host = (req.headers["x-forwarded-host"] as string) ?? req.headers.host;
+  return `${proto}://${host}/redefinir-senha?token=${token}`;
+}
+
+router.post("/forgot-password", async (req, res) => {
+  const parsed = ForgotBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Informe um email ou CPF." });
+    return;
+  }
+
+  const raw = parsed.data.identifier.trim();
+  const cpfDigits = raw.replace(/\D/g, "");
+  const isCpf = cpfDigits.length === 11 && /^\d+$/.test(cpfDigits);
+
+  const [user] = isCpf
+    ? await db.select().from(usersTable).where(eq(usersTable.cpf, cpfDigits)).limit(1)
+    : await db.select().from(usersTable).where(eq(usersTable.email, raw.toLowerCase())).limit(1);
+
+  // Resposta neutra para evitar enumeração — sempre 200 com a mesma mensagem,
+  // mudando apenas se há resetUrl (em modo DEV) ou não.
+  if (!user) {
+    res.json({
+      ok: true,
+      message: "Se a conta existir, um link de redefinição foi gerado.",
+      resetUrl: null,
+      emailDelivered: false,
+    });
+    return;
+  }
+
+  const token = crypto.randomBytes(32).toString("hex");
+  const tokenHash = hashToken(token);
+  const expiresAt = new Date(Date.now() + 60 * 60 * 1000); // 1 hora
+
+  await db.insert(passwordResetsTable).values({
+    userId: user.id,
+    tokenHash,
+    expiresAt,
+  });
+
+  const resetUrl = buildResetUrl(req, token);
+  // Não logamos a URL/token em texto puro (credencial-equivalente).
+  req.log.info({ userId: user.id }, "password reset token generated");
+
+  // ATENÇÃO: modo DEV (sem provedor de email conectado).
+  // Devolvemos o resetUrl na resposta porque o usuário escolheu este modo
+  // explicitamente para testes. ISSO PERMITE TAKEOVER DE CONTA se ficar em
+  // produção com usuários reais. Antes de liberar para usuários reais:
+  //   1. Conecte SendGrid/Resend.
+  //   2. Envie `resetUrl` por email.
+  //   3. Remova os campos `resetUrl`/`expiresAt`/`emailDelivered` desta resposta
+  //      e devolva apenas a mensagem genérica usada acima para usuário não encontrado.
+  res.json({
+    ok: true,
+    message: "Se a conta existir, um link de redefinição foi gerado.",
+    resetUrl,
+    expiresAt: expiresAt.toISOString(),
+    emailDelivered: false,
+  });
+});
+
+router.post("/reset-password", async (req, res) => {
+  const parsed = ResetBody.safeParse(req.body);
+  if (!parsed.success) {
+    res.status(400).json({ error: "Token ou senha inválidos. A senha precisa ter ao menos 6 caracteres." });
+    return;
+  }
+
+  const { token, password } = parsed.data;
+  const tokenHash = hashToken(token);
+  const now = new Date();
+
+  // Consumo atômico: só "ganha" o token quem conseguir marcá-lo como usado
+  // numa única operação. Evita corrida onde dois requests reaproveitam o
+  // mesmo token.
+  const claimed = await db
+    .update(passwordResetsTable)
+    .set({ usedAt: now })
+    .where(
+      and(
+        eq(passwordResetsTable.tokenHash, tokenHash),
+        isNull(passwordResetsTable.usedAt),
+        gt(passwordResetsTable.expiresAt, now),
+      ),
+    )
+    .returning();
+
+  const reset = claimed[0];
+  if (!reset) {
+    res.status(400).json({ error: "Link inválido ou expirado. Solicite um novo." });
+    return;
+  }
+
+  await db
+    .update(usersTable)
+    .set({ passwordHash: hashPassword(password) })
+    .where(eq(usersTable.id, reset.userId));
+
+  req.log.info({ userId: reset.userId }, "password reset completed");
+
+  res.json({ ok: true, message: "Senha redefinida com sucesso. Faça login com a nova senha." });
 });
 
 router.post("/logout", (req, res) => {

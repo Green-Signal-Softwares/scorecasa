@@ -1,12 +1,15 @@
 import { useState } from "react";
 import { Link } from "wouter";
-import { ArrowLeft, Mail, CheckCircle2 } from "lucide-react";
+import { ArrowLeft, Mail, CheckCircle2, Copy, ExternalLink, Loader2 } from "lucide-react";
 import { z } from "zod";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Form, FormControl, FormField, FormItem, FormMessage } from "@/components/ui/form";
+import { useToast } from "@/hooks/use-toast";
+
+const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
 const schema = z.object({
   identifier: z.string().min(1, "Informe seu e-mail ou CPF").refine((v) => {
@@ -32,14 +35,48 @@ function formatIdentifier(raw: string): string {
 }
 
 export default function RecuperarSenha() {
+  const { toast } = useToast();
   const [submitted, setSubmitted] = useState(false);
+  const [loading, setLoading] = useState(false);
+  const [resetUrl, setResetUrl] = useState<string | null>(null);
   const form = useForm<FormData>({
     resolver: zodResolver(schema),
     defaultValues: { identifier: "" },
   });
 
-  const onSubmit = (_data: FormData) => {
-    setSubmitted(true);
+  const onSubmit = async (data: FormData) => {
+    setLoading(true);
+    try {
+      const t = data.identifier.trim();
+      const d = t.replace(/\D/g, "");
+      const identifier = d.length === 11 ? d : t.toLowerCase();
+      const resp = await fetch(`${BASE}/api/auth/forgot-password`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ identifier }),
+      });
+      const json = await resp.json().catch(() => ({}));
+      if (!resp.ok) {
+        toast({ title: "Não foi possível gerar o link", description: json?.error ?? "Tente novamente." });
+        return;
+      }
+      setResetUrl(typeof json?.resetUrl === "string" ? json.resetUrl : null);
+      setSubmitted(true);
+    } catch {
+      toast({ title: "Erro de conexão", description: "Tente novamente em instantes." });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+  const copyLink = async () => {
+    if (!resetUrl) return;
+    try {
+      await navigator.clipboard.writeText(resetUrl);
+      toast({ title: "Link copiado", description: "Cole no navegador para redefinir a senha." });
+    } catch {
+      toast({ title: "Não consegui copiar", description: "Copie manualmente do campo abaixo." });
+    }
   };
 
   return (
@@ -60,24 +97,65 @@ export default function RecuperarSenha() {
         </Link>
 
         {submitted ? (
-          <div className="text-center py-4" data-testid="success-message">
-            <div
-              className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
-              style={{ background: "rgba(16, 166, 90, 0.12)" }}
-            >
-              <CheckCircle2 className="w-8 h-8" style={{ color: "#10A65A" }} />
+          <div className="py-2" data-testid="success-message">
+            <div className="text-center">
+              <div
+                className="w-16 h-16 rounded-full flex items-center justify-center mx-auto mb-4"
+                style={{ background: "rgba(16, 166, 90, 0.12)" }}
+              >
+                <CheckCircle2 className="w-8 h-8" style={{ color: "#10A65A" }} />
+              </div>
+              <h1 className="text-2xl font-bold mb-2" style={{ color: "#07113A", fontFamily: "Poppins, sans-serif" }}>
+                Link de redefinição gerado
+              </h1>
+              <p className="text-sm text-gray-600 mb-6">
+                Se a conta existir, geramos um link de redefinição válido por 1 hora.
+              </p>
             </div>
-            <h1 className="text-2xl font-bold mb-2" style={{ color: "#07113A", fontFamily: "Poppins, sans-serif" }}>
-              Verifique seu e-mail
-            </h1>
-            <p className="text-sm text-gray-600 mb-6">
-              Se a conta existir, enviamos um link para redefinir sua senha. O link expira em 30 minutos.
-            </p>
+
+            {resetUrl ? (
+              <div
+                className="rounded-xl border p-4 mb-4"
+                style={{ borderColor: "#FACC15", background: "#FEFCE8" }}
+              >
+                <p className="text-xs font-semibold mb-2" style={{ color: "#854D0E" }}>
+                  Envio de e-mail ainda não está conectado
+                </p>
+                <p className="text-xs mb-3" style={{ color: "#713F12" }}>
+                  Por enquanto, copie o link abaixo e abra no navegador para criar uma nova senha.
+                </p>
+                <div className="bg-white border border-gray-200 rounded-lg p-2 text-xs break-all font-mono text-gray-700 mb-3" data-testid="text-reset-url">
+                  {resetUrl}
+                </div>
+                <div className="flex gap-2">
+                  <Button
+                    type="button"
+                    onClick={copyLink}
+                    className="flex-1 h-10 rounded-lg text-white text-sm gap-2"
+                    style={{ background: "#0D1B8C" }}
+                    data-testid="button-copy-link"
+                  >
+                    <Copy className="w-4 h-4" /> Copiar
+                  </Button>
+                  <a href={resetUrl} className="flex-1">
+                    <Button
+                      type="button"
+                      variant="outline"
+                      className="w-full h-10 rounded-lg text-sm gap-2"
+                      data-testid="button-open-link"
+                    >
+                      <ExternalLink className="w-4 h-4" /> Abrir
+                    </Button>
+                  </a>
+                </div>
+              </div>
+            ) : null}
+
             <Link href="/login">
               <a>
                 <Button
-                  className="w-full h-12 font-semibold rounded-xl text-white"
-                  style={{ background: "#0D1B8C" }}
+                  variant="outline"
+                  className="w-full h-12 font-semibold rounded-xl text-sm"
                   data-testid="button-back-to-login"
                 >
                   Voltar para o login
@@ -91,7 +169,7 @@ export default function RecuperarSenha() {
               Esqueci minha senha
             </h1>
             <p className="text-sm text-gray-600 mb-6">
-              Informe seu e-mail ou CPF cadastrado e enviaremos as instruções para redefinir a sua senha.
+              Informe seu e-mail ou CPF cadastrado para gerar um link de redefinição.
             </p>
 
             <Form {...form}>
@@ -123,11 +201,12 @@ export default function RecuperarSenha() {
 
                 <Button
                   type="submit"
-                  className="w-full h-12 font-semibold rounded-xl text-white text-sm transition-all hover:opacity-90"
+                  disabled={loading}
+                  className="w-full h-12 font-semibold rounded-xl text-white text-sm transition-all hover:opacity-90 disabled:opacity-60"
                   style={{ background: "#0D1B8C" }}
                   data-testid="button-submit-recover"
                 >
-                  Enviar link de recuperação
+                  {loading ? <Loader2 className="w-4 h-4 animate-spin" /> : "Gerar link de recuperação"}
                 </Button>
               </form>
             </Form>
