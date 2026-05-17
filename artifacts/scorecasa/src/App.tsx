@@ -31,6 +31,7 @@ import { ClientHistoricoScore } from "@/pages/ClientHistoricoScore";
 import { ClientPagamentos } from "@/pages/ClientPagamentos";
 import RecuperarSenha from "@/pages/RecuperarSenha";
 import RedefinirSenha from "@/pages/RedefinirSenha";
+import InstallPWA from "@/components/InstallPWA";
 
 const queryClient = new QueryClient();
 
@@ -222,6 +223,7 @@ function App() {
           <Router />
         </WouterRouter>
         <Toaster />
+        <InstallPWA />
       </TooltipProvider>
     </QueryClientProvider>
   );
