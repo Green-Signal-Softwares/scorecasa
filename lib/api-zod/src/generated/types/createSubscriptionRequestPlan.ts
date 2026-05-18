@@ -15,6 +15,8 @@ export const CreateSubscriptionRequestPlan = {
   corretor: "corretor",
   imobiliaria: "imobiliaria",
   enterprise: "enterprise",
+  correspondente_individual: "correspondente_individual",
+  correspondente_sucesso: "correspondente_sucesso",
   bank_connect: "bank_connect",
   corretor_50: "corretor_50",
   corretor_200: "corretor_200",
