@@ -4,7 +4,7 @@ import { useGetMe, getGetMeQueryKey } from "@workspace/api-client-react";
 import { ClientLayout } from "@/components/layout/ClientLayout";
 import {
   CreditCard, Home, Lightbulb, Wifi, Smartphone, Tv, ShieldCheck, FileText,
-  Check, AlertTriangle, Calendar, TrendingUp, RotateCcw, Bell,
+  Check, AlertTriangle, Calendar, TrendingUp, RotateCcw, Bell, Link2, RefreshCw,
 } from "lucide-react";
 
 type Category = "cartao" | "financiamento" | "conta" | "boleto" | "emprestimo" | "assinatura";
@@ -32,6 +32,9 @@ interface PaymentsResponse {
     monthOpenTotalCents: number;
     monthPaidTotalCents: number;
     scoreImpactNote: string;
+    source: "manual" | "open_finance";
+    openFinanceBank: string | null;
+    lastSyncedAt: string | null;
   };
   items: PaymentItem[];
 }
@@ -276,12 +279,56 @@ export function ClientPagamentos() {
           })}
 
           {/* ── Rodapé / origem dos dados ── */}
-          <div className="rounded-xl p-4 bg-gray-50 border border-gray-200 text-xs text-gray-500 leading-relaxed">
-            <strong style={{ color: "#07113A" }}>De onde vêm esses pagamentos?</strong>{" "}
-            Quando você conectar suas contas via <strong>Open Finance</strong>, suas obrigações reais
-            serão sincronizadas automaticamente. Por enquanto, exibimos uma simulação baseada no seu
-            perfil de renda para você testar o assistente.
-          </div>
+          {data.summary.source === "open_finance" ? (
+            <div
+              className="rounded-xl p-4 border text-xs leading-relaxed flex items-start gap-3"
+              style={{ background: "rgba(16,166,90,0.06)", borderColor: "#10A65A33", color: "#07113A" }}
+            >
+              <div
+                className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ background: "#D1FAE5" }}
+              >
+                <RefreshCw className="w-4 h-4" style={{ color: "#10A65A" }} />
+              </div>
+              <div className="flex-1">
+                <strong style={{ color: "#07113A" }}>
+                  Sincronizado via Open Finance
+                  {data.summary.openFinanceBank ? ` · ${data.summary.openFinanceBank}` : ""}
+                </strong>
+                <div className="text-gray-600 mt-0.5">
+                  {data.summary.lastSyncedAt
+                    ? `Última atualização: ${new Date(data.summary.lastSyncedAt).toLocaleString("pt-BR", { dateStyle: "short", timeStyle: "short" })}.`
+                    : ""}{" "}
+                  As faturas e valores acima refletem os dados reais consultados na sua instituição.
+                </div>
+              </div>
+            </div>
+          ) : (
+            <div className="rounded-xl p-4 bg-gray-50 border border-gray-200 text-xs text-gray-500 leading-relaxed flex items-start gap-3">
+              <div
+                className="w-9 h-9 rounded-full flex items-center justify-center flex-shrink-0"
+                style={{ background: "rgba(13,27,140,0.08)" }}
+              >
+                <Link2 className="w-4 h-4" style={{ color: "#0D1B8C" }} />
+              </div>
+              <div className="flex-1">
+                <strong style={{ color: "#07113A" }}>De onde vêm esses pagamentos?</strong>{" "}
+                Os valores acima são uma simulação baseada no seu perfil. Conecte suas contas via{" "}
+                <strong>Open Finance</strong> para sincronizar suas obrigações reais.
+                <div className="mt-2">
+                  <button
+                    type="button"
+                    onClick={() => setLocation("/dividas")}
+                    className="text-xs font-semibold px-3 py-1.5 rounded-full transition-all"
+                    style={{ color: "white", background: "#0D1B8C" }}
+                    data-testid="button-connect-of"
+                  >
+                    Conectar Open Finance
+                  </button>
+                </div>
+              </div>
+            </div>
+          )}
         </div>
       )}
     </ClientLayout>

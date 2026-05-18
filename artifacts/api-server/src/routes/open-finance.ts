@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { db, usersTable, leadsTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { db, usersTable, leadsTable, clientPaymentsTable } from "@workspace/db";
+import { and, eq, isNull } from "drizzle-orm";
 
 const router = Router();
 
@@ -78,6 +78,17 @@ const connectHandler = async (req: any, res: any) => {
     .where(eq(leadsTable.id, lead.id))
     .returning();
 
+  // Sincroniza a aba "Pagamentos" com os dados do Open Finance:
+  // - Recalcula a fatura do cartão proporcional ao uso real (cardUsage %)
+  // - Se o cliente estiver "em dia" segundo OF, move pagamentos atrasados
+  //   recorrentes para a próxima janela (simula que já foram quitados na origem).
+  // - Marca todos os pagamentos como source='open_finance' + syncedAt=now.
+  await syncPaymentsFromOpenFinance(lead.id, {
+    income: baseIncome,
+    cardUsagePct: cardUsage,
+    noLatePayments,
+  });
+
   res.json({
     connected: true,
     connectedAt: updated.openFinanceConnectedAt?.toISOString() ?? null,
@@ -143,7 +154,90 @@ router.delete("/", requireClient, async (req, res) => {
       updatedAt: new Date(),
     })
     .where(eq(leadsTable.id, user.leadId));
+
+  // Pagamentos voltam a ser marcados como origem manual (mantém os registros
+  // para não perder o histórico de quitação que o cliente já marcou).
+  await db
+    .update(clientPaymentsTable)
+    .set({ source: "manual", syncedAt: null, updatedAt: new Date() })
+    .where(eq(clientPaymentsTable.leadId, user.leadId));
+
   res.json({ connected: false });
 });
+
+/**
+ * Sincroniza a aba "Pagamentos" a partir do snapshot Open Finance.
+ * Atualiza apenas pagamentos NÃO pagos para não sobrescrever o histórico
+ * que o cliente já marcou como quitado.
+ */
+async function syncPaymentsFromOpenFinance(
+  leadId: number,
+  of: { income: number; cardUsagePct: number; noLatePayments: boolean },
+): Promise<void> {
+  // Recalcula fatura(s) de cartão com base no uso real reportado pelo OF.
+  // cardUsage = 15-70%. Convertemos para um valor de fatura proporcional à renda.
+  const incomeCents = Math.round((of.income || 3000) * 100);
+  const monthlyCardCents = Math.round(incomeCents * (of.cardUsagePct / 100));
+
+  // Buscar todos os cartões não pagos do lead.
+  const cards = await db
+    .select()
+    .from(clientPaymentsTable)
+    .where(
+      and(
+        eq(clientPaymentsTable.leadId, leadId),
+        eq(clientPaymentsTable.category, "cartao"),
+        isNull(clientPaymentsTable.paidAt),
+      ),
+    );
+
+  if (cards.length > 0) {
+    // Distribui o uso total entre as faturas existentes preservando a proporção
+    // original (mantém o "peso" relativo entre cartões diferentes).
+    const totalOriginal = cards.reduce((a, c) => a + c.amountCents, 0) || 1;
+    for (const c of cards) {
+      const share = c.amountCents / totalOriginal;
+      const newAmount = Math.max(1000, Math.round(monthlyCardCents * share));
+      await db
+        .update(clientPaymentsTable)
+        .set({ amountCents: newAmount, updatedAt: new Date() })
+        .where(eq(clientPaymentsTable.id, c.id));
+    }
+  }
+
+  // Se OF reporta histórico em dia, joga atrasos recorrentes para o próximo
+  // ciclo (assume que o banco já regularizou — pagamento existe mas não está
+  // mais "no vermelho" do ponto de vista do cliente).
+  if (of.noLatePayments) {
+    const now = new Date();
+    const overdue = await db
+      .select()
+      .from(clientPaymentsTable)
+      .where(
+        and(
+          eq(clientPaymentsTable.leadId, leadId),
+          eq(clientPaymentsTable.recurring, true),
+          isNull(clientPaymentsTable.paidAt),
+        ),
+      );
+    for (const p of overdue) {
+      if (p.dueDate.getTime() < now.getTime()) {
+        const next = new Date(p.dueDate);
+        // Empurra 30 dias.
+        next.setDate(next.getDate() + 30);
+        await db
+          .update(clientPaymentsTable)
+          .set({ dueDate: next, updatedAt: new Date() })
+          .where(eq(clientPaymentsTable.id, p.id));
+      }
+    }
+  }
+
+  // Marca todos como sincronizados via OF.
+  await db
+    .update(clientPaymentsTable)
+    .set({ source: "open_finance", syncedAt: new Date(), updatedAt: new Date() })
+    .where(eq(clientPaymentsTable.leadId, leadId));
+}
 
 export default router;

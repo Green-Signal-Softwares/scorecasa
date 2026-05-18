@@ -144,6 +144,13 @@ router.get("/", requireClient, async (req, res) => {
     .filter((i) => i.paidAt && new Date(i.paidAt).getMonth() === new Date().getMonth())
     .reduce((a, b) => a + (b.paidAmountCents ?? b.amountCents), 0);
 
+  // Última sincronização Open Finance (se houver) — pega o syncedAt mais
+  // recente entre as obrigações marcadas como vindo do OF.
+  const ofSynced = rows
+    .filter((r) => r.source === "open_finance" && r.syncedAt)
+    .map((r) => r.syncedAt!.getTime());
+  const lastSyncedAt = ofSynced.length > 0 ? new Date(Math.max(...ofSynced)).toISOString() : null;
+
   res.json({
     summary: {
       next7Count: next7.length,
@@ -158,6 +165,9 @@ router.get("/", requireClient, async (req, res) => {
           : next7.length > 0
             ? `Mantenha esses ${next7.length} pagamento(s) em dia — pagamentos pontuais somam até 40 pontos no seu ScoreCasa por trimestre.`
             : "Sem pagamentos urgentes. Seu ScoreCasa agradece!",
+      source: lead.openFinanceConnected ? "open_finance" : "manual",
+      openFinanceBank: lead.openFinanceBank ?? null,
+      lastSyncedAt,
     },
     items,
   });

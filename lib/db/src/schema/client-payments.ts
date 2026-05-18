@@ -21,6 +21,11 @@ export const clientPaymentsTable = pgTable(
     // Quando paidAt != NULL, o pagamento está quitado.
     paidAt: timestamp("paid_at"),
     paidAmountCents: integer("paid_amount_cents"),
+    // Origem dos dados: 'manual' (seed sintético) ou 'open_finance' (sincronizado
+    // após o cliente conectar uma instituição). Quando 'open_finance', o
+    // syncedAt registra o último refresh vindo da conexão.
+    source: text("source").notNull().default("manual"),
+    syncedAt: timestamp("synced_at"),
     createdAt: timestamp("created_at").notNull().defaultNow(),
     updatedAt: timestamp("updated_at").notNull().defaultNow(),
   },
