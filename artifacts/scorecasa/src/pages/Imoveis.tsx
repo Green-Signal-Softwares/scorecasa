@@ -1,5 +1,7 @@
-import { useState } from "react";
-import { useGetProperties, useCreateProperty, useUpdateProperty, useDeleteProperty, useTogglePropertyInterest, useGetMyInterests, useGetMe, useGetMySubscription } from "@workspace/api-client-react";
+import { useEffect, useState } from "react";
+import { useGetProperties, useCreateProperty, useUpdateProperty, useDeleteProperty, useTogglePropertyInterest, useGetMyInterests, useGetMe, useGetMySubscription, ApiError } from "@workspace/api-client-react";
+import { useSessionGuard } from "@/hooks/use-session-guard";
+import { SessionExpiredBanner } from "@/components/SessionExpiredBanner";
 import { useQueryClient } from "@tanstack/react-query";
 import { getGetPropertiesQueryKey, getGetMyInterestsQueryKey } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
@@ -164,9 +166,9 @@ function PropertyCard({
 export function Imoveis() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
-  const { data: me } = useGetMe({});
+  const { data: me, error: meError } = useGetMe({});
   const role = (me as any)?.role ?? "client";
-  const { data: sub } = useGetMySubscription({ query: { retry: false } } as any);
+  const { data: sub, error: subError } = useGetMySubscription({ query: { retry: false } } as any);
   const hasMarketplaceAddon = !!(sub as any)?.marketplaceAddon;
   // Só admin/analista e corretor com add-on de Vitrine podem cadastrar/editar.
   // Cliente e correspondente apenas visualizam o catálogo divulgado pelos corretores.
@@ -182,13 +184,22 @@ export function Imoveis() {
   const [editingProp, setEditingProp] = useState<any>(null);
   const [form, setForm] = useState({ ...EMPTY_FORM });
 
-  const { data: properties = [], isLoading } = useGetProperties({});
-  const { data: myInterests = [] } = useGetMyInterests({});
+  const { data: properties = [], isLoading, error: propsError } = useGetProperties({});
+  const { data: myInterests = [], error: interestsError } = useGetMyInterests({});
 
   const createProp = useCreateProperty();
   const updateProp = useUpdateProperty();
   const deleteProp = useDeleteProperty();
   const toggleInterest = useTogglePropertyInterest();
+
+  // Detecta 401 em qualquer um dos fetches do catálogo e mostra a mesma UX
+  // de sessão expirada usada nas demais páginas do portal.
+  const guard = useSessionGuard();
+  const is401 = (e: unknown) => e instanceof ApiError && e.status === 401;
+  const anyUnauthorized = is401(meError) || is401(subError) || is401(propsError) || is401(interestsError);
+  useEffect(() => {
+    if (anyUnauthorized) guard.handleAuthFailure();
+  }, [anyUnauthorized, guard]);
 
   const interestedIds = new Set(myInterests as number[]);
 
@@ -293,6 +304,19 @@ export function Imoveis() {
         >
           Ir para Financeiro
         </a>
+      </div>
+    );
+  }
+
+  if (guard.sessionExpired) {
+    return (
+      <div className="max-w-md mx-auto">
+        <SessionExpiredBanner
+          expired
+          description="Sua sessão expirou. Faça login novamente para continuar visualizando os imóveis."
+          loginLabel="Fazer login"
+          onLogin={() => guard.goToLogin()}
+        />
       </div>
     );
   }

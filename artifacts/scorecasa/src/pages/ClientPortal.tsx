@@ -2,8 +2,11 @@ import {
   useGetClientProfile, getGetClientProfileQueryKey,
   useGetLeadScore, getGetLeadScoreQueryKey,
   useGetMe, getGetMeQueryKey,
+  ApiError,
 } from "@workspace/api-client-react";
 import { ClientLayout } from "@/components/layout/ClientLayout";
+import { SessionExpiredBanner } from "@/components/SessionExpiredBanner";
+import { useSessionGuard } from "@/hooks/use-session-guard";
 import { BankComparison } from "@/components/BankComparison";
 import { CreditGPS } from "@/components/CreditGPS";
 import { useLocation } from "wouter";
@@ -196,23 +199,58 @@ export function ClientPortal() {
   const [, setLocation] = useLocation();
   const [tab, setTab] = useState<"analise" | "gps" | "comparativo">("analise");
 
-  const { data: me, isLoading: loadingMe } = useGetMe({
+  const { data: me, isLoading: loadingMe, error: meError } = useGetMe({
     query: { queryKey: getGetMeQueryKey(), retry: false, staleTime: 60_000 },
   });
 
-  useEffect(() => {
-    if (!loadingMe && me && me.role !== "client") setLocation("/dashboard");
-    if (!loadingMe && !me) setLocation("/login");
-  }, [loadingMe, me, setLocation]);
+  const guard = useSessionGuard();
+  const meUnauthorized = meError instanceof ApiError && meError.status === 401;
 
-  const { data: profile, isLoading } = useGetClientProfile({
-    query: { queryKey: getGetClientProfileQueryKey(), staleTime: 30_000 },
+  useEffect(() => {
+    if (loadingMe) return;
+    if (meUnauthorized) {
+      guard.handleAuthFailure();
+      return;
+    }
+    if (me && me.role !== "client") setLocation("/dashboard");
+    if (!me && !meError) setLocation("/login");
+  }, [loadingMe, me, meError, meUnauthorized, setLocation, guard]);
+
+  const { data: profile, isLoading, error: profileError } = useGetClientProfile({
+    query: { queryKey: getGetClientProfileQueryKey(), staleTime: 30_000, retry: false },
   });
+
+  useEffect(() => {
+    if (profileError instanceof ApiError && profileError.status === 401) {
+      guard.handleAuthFailure();
+    }
+  }, [profileError, guard]);
 
   const leadId = profile?.lead?.id ?? 0;
-  const { data: score, isLoading: scoreLoading } = useGetLeadScore(leadId, {
-    query: { queryKey: getGetLeadScoreQueryKey(leadId), enabled: leadId > 0, staleTime: 30_000 },
+  const { data: score, isLoading: scoreLoading, error: scoreError } = useGetLeadScore(leadId, {
+    query: { queryKey: getGetLeadScoreQueryKey(leadId), enabled: leadId > 0, staleTime: 30_000, retry: false },
   });
+
+  useEffect(() => {
+    if (scoreError instanceof ApiError && scoreError.status === 401) {
+      guard.handleAuthFailure();
+    }
+  }, [scoreError, guard]);
+
+  if (guard.sessionExpired) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "#07113A" }}>
+        <div className="max-w-md w-full">
+          <SessionExpiredBanner
+            expired
+            description="Sua sessão expirou. Faça login novamente para ver sua análise de crédito atualizada."
+            loginLabel="Fazer login"
+            onLogin={() => guard.goToLogin()}
+          />
+        </div>
+      </div>
+    );
+  }
 
   if (loadingMe || isLoading || !me || me.role !== "client") {
     return (

@@ -1,6 +1,8 @@
 import { useEffect, useState } from "react";
 import { useLocation } from "wouter";
-import { useGetMe, getGetMeQueryKey } from "@workspace/api-client-react";
+import { useGetMe, getGetMeQueryKey, ApiError } from "@workspace/api-client-react";
+import { SessionExpiredBanner } from "@/components/SessionExpiredBanner";
+import { useSessionGuard } from "@/hooks/use-session-guard";
 import { ClientLayout } from "@/components/layout/ClientLayout";
 import {
   ChevronRight, ChevronDown, Frown, Meh, Smile, HelpCircle,
@@ -151,14 +153,22 @@ export function ClientHistoricoScore() {
   const [expandedStatus, setExpandedStatus] = useState<StatusKey | null>(null);
   const [expandedMonth, setExpandedMonth] = useState<string | null>(null);
 
-  const { data: me, isLoading: loadingMe } = useGetMe({
+  const { data: me, isLoading: loadingMe, error: meError } = useGetMe({
     query: { queryKey: getGetMeQueryKey(), retry: false, staleTime: 60_000 },
   });
 
+  const guard = useSessionGuard();
+  const meUnauthorized = meError instanceof ApiError && meError.status === 401;
+
   useEffect(() => {
-    if (!loadingMe && !me) setLocation("/login");
-    if (!loadingMe && me && me.role !== "client") setLocation("/dashboard");
-  }, [loadingMe, me, setLocation]);
+    if (loadingMe) return;
+    if (meUnauthorized) {
+      guard.handleAuthFailure();
+      return;
+    }
+    if (!me && !meError) setLocation("/login");
+    if (me && me.role !== "client") setLocation("/dashboard");
+  }, [loadingMe, me, meError, meUnauthorized, setLocation, guard]);
 
   useEffect(() => {
     let active = true;
@@ -166,6 +176,10 @@ export function ClientHistoricoScore() {
       try {
         const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
         const r = await fetch(`${BASE}/api/client/score-history`, { credentials: "include" });
+        if (r.status === 401) {
+          if (active) guard.handleAuthFailure();
+          return;
+        }
         if (!r.ok) return;
         const j = (await r.json()) as ScoreHistoryResponse;
         if (active) {
@@ -177,7 +191,22 @@ export function ClientHistoricoScore() {
       }
     })();
     return () => { active = false; };
-  }, []);
+  }, [guard]);
+
+  if (guard.sessionExpired) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "#07113A" }}>
+        <div className="max-w-md w-full">
+          <SessionExpiredBanner
+            expired
+            description="Sua sessão expirou. Faça login novamente para continuar acompanhando seu histórico de score."
+            loginLabel="Fazer login"
+            onLogin={() => guard.goToLogin()}
+          />
+        </div>
+      </div>
+    );
+  }
 
   if (loadingMe || !me || me.role !== "client") {
     return (

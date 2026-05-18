@@ -7,6 +7,9 @@ import {
   getGetClientProfileQueryKey,
 } from "@workspace/api-client-react";
 import { ClientLayout } from "@/components/layout/ClientLayout";
+import { SessionExpiredBanner } from "@/components/SessionExpiredBanner";
+import { useSessionGuard } from "@/hooks/use-session-guard";
+import { ApiError } from "@workspace/api-client-react";
 
 type Sistema = "SAC" | "PRICE";
 
@@ -215,17 +218,37 @@ function LtvRow({ label, pct, color }: { label: string; pct: number; color: stri
 export function ClientSimulador() {
   const [, setLocation] = useLocation();
 
-  const { data: me, isLoading: loadingMe } = useGetMe({
+  const { data: me, isLoading: loadingMe, error: meError } = useGetMe({
     query: { queryKey: getGetMeQueryKey(), retry: false, staleTime: 60_000 },
   });
-  const { data: profile, isLoading } = useGetClientProfile({
-    query: { queryKey: getGetClientProfileQueryKey(), staleTime: 30_000 },
+  const { data: profile, isLoading, error: profileError } = useGetClientProfile({
+    query: { queryKey: getGetClientProfileQueryKey(), staleTime: 30_000, retry: false },
   });
 
+  type SimulatorDraft = {
+    valorImovelStr: string;
+    entradaStr: string;
+    rendaStr: string;
+    prazoAnos: number;
+    sistema: Sistema;
+    programId: string;
+  };
+  const guard = useSessionGuard<SimulatorDraft>({
+    draftKey: "scorecasa:simulador:draft",
+    getForm: () => currentDraft,
+  });
+  const meUnauthorized = meError instanceof ApiError && meError.status === 401;
+  const profileUnauthorized = profileError instanceof ApiError && profileError.status === 401;
+
   useEffect(() => {
-    if (!loadingMe && me && me.role !== "client") setLocation("/dashboard");
-    if (!loadingMe && !me) setLocation("/login");
-  }, [loadingMe, me, setLocation]);
+    if (loadingMe) return;
+    if (meUnauthorized || profileUnauthorized) {
+      guard.handleAuthFailure();
+      return;
+    }
+    if (me && me.role !== "client") setLocation("/dashboard");
+    if (!me && !meError) setLocation("/login");
+  }, [loadingMe, me, meError, meUnauthorized, profileUnauthorized, setLocation, guard]);
 
   const lead = profile?.lead as undefined | (NonNullable<typeof profile>["lead"] & { birthDate?: string | null; spouseBirthDate?: string | null });
   const BASE = useMemo(() => import.meta.env.BASE_URL.replace(/\/$/, ""), []);
@@ -272,6 +295,20 @@ export function ClientSimulador() {
   const [sistema, setSistema] = useState<Sistema>("SAC");
   const [programId, setProgramId] = useState<string>("caixa-sbpe");
 
+  // Restaura parâmetros da simulação salvos antes da última sessão expirar.
+  useEffect(() => {
+    const draft = guard.restoreDraft();
+    if (draft) {
+      if (draft.valorImovelStr) setValorImovelStr(draft.valorImovelStr);
+      if (draft.entradaStr) setEntradaStr(draft.entradaStr);
+      if (draft.rendaStr) setRendaStr(draft.rendaStr);
+      if (typeof draft.prazoAnos === "number") setPrazoAnos(draft.prazoAnos);
+      if (draft.sistema) setSistema(draft.sistema);
+      if (draft.programId) setProgramId(draft.programId);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, []);
+
   useEffect(() => {
     if (lead) {
       if (!valorImovelStr && lead.propertyValue) {
@@ -282,6 +319,11 @@ export function ClientSimulador() {
     }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lead?.id]);
+
+  // Snapshot dinâmico (a hook lê o estado atual via getForm na hora do 401).
+  const currentDraft: SimulatorDraft = {
+    valorImovelStr, entradaStr, rendaStr, prazoAnos, sistema, programId,
+  };
 
   const valorImovel = parseBRL(valorImovelStr);
   const entrada = parseBRL(entradaStr);
@@ -311,6 +353,21 @@ export function ClientSimulador() {
   const ltv = valorImovel > 0 ? valorFinanciado / valorImovel : 0;
   const ltvExcedido = ltv > program.maxLTV;
   const prazoExcedido = prazoAnos > program.maxYears;
+
+  if (guard.sessionExpired) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "#07113A" }}>
+        <div className="max-w-md w-full">
+          <SessionExpiredBanner
+            expired
+            description="Sua sessão expirou. Faça login novamente — guardamos os parâmetros da sua simulação e retornamos eles para você."
+            loginLabel="Fazer login"
+            onLogin={() => guard.goToLogin(currentDraft)}
+          />
+        </div>
+      </div>
+    );
+  }
 
   if (loadingMe || isLoading || !me || me.role !== "client") {
     return (

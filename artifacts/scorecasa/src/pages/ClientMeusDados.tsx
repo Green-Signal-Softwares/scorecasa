@@ -1,11 +1,13 @@
 import { useState, useEffect } from "react";
 import { useLocation } from "wouter";
-import { useGetMe, getGetMeQueryKey, useGetClientProfile, getGetClientProfileQueryKey } from "@workspace/api-client-react";
+import { useGetMe, getGetMeQueryKey, useGetClientProfile, getGetClientProfileQueryKey, ApiError } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ClientLayout } from "@/components/layout/ClientLayout";
 import { ClientDocumentosTab } from "@/components/ClientDocumentosTab";
 import { FormField } from "@/components/FormField";
+import { SessionExpiredBanner } from "@/components/SessionExpiredBanner";
 import { useToast } from "@/hooks/use-toast";
+import { useSessionGuard } from "@/hooks/use-session-guard";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
 
@@ -113,17 +115,12 @@ export function ClientMeusDados() {
   const { toast } = useToast();
   const queryClient = useQueryClient();
 
-  const { data: me, isLoading: loadingMe } = useGetMe({
+  const { data: me, isLoading: loadingMe, error: meError } = useGetMe({
     query: { queryKey: getGetMeQueryKey(), retry: false, staleTime: 60_000 },
   });
 
-  useEffect(() => {
-    if (!loadingMe && me && me.role !== "client") setLocation("/dashboard");
-    if (!loadingMe && !me) setLocation("/login");
-  }, [loadingMe, me, setLocation]);
-
-  const { data: profile, isLoading } = useGetClientProfile({
-    query: { queryKey: getGetClientProfileQueryKey(), staleTime: 30_000 },
+  const { data: profile, isLoading, error: profileError } = useGetClientProfile({
+    query: { queryKey: getGetClientProfileQueryKey(), staleTime: 30_000, retry: false },
   });
 
   // ── Form state ─────────────────────────────────────────────────────────────
@@ -186,10 +183,28 @@ export function ClientMeusDados() {
     spouseProfissao: "", spouseIncome: "", spouseInformalIncome: "",
   });
 
+  const guard = useSessionGuard<typeof form>({
+    draftKey: "scorecasa:meusdados:draft",
+    getForm: () => form,
+  });
+
+  const meUnauthorized = meError instanceof ApiError && meError.status === 401;
+  const profileUnauthorized = profileError instanceof ApiError && profileError.status === 401;
+
+  useEffect(() => {
+    if (loadingMe) return;
+    if (meUnauthorized || profileUnauthorized) {
+      guard.handleAuthFailure(form);
+      return;
+    }
+    if (me && me.role !== "client") setLocation("/dashboard");
+    if (!me && !meError) setLocation("/login");
+  }, [loadingMe, me, meError, meUnauthorized, profileUnauthorized, setLocation, guard, form]);
+
   useEffect(() => {
     if (!profile) return;
     const l = profile.lead as any;
-    setForm({
+    const fromProfile = {
       name: profile.user.name ?? "",
       cpf: l.cpf ? maskCPF(l.cpf) : "",
       birthDate: l.birthDate ?? "",
@@ -209,7 +224,14 @@ export function ClientMeusDados() {
       spouseProfissao: l.spouseProfession ?? "",
       spouseIncome: brlFromNumber(l.spouseIncome),
       spouseInformalIncome: "",
-    });
+    };
+    const draft = guard.restoreDraft();
+    if (draft) {
+      setForm({ ...fromProfile, ...draft });
+    } else {
+      setForm(fromProfile);
+    }
+    // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile]);
 
   const setField = (key: keyof typeof form) => (val: string) => {
@@ -273,6 +295,11 @@ export function ClientMeusDados() {
         body: JSON.stringify(body),
       });
 
+      if (resp.status === 401) {
+        guard.handleAuthFailure(form);
+        return;
+      }
+
       if (!resp.ok) {
         const j: { error?: unknown; fields?: unknown } = await resp
           .json()
@@ -300,6 +327,21 @@ export function ClientMeusDados() {
       setSaving(false);
     }
   };
+
+  if (guard.sessionExpired) {
+    return (
+      <div className="min-h-screen flex items-center justify-center px-4" style={{ background: "#07113A" }}>
+        <div className="max-w-md w-full">
+          <SessionExpiredBanner
+            expired
+            description="Sua sessão expirou. Faça login novamente — guardamos os dados que você estava preenchendo e retornamos eles para você."
+            loginLabel="Fazer login para continuar"
+            onLogin={() => guard.goToLogin(form)}
+          />
+        </div>
+      </div>
+    );
+  }
 
   if (loadingMe || isLoading || !me || me.role !== "client") {
     return (
@@ -339,6 +381,17 @@ export function ClientMeusDados() {
       {tab === "conta" && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
           <p className="text-sm text-gray-500">Gerenciamento de senha em breve.</p>
+        </div>
+      )}
+
+      {(guard.sessionExpired || guard.draftRestored) && (
+        <div className="mb-4">
+          <SessionExpiredBanner
+            expired={guard.sessionExpired}
+            draftRestored={guard.draftRestored}
+            draftRestoredMessage="Recuperamos os valores que você tinha digitado antes da sessão expirar. Confira e clique em Salvar alterações."
+            onLogin={() => guard.goToLogin(form)}
+          />
         </div>
       )}
 
@@ -533,12 +586,16 @@ export function ClientMeusDados() {
             </button>
             <button
               type="button"
-              onClick={handleSave}
+              onClick={guard.sessionExpired ? () => guard.goToLogin(form) : handleSave}
               disabled={saving}
               className="px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition-colors disabled:opacity-60"
               style={{ background: "#0D1B8C" }}
             >
-              {saving ? "Salvando..." : "Salvar alterações"}
+              {guard.sessionExpired
+                ? "Fazer login para salvar"
+                : saving
+                ? "Salvando..."
+                : "Salvar alterações"}
             </button>
           </div>
         </div>
