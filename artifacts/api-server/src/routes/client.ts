@@ -198,12 +198,111 @@ router.put("/profile", requireClient, async (req, res) => {
     return;
   }
 
+  const body = req.body as Record<string, any>;
   const {
     income, propertyValue, phone, name,
     birthDate, profession, employmentType, informalIncome, maritalStatus,
     propertyCity, propertyState,
     spouseName, spouseCpf, spouseBirthDate, spouseProfession, spouseIncome,
-  } = req.body as Record<string, any>;
+  } = body;
+
+  // ── Validação por campo (devolve `fields` para o front destacar inputs) ──
+  // Limites superiores protegem contra overflow em colunas `real` do Postgres
+  // e contra inputs absurdos (renda negativa, CPF inválido, etc).
+  const MAX_MONEY = 1_000_000_000;
+  const EMPLOYMENT_TYPES = new Set(["clt", "autonomo", "servidor_publico", "empresario", "aposentado", "outro"]);
+  const MARITAL_STATUSES = new Set(["solteiro", "casado", "uniao_estavel", "divorciado", "viuvo"]);
+  const UFS = new Set([
+    "AC","AL","AM","AP","BA","CE","DF","ES","GO","MA","MG","MS","MT","PA",
+    "PB","PE","PI","PR","RJ","RN","RO","RR","RS","SC","SE","SP","TO",
+  ]);
+  const errors: string[] = [];
+
+  function checkMoney(name: string, v: any): boolean {
+    if (v === undefined || v === null) return true;
+    if (typeof v !== "number" || !Number.isFinite(v) || v < 0 || v > MAX_MONEY) {
+      errors.push(name);
+      return false;
+    }
+    return true;
+  }
+  function checkName(field: string, v: any, min = 2, max = 120): boolean {
+    if (v === undefined || v === null) return true;
+    if (typeof v !== "string") { errors.push(field); return false; }
+    const t = v.trim();
+    if (t.length === 0) return true; // tratado como vazio
+    if (t.length < min || t.length > max) { errors.push(field); return false; }
+    return true;
+  }
+  function checkEnum(field: string, v: any, allowed: Set<string>): boolean {
+    if (v === undefined || v === null || v === "") return true;
+    if (typeof v !== "string" || !allowed.has(v)) { errors.push(field); return false; }
+    return true;
+  }
+  function checkDateStr(field: string, v: any): boolean {
+    if (v === undefined || v === null || v === "") return true;
+    if (typeof v !== "string") { errors.push(field); return false; }
+    // Aceita YYYY-MM-DD (input date) ou ISO. Exige ano plausível e idade >= 18 quando aplicável.
+    const t = v.trim();
+    if (!/^\d{4}-\d{2}-\d{2}/.test(t)) { errors.push(field); return false; }
+    const d = new Date(t);
+    if (Number.isNaN(d.getTime())) { errors.push(field); return false; }
+    const year = d.getUTCFullYear();
+    if (year < 1900 || year > new Date().getUTCFullYear()) { errors.push(field); return false; }
+    return true;
+  }
+  function checkCpf(field: string, v: any): boolean {
+    if (v === undefined || v === null || v === "") return true;
+    if (typeof v !== "string") { errors.push(field); return false; }
+    const digits = v.replace(/\D/g, "");
+    if (digits.length !== 11 || /^(\d)\1{10}$/.test(digits)) { errors.push(field); return false; }
+    return true;
+  }
+  function checkPhone(field: string, v: any): boolean {
+    if (v === undefined || v === null || v === "") return true;
+    if (typeof v !== "string") { errors.push(field); return false; }
+    const digits = v.replace(/\D/g, "");
+    if (digits.length < 10 || digits.length > 13) { errors.push(field); return false; }
+    return true;
+  }
+
+  // Birth date (idade mínima 18 anos quando informada)
+  function checkBirth(field: string, v: any): boolean {
+    if (!checkDateStr(field, v)) return false;
+    if (v === undefined || v === null || v === "") return true;
+    const d = new Date(v);
+    const today = new Date();
+    let age = today.getUTCFullYear() - d.getUTCFullYear();
+    const m = today.getUTCMonth() - d.getUTCMonth();
+    if (m < 0 || (m === 0 && today.getUTCDate() < d.getUTCDate())) age--;
+    if (age < 18 || age > 120) { errors.push(field); return false; }
+    return true;
+  }
+
+  checkMoney("income", income);
+  checkMoney("propertyValue", propertyValue);
+  checkMoney("informalIncome", informalIncome);
+  checkMoney("spouseIncome", spouseIncome);
+  checkName("name", name);
+  checkName("profession", profession, 2, 80);
+  checkName("spouseName", spouseName);
+  checkName("spouseProfession", spouseProfession, 2, 80);
+  checkName("propertyCity", propertyCity, 2, 80);
+  checkEnum("employmentType", employmentType, EMPLOYMENT_TYPES);
+  checkEnum("maritalStatus", maritalStatus, MARITAL_STATUSES);
+  checkEnum("propertyState", propertyState, UFS);
+  checkBirth("birthDate", birthDate);
+  checkBirth("spouseBirthDate", spouseBirthDate);
+  checkCpf("spouseCpf", spouseCpf);
+  checkPhone("phone", phone);
+
+  if (errors.length > 0) {
+    res.status(400).json({
+      error: `Verifique os campos destacados: ${errors.join(", ")}. Use apenas valores válidos (renda não pode ser negativa, CPF deve ter 11 dígitos, idade mínima 18 anos).`,
+      fields: errors,
+    });
+    return;
+  }
 
   const leadUpdate: Record<string, any> = { updatedAt: new Date() };
   if (typeof income === "number") leadUpdate.income = income;

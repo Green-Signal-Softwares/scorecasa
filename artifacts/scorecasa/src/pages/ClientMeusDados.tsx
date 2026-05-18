@@ -4,6 +4,7 @@ import { useGetMe, getGetMeQueryKey, useGetClientProfile, getGetClientProfileQue
 import { useQueryClient } from "@tanstack/react-query";
 import { ClientLayout } from "@/components/layout/ClientLayout";
 import { ClientDocumentosTab } from "@/components/ClientDocumentosTab";
+import { FormField } from "@/components/FormField";
 import { useToast } from "@/hooks/use-toast";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -46,46 +47,26 @@ const BR_STATES = [
 
 // ── Components ────────────────────────────────────────────────────────────────
 
-function Field({
-  label, value, onChange, placeholder, type = "text", readOnly = false, error, hint,
-}: {
-  label: string; value: string; onChange?: (v: string) => void;
-  placeholder?: string; type?: string; readOnly?: boolean; error?: string; hint?: string;
-}) {
-  return (
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
-      <input
-        type={type}
-        value={value}
-        readOnly={readOnly}
-        onChange={(e) => onChange?.(e.target.value)}
-        placeholder={placeholder}
-        className={`w-full px-3 py-2.5 rounded-lg border text-sm outline-none transition-colors ${
-          readOnly ? "bg-gray-50 text-gray-400 border-gray-200 cursor-default" :
-          error ? "border-red-400 bg-red-50" :
-          "border-gray-200 bg-white focus:border-[#0D1B8C] focus:ring-1 focus:ring-[#0D1B8C]/20"
-        }`}
-      />
-      {hint && !error && <p className="text-xs text-gray-400 mt-1">{hint}</p>}
-      {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
-    </div>
-  );
-}
+const Field = FormField;
 
 function SelectField({
-  label, value, onChange, options, placeholder,
+  label, value, onChange, options, placeholder, invalid,
 }: {
   label: string; value: string; onChange: (v: string) => void;
-  options: { value: string; label: string }[]; placeholder?: string;
+  options: { value: string; label: string }[]; placeholder?: string; invalid?: boolean;
 }) {
+  const labelCls = invalid ? "text-red-600" : "text-gray-700";
+  const selectCls = invalid
+    ? "w-full px-3 py-2.5 rounded-lg border border-red-500 bg-red-50 text-sm text-red-700 outline-none focus:ring-2 focus:ring-red-300 focus:border-red-500"
+    : "w-full px-3 py-2.5 rounded-lg border border-gray-200 bg-white text-sm outline-none focus:border-[#0D1B8C] focus:ring-1 focus:ring-[#0D1B8C]/20 text-gray-700";
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+      <label className={`block text-sm font-medium mb-1 ${labelCls}`}>{label}</label>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full px-3 py-2.5 rounded-lg border border-gray-200 bg-white text-sm outline-none focus:border-[#0D1B8C] focus:ring-1 focus:ring-[#0D1B8C]/20 text-gray-700"
+        aria-invalid={invalid || undefined}
+        className={selectCls}
       >
         <option value="">{placeholder ?? "Selecione..."}</option>
         {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -95,15 +76,19 @@ function SelectField({
 }
 
 function RadioGroup({
-  label, value, onChange, options,
+  label, value, onChange, options, invalid,
 }: {
   label: string; value: string; onChange: (v: string) => void;
-  options: { value: string; label: string }[];
+  options: { value: string; label: string }[]; invalid?: boolean;
 }) {
+  const labelCls = invalid ? "text-red-600" : "text-gray-700";
+  const wrapperCls = invalid
+    ? "flex gap-4 rounded-lg border border-red-500 bg-red-50 px-3 py-2"
+    : "flex gap-4";
   return (
     <div>
-      <label className="block text-sm font-medium text-gray-700 mb-2">{label}</label>
-      <div className="flex gap-4">
+      <label className={`block text-sm font-medium mb-2 ${labelCls}`}>{label}</label>
+      <div className={wrapperCls} role="radiogroup" aria-invalid={invalid || undefined}>
         {options.map((o) => (
           <label key={o.value} className="flex items-center gap-2 cursor-pointer">
             <input
@@ -113,7 +98,7 @@ function RadioGroup({
               onChange={() => onChange(o.value)}
               className="w-4 h-4 accent-[#0D1B8C]"
             />
-            <span className="text-sm text-gray-700">{o.label}</span>
+            <span className={`text-sm ${invalid ? "text-red-700" : "text-gray-700"}`}>{o.label}</span>
           </label>
         ))}
       </div>
@@ -151,6 +136,46 @@ export function ClientMeusDados() {
   const [tab, setTab] = useState<"dados" | "documentos" | "conta">(initialTab as any);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
+  const [errFields, setErrFields] = useState<Set<string>>(new Set());
+
+  // Mapeia campos do payload do backend para nomes de inputs do form local.
+  const FIELD_TO_FORM: Record<string, keyof typeof form> = {
+    name: "name",
+    birthDate: "birthDate",
+    profession: "profissao",
+    employmentType: "carteiraAssinada",
+    income: "income",
+    informalIncome: "informalIncome",
+    maritalStatus: "maritalStatus",
+    propertyValue: "propertyValue",
+    propertyCity: "cidadeImovel",
+    propertyState: "propertyState",
+    spouseName: "spouseName",
+    spouseCpf: "spouseCpf",
+    spouseBirthDate: "spouseBirthDate",
+    spouseProfession: "spouseProfissao",
+    spouseIncome: "spouseIncome",
+  };
+
+  function isInvalid(formKey: keyof typeof form): boolean {
+    for (const [api, local] of Object.entries(FIELD_TO_FORM)) {
+      if (local === formKey && errFields.has(api)) return true;
+    }
+    return false;
+  }
+
+  function clearFieldError(formKey: keyof typeof form) {
+    setErrFields((prev) => {
+      let next: Set<string> | null = null;
+      for (const [api, local] of Object.entries(FIELD_TO_FORM)) {
+        if (local === formKey && prev.has(api)) {
+          if (!next) next = new Set(prev);
+          next.delete(api);
+        }
+      }
+      return next ?? prev;
+    });
+  }
 
   const [form, setForm] = useState({
     name: "", cpf: "",
@@ -187,11 +212,15 @@ export function ClientMeusDados() {
     });
   }, [profile]);
 
-  const setField = (key: keyof typeof form) => (val: string) =>
+  const setField = (key: keyof typeof form) => (val: string) => {
     setForm((f) => ({ ...f, [key]: val }));
+    clearFieldError(key);
+  };
 
-  const setBRL = (key: keyof typeof form) => (raw: string) =>
+  const setBRL = (key: keyof typeof form) => (raw: string) => {
     setForm((f) => ({ ...f, [key]: maskBRL(raw) }));
+    clearFieldError(key);
+  };
 
   const needsSpouse = form.maritalStatus === "casado" || form.maritalStatus === "uniao_estavel";
 
@@ -204,6 +233,8 @@ export function ClientMeusDados() {
   const handleSave = async () => {
     const errs = validate();
     if (Object.keys(errs).length > 0) { setErrors(errs); return; }
+    setErrors({});
+    setErrFields(new Set());
 
     setSaving(true);
     try {
@@ -242,7 +273,24 @@ export function ClientMeusDados() {
         body: JSON.stringify(body),
       });
 
-      if (!resp.ok) throw new Error("Erro ao salvar");
+      if (!resp.ok) {
+        const j: { error?: unknown; fields?: unknown } = await resp
+          .json()
+          .catch(() => ({}));
+        if (Array.isArray(j.fields)) {
+          setErrFields(
+            new Set(j.fields.filter((f): f is string => typeof f === "string")),
+          );
+        }
+        toast({
+          title: "Verifique os campos destacados",
+          description:
+            typeof j.error === "string" && j.error
+              ? j.error
+              : "Alguns dados não passaram na validação.",
+        });
+        return;
+      }
 
       await queryClient.invalidateQueries({ queryKey: getGetClientProfileQueryKey() });
       toast({ title: "Dados salvos com sucesso!" });
@@ -323,6 +371,7 @@ export function ClientMeusDados() {
               onChange={setField("name")}
               placeholder="Seu nome completo"
               error={errors.name}
+              invalid={isInvalid("name")}
             />
             <Field
               label="Data de nascimento"
@@ -330,6 +379,7 @@ export function ClientMeusDados() {
               onChange={setField("birthDate")}
               type="date"
               hint="Opcional. Mínimo 18 anos se informada."
+              invalid={isInvalid("birthDate")}
             />
           </div>
 
@@ -346,6 +396,7 @@ export function ClientMeusDados() {
               value={form.cidadeImovel}
               onChange={setField("cidadeImovel")}
               placeholder="Selecione..."
+              invalid={isInvalid("cidadeImovel")}
             />
           </div>
 
@@ -356,12 +407,14 @@ export function ClientMeusDados() {
               value={form.profissao}
               onChange={setField("profissao")}
               placeholder="Sua profissão"
+              invalid={isInvalid("profissao")}
             />
             <RadioGroup
               label="Tem ou já teve mais de 3 anos de carteira assinada?"
               value={form.carteiraAssinada}
               onChange={setField("carteiraAssinada")}
               options={[{ value: "sim", label: "Sim" }, { value: "nao", label: "Não" }]}
+              invalid={isInvalid("carteiraAssinada")}
             />
           </div>
 
@@ -372,12 +425,14 @@ export function ClientMeusDados() {
               value={form.income}
               onChange={setBRL("income")}
               placeholder="0,00"
+              invalid={isInvalid("income")}
             />
             <Field
               label="Renda informal (R$)"
               value={form.informalIncome}
               onChange={setBRL("informalIncome")}
               placeholder="0,00"
+              invalid={isInvalid("informalIncome")}
             />
           </div>
 
@@ -388,6 +443,7 @@ export function ClientMeusDados() {
               value={form.maritalStatus}
               onChange={setField("maritalStatus")}
               options={MARITAL_OPTIONS}
+              invalid={isInvalid("maritalStatus")}
             />
             <SelectField
               label="UF do imóvel"
@@ -395,6 +451,7 @@ export function ClientMeusDados() {
               onChange={setField("propertyState")}
               options={BR_STATES.map((s) => ({ value: s, label: s }))}
               placeholder="UF"
+              invalid={isInvalid("propertyState")}
             />
           </div>
 
@@ -407,14 +464,19 @@ export function ClientMeusDados() {
                 <Field
                   label="CPF do cônjuge *"
                   value={form.spouseCpf}
-                  onChange={(v) => setForm((f) => ({ ...f, spouseCpf: maskCPF(v) }))}
+                  onChange={(v) => {
+                    setForm((f) => ({ ...f, spouseCpf: maskCPF(v) }));
+                    clearFieldError("spouseCpf");
+                  }}
                   placeholder="000.000.000-00"
+                  invalid={isInvalid("spouseCpf")}
                 />
                 <Field
                   label="Nome do cônjuge *"
                   value={form.spouseName}
                   onChange={setField("spouseName")}
                   placeholder="Nome completo"
+                  invalid={isInvalid("spouseName")}
                 />
               </div>
 
@@ -424,6 +486,7 @@ export function ClientMeusDados() {
                   value={form.spouseBirthDate}
                   onChange={setField("spouseBirthDate")}
                   type="date"
+                  invalid={isInvalid("spouseBirthDate")}
                 />
                 <Field
                   label="Cidade de moradia *"
@@ -438,6 +501,7 @@ export function ClientMeusDados() {
                 value={form.spouseProfissao}
                 onChange={setField("spouseProfissao")}
                 placeholder="Profissão do cônjuge"
+                invalid={isInvalid("spouseProfissao")}
               />
 
               <div className="grid sm:grid-cols-2 gap-4">
@@ -446,6 +510,7 @@ export function ClientMeusDados() {
                   value={form.spouseIncome}
                   onChange={setBRL("spouseIncome")}
                   placeholder="0,00"
+                  invalid={isInvalid("spouseIncome")}
                 />
                 <Field
                   label="Renda informal (R$)"

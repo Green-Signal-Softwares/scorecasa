@@ -2,6 +2,7 @@ import { useEffect, useMemo, useState } from "react";
 import { useLocation } from "wouter";
 import { useGetMe, getGetMeQueryKey } from "@workspace/api-client-react";
 import { ClientLayout } from "@/components/layout/ClientLayout";
+import { FormField, type FormFieldProps } from "@/components/FormField";
 import {
   Car, Wallet, CreditCard, Landmark, ExternalLink, Save, ShieldCheck,
   AlertTriangle, CheckCircle2, Info, Building2, Link2, Unlink, Loader2,
@@ -586,40 +587,6 @@ function OFStat({ label, value, good, bad }: { label: string; value: string; goo
   );
 }
 
-function Field({
-  icon: Icon, label, placeholder, value, onChange, max, type = "number", testId, invalid,
-}: {
-  icon?: typeof Car;
-  label: string;
-  placeholder?: string;
-  value: string;
-  onChange: (v: string) => void;
-  max?: number;
-  type?: "number" | "text";
-  testId?: string;
-  invalid?: boolean;
-}) {
-  const labelColor = invalid ? "text-red-600" : "text-gray-600";
-  const inputCls = invalid
-    ? "w-full h-10 px-3 rounded-md border border-red-500 bg-red-50 text-sm text-red-700 placeholder-red-300 focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-red-500"
-    : "w-full h-10 px-3 rounded-md border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#0D1B8C]/30 focus:border-[#0D1B8C]";
-  return (
-    <div>
-      <label className={`text-xs block mb-1 flex items-center gap-1 ${labelColor}`}>
-        {Icon && <Icon className="w-3 h-3" />}
-        {label}
-      </label>
-      <input
-        type={type}
-        min={type === "number" ? 0 : undefined}
-        max={max}
-        placeholder={placeholder}
-        value={value}
-        onChange={(e) => onChange(e.target.value)}
-        data-testid={testId}
-        aria-invalid={invalid || undefined}
-        className={inputCls}
-      />
-    </div>
-  );
+function Field(props: Omit<FormFieldProps, "size" | "type"> & { type?: "number" | "text" }) {
+  return <FormField {...props} type={props.type ?? "number"} size="compact" />;
 }
