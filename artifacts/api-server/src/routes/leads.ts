@@ -800,6 +800,55 @@ router.get("/:id/score", async (req, res) => {
     };
   });
 
+  // ── Comprometimento mensal informado pelo cliente (parcelas + cartão) ──
+  // Soma os 4 campos visíveis para staff: parcela de veículo, outras parcelas
+  // e o uso estimado do cartão (limite × % utilização). Aparece sempre que pelo
+  // menos um campo foi preenchido pelo cliente; caso contrário, omitido.
+  const _vehicle = lead.vehicleLoanMonthly ?? 0;
+  const _others = lead.otherLoansMonthly ?? 0;
+  const _ccLimit = lead.creditCardLimit;
+  const _ccUsage = lead.creditCardUsage;
+  const _ccMonthly = _ccLimit != null && _ccUsage != null && _ccLimit > 0 && _ccUsage > 0
+    ? (_ccLimit * _ccUsage) / 100
+    : 0;
+  // Cartão considerado "incompleto" quando o cliente preencheu só um dos dois
+  // campos (limite OU utilização). Nesse caso a estimativa em R$ fica imprecisa.
+  const _ccPartial =
+    (_ccLimit != null && _ccUsage == null) || (_ccLimit == null && _ccUsage != null);
+  const _hasAnyDebtField =
+    lead.vehicleLoanMonthly != null ||
+    lead.otherLoansMonthly != null ||
+    lead.creditCardLimit != null ||
+    lead.creditCardUsage != null;
+  if (_hasAnyDebtField) {
+    const monthlyDebtTotal = _vehicle + _others + _ccMonthly;
+    const incomePct = lead.income > 0 ? (monthlyDebtTotal / lead.income) * 100 : 0;
+    let impact: "positive" | "neutral" | "negative" = "positive";
+    let description = "";
+    if (monthlyDebtTotal === 0 && _ccPartial) {
+      impact = "neutral";
+      description = "Cliente preencheu só parte dos dados do cartão — estimativa parcial. Peça que complete limite e % de uso.";
+    } else if (monthlyDebtTotal === 0) {
+      impact = "positive";
+      description = "Cliente declarou não ter parcelas ou uso de cartão — não derruba o score.";
+    } else if (incomePct > 30) {
+      impact = "negative";
+      description = `Comprometimento elevado (${incomePct.toFixed(1)}% da renda) derruba a chance de aprovação.`;
+    } else if (incomePct > 15) {
+      impact = "neutral";
+      description = `Comprometimento moderado (${incomePct.toFixed(1)}% da renda) — atenção ao orçamento.`;
+    } else {
+      impact = "positive";
+      description = `Comprometimento baixo (${incomePct.toFixed(1)}% da renda) — folga para a nova parcela.`;
+    }
+    factors.push({
+      name: "Comprometimento mensal informado pelo cliente",
+      impact,
+      description,
+      value: `R$ ${monthlyDebtTotal.toLocaleString("pt-BR", { maximumFractionDigits: 0 })}`,
+    });
+  }
+
   const eligibleBanks = [];
   if (breakdown.scoreCaixa >= 600) eligibleBanks.push("Caixa Econômica Federal");
   if (breakdown.scoreCaixa >= 650) eligibleBanks.push("Banco do Brasil");
