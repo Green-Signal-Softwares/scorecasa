@@ -1,6 +1,20 @@
 import { Router } from "express";
-import { db, usersTable, leadsTable, clientPaymentsTable } from "@workspace/db";
-import { and, eq, isNull } from "drizzle-orm";
+import { db, usersTable, leadsTable, clientPaymentsTable, subscriptionsTable } from "@workspace/db";
+import { and, eq, isNull, desc } from "drizzle-orm";
+
+// Planos do cliente que liberam Open Finance automático (snapshot sintético).
+// Free preenche manualmente — só os planos pagos têm a coleta automatizada.
+const AUTO_OPEN_FINANCE_PLANS = new Set(["individual", "plus"]);
+
+async function getClientPlanId(userId: number): Promise<string> {
+  const [sub] = await db
+    .select({ plan: subscriptionsTable.plan })
+    .from(subscriptionsTable)
+    .where(eq(subscriptionsTable.userId, userId))
+    .orderBy(desc(subscriptionsTable.createdAt))
+    .limit(1);
+  return sub?.plan ?? "free";
+}
 
 const router = Router();
 
@@ -47,20 +61,76 @@ const connectHandler = async (req: any, res: any) => {
     return;
   }
 
-  const bankFromBody = typeof req.body?.bank === "string" ? req.body.bank.trim() : "";
-  const bank = SIMULATED_BANKS.includes(bankFromBody)
-    ? bankFromBody
-    : SIMULATED_BANKS[Math.floor(Math.random() * SIMULATED_BANKS.length)];
+  const planId = await getClientPlanId(userId);
+  const autoEligible = AUTO_OPEN_FINANCE_PLANS.has(planId);
+  const rawMode = req.body?.mode;
+  let requestedMode: "auto" | "manual";
+  if (rawMode === undefined || rawMode === null) {
+    requestedMode = autoEligible ? "auto" : "manual";
+  } else if (rawMode === "auto" || rawMode === "manual") {
+    requestedMode = rawMode;
+  } else {
+    res.status(400).json({ error: "mode inválido. Use 'auto' ou 'manual'." });
+    return;
+  }
 
-  // Snapshot derivado da renda informada — mantém o cenário plausível.
-  const baseIncome = lead.income || 3000;
-  const avgBalance = Math.round(baseIncome * (0.4 + Math.random() * 0.6));
-  const recurringIncome = Math.round(baseIncome * (0.85 + Math.random() * 0.2));
-  const cardUsage = Math.round(15 + Math.random() * 55); // 15-70%
-  // Probabilidade alta de bons indicadores (Open Finance puxa dados reais
-  // do banco, então a maior parte dos usuários conectando estará em dia).
-  const noLatePayments = Math.random() > 0.18;
-  const cpfClear = Math.random() > 0.1;
+  // Free → bloqueia auto e exige manual. Pagos → aceitam auto (default) ou manual se quiserem editar.
+  if (requestedMode === "auto" && !autoEligible) {
+    res.status(403).json({
+      error: "Open Finance automático está disponível apenas nos planos Individual e Plus. No plano Free, preencha seus dados manualmente.",
+      requiresUpgrade: true,
+    });
+    return;
+  }
+
+  let bank: string;
+  let avgBalance: number;
+  let recurringIncome: number;
+  let cardUsage: number;
+  let noLatePayments: boolean;
+  let cpfClear: boolean;
+  let source: "auto" | "manual";
+
+  if (requestedMode === "manual") {
+    // Plano Free preenche tudo na mão. Validamos os 5 indicadores.
+    const b = req.body ?? {};
+    const num = (v: any, min: number, max: number): number | null => {
+      const n = Number(v);
+      if (!Number.isFinite(n) || n < min || n > max) return null;
+      return n;
+    };
+    const _avg = num(b.avgBalance, 0, 10_000_000);
+    const _inc = num(b.recurringIncome, 0, 10_000_000);
+    const _card = num(b.cardUsage, 0, 100);
+    if (_avg == null || _inc == null || _card == null || typeof b.noLatePayments !== "boolean" || typeof b.cpfClear !== "boolean") {
+      res.status(400).json({
+        error: "Preencha todos os campos: saldo médio, renda recorrente, uso do cartão (%), pontualidade e CPF.",
+        fields: ["avgBalance", "recurringIncome", "cardUsage", "noLatePayments", "cpfClear"],
+      });
+      return;
+    }
+    bank = typeof b.bank === "string" && b.bank.trim() ? b.bank.trim().slice(0, 80) : "Preenchido manualmente";
+    avgBalance = Math.round(_avg);
+    recurringIncome = Math.round(_inc);
+    cardUsage = Math.round(_card);
+    noLatePayments = b.noLatePayments;
+    cpfClear = b.cpfClear;
+    source = "manual";
+  } else {
+    const bankFromBody = typeof req.body?.bank === "string" ? req.body.bank.trim() : "";
+    bank = SIMULATED_BANKS.includes(bankFromBody)
+      ? bankFromBody
+      : SIMULATED_BANKS[Math.floor(Math.random() * SIMULATED_BANKS.length)];
+
+    // Snapshot derivado da renda informada — mantém o cenário plausível.
+    const baseIncome = lead.income || 3000;
+    avgBalance = Math.round(baseIncome * (0.4 + Math.random() * 0.6));
+    recurringIncome = Math.round(baseIncome * (0.85 + Math.random() * 0.2));
+    cardUsage = Math.round(15 + Math.random() * 55); // 15-70%
+    noLatePayments = Math.random() > 0.18;
+    cpfClear = Math.random() > 0.1;
+    source = "auto";
+  }
 
   const [updated] = await db
     .update(leadsTable)
@@ -73,21 +143,21 @@ const connectHandler = async (req: any, res: any) => {
       openFinanceCardUsage: cardUsage,
       openFinanceNoLatePayments: noLatePayments,
       openFinanceCpfClear: cpfClear,
+      openFinanceSource: source,
       updatedAt: new Date(),
     })
     .where(eq(leadsTable.id, lead.id))
     .returning();
 
-  // Sincroniza a aba "Pagamentos" com os dados do Open Finance:
-  // - Recalcula a fatura do cartão proporcional ao uso real (cardUsage %)
-  // - Se o cliente estiver "em dia" segundo OF, move pagamentos atrasados
-  //   recorrentes para a próxima janela (simula que já foram quitados na origem).
-  // - Marca todos os pagamentos como source='open_finance' + syncedAt=now.
-  await syncPaymentsFromOpenFinance(lead.id, {
-    income: baseIncome,
-    cardUsagePct: cardUsage,
-    noLatePayments,
-  });
+  // No modo automático sincronizamos a aba "Pagamentos" com o snapshot do banco.
+  // No modo manual mantemos os pagamentos como o cliente já cadastrou.
+  if (source === "auto") {
+    await syncPaymentsFromOpenFinance(lead.id, {
+      income: lead.income || 3000,
+      cardUsagePct: cardUsage,
+      noLatePayments,
+    });
+  }
 
   res.json({
     connected: true,
@@ -98,6 +168,7 @@ const connectHandler = async (req: any, res: any) => {
     cardUsage: updated.openFinanceCardUsage,
     noLatePayments: updated.openFinanceNoLatePayments,
     cpfClear: updated.openFinanceCpfClear,
+    source: updated.openFinanceSource,
   });
 };
 
@@ -119,6 +190,8 @@ router.get("/", requireClient, async (req, res) => {
     res.status(404).json({ error: "Lead não encontrado." });
     return;
   }
+  const planId = await getClientPlanId(userId);
+  const autoEligible = AUTO_OPEN_FINANCE_PLANS.has(planId);
   res.json({
     connected: !!lead.openFinanceConnected,
     connectedAt: lead.openFinanceConnectedAt?.toISOString() ?? null,
@@ -128,7 +201,10 @@ router.get("/", requireClient, async (req, res) => {
     cardUsage: lead.openFinanceCardUsage,
     noLatePayments: lead.openFinanceNoLatePayments,
     cpfClear: lead.openFinanceCpfClear,
+    source: lead.openFinanceSource,
     availableBanks: SIMULATED_BANKS,
+    mode: autoEligible ? "auto" : "manual",
+    plan: planId,
   });
 });
 
@@ -151,6 +227,7 @@ router.delete("/", requireClient, async (req, res) => {
       openFinanceCardUsage: null,
       openFinanceNoLatePayments: null,
       openFinanceCpfClear: null,
+      openFinanceSource: null,
       updatedAt: new Date(),
     })
     .where(eq(leadsTable.id, user.leadId));

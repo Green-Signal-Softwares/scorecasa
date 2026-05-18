@@ -100,6 +100,7 @@ export const leadsTable = pgTable("leads", {
   openFinanceCardUsage: real("open_finance_card_usage"),
   openFinanceNoLatePayments: boolean("open_finance_no_late_payments"),
   openFinanceCpfClear: boolean("open_finance_cpf_clear"),
+  openFinanceSource: text("open_finance_source"),
 
   // ── Preferência de banco para prosseguir (cliente escolhe) ───
   // null = ainda não escolheu; "caixa" = vai prosseguir pela CEF
