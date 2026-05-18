@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useLocation, Link } from "wouter";
 import {
   Eye, EyeOff, ArrowRight, ArrowLeft, Building2, User, Briefcase,
-  Landmark, ShieldCheck, Check, Lock, Sparkles, Search, Users, Crown,
+  Landmark, ShieldCheck, Check, Lock, Sparkles, Search,
 } from "lucide-react";
 import { ScoreCasaLogo, ScoreCasaWordmark } from "@/components/ScoreCasaLogo";
 import { useQueryClient } from "@tanstack/react-query";
@@ -167,47 +167,21 @@ const PLANS: PlanInfo[] = [
   },
   // ── Correspondente ──
   {
-    id: "correspondente_individual",
-    label: "Correspondente Individual",
+    id: "bank_connect",
+    label: "Bank Connect",
     role: "correspondent",
-    priceMonthly: 697,
-    description: "Operação solo de correspondente bancário com esteira completa.",
+    priceMonthly: 2497,
+    description: "Integração direta com Caixa, bancos privados e originação completa.",
     features: [
-      "1 acesso (titular da operação)",
+      "ScoreCasa Conectado (extensão Chrome)",
+      "Espelhamento Caixa Aqui + bancos privados",
       "Esteira completa: aprovação → contrato",
       "Originação de financiamento",
-      "Gestão de documentação bancária",
-    ],
-    enterprise: false,
-  },
-  {
-    id: "correspondente_sucesso",
-    label: "Correspondente de Sucesso",
-    role: "correspondent",
-    priceMonthly: 997,
-    description: "Time pequeno: até 3 acessos para funcionários da correspondente.",
-    features: [
-      "Até 3 acessos diferentes (3 funcionários)",
-      "Tudo do Correspondente Individual",
       "Painel multi-correspondentes",
-      "Suporte prioritário",
+      "Gerente de conta bancária",
     ],
     enterprise: false,
     highlight: true,
-  },
-  {
-    id: "correspondente_connect",
-    label: "Correspondente Connect",
-    role: "correspondent",
-    priceMonthly: 1297,
-    description: "Tudo do Correspondente de Sucesso + extensão de espelhamento Caixa Aqui.",
-    features: [
-      "Tudo do Correspondente de Sucesso",
-      "Extensão Chrome: espelhamento Caixa Aqui",
-      "ScoreCasa Conectado (integração CEF)",
-      "Gerente de conta bancária dedicado",
-    ],
-    enterprise: false,
   },
 ];
 

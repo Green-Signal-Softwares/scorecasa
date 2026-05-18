@@ -1921,7 +1921,7 @@ components:
           type: string
         plan:
           type: string
-          enum: [free, individual, plus, corretor, imobiliaria, enterprise, correspondente_individual, correspondente_sucesso, correspondente_connect, bank_connect, corretor_50, corretor_200, corretor_enterprise, correspondent_50, correspondent_200, correspondent_enterprise, client, correspondent]
+          enum: [free, individual, plus, corretor, imobiliaria, enterprise, bank_connect, corretor_50, corretor_200, corretor_enterprise, correspondent_50, correspondent_200, correspondent_enterprise, client, correspondent]
         status:
           type: string
           enum: [trial, active, overdue, cancelled, inactive]
@@ -1978,7 +1978,7 @@ components:
           type: string
         plan:
           type: string
-          enum: [free, individual, plus, corretor, imobiliaria, enterprise, correspondente_individual, correspondente_sucesso, correspondente_connect, bank_connect, corretor_50, corretor_200, corretor_enterprise, correspondent_50, correspondent_200, correspondent_enterprise, client, correspondent]
+          enum: [free, individual, plus, corretor, imobiliaria, enterprise, bank_connect, corretor_50, corretor_200, corretor_enterprise, correspondent_50, correspondent_200, correspondent_enterprise, client, correspondent]
         status:
           type: string
           enum: [trial, active, overdue, cancelled, inactive]
@@ -1998,7 +1998,7 @@ components:
       properties:
         plan:
           type: string
-          enum: [free, individual, plus, corretor, imobiliaria, enterprise, correspondente_individual, correspondente_sucesso, correspondente_connect, bank_connect, corretor_50, corretor_200, corretor_enterprise, correspondent_50, correspondent_200, correspondent_enterprise, client, correspondent]
+          enum: [free, individual, plus, corretor, imobiliaria, enterprise, bank_connect, corretor_50, corretor_200, corretor_enterprise, correspondent_50, correspondent_200, correspondent_enterprise, client, correspondent]
         status:
           type: string
           enum: [trial, active, overdue, cancelled, inactive]

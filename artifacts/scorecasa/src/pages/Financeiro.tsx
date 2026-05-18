@@ -104,41 +104,18 @@ const PLAN_TIERS = {
     ],
   },
   // ── Correspondente / Banking ──
-  correspondente_individual: {
-    id: "correspondente_individual", label: "Correspondente Individual", group: "correspondent",
-    role: "correspondent", priceMonthly: 697.00, leadLimit: null, enterprise: false,
+  bank_connect: {
+    id: "bank_connect", label: "Bank Connect", group: "correspondent",
+    role: "correspondent", priceMonthly: 2497.00, leadLimit: null, enterprise: false,
     color: "#7C3AED", bg: "#F5F3FF", icon: Landmark,
-    description: "Operação solo de correspondente bancário com esteira completa",
+    description: "Integração direta com Caixa, bancos privados e originação completa",
     features: [
-      "1 acesso (titular da operação)",
+      "ScoreCasa Conectado (extensão Chrome)",
+      "Espelhamento Caixa Aqui + bancos privados",
       "Esteira completa: aprovação → engenharia → conformidade → contrato",
       "Gestão de documentação bancária",
       "Originação de financiamento",
-      "Suporte padrão",
-    ],
-  },
-  correspondente_sucesso: {
-    id: "correspondente_sucesso", label: "Correspondente de Sucesso", group: "correspondent",
-    role: "correspondent", priceMonthly: 997.00, leadLimit: null, enterprise: false,
-    color: "#6D28D9", bg: "#F5F3FF", icon: Users,
-    description: "Time pequeno: até 3 acessos para funcionários da correspondente (sem extensão Caixa)",
-    features: [
-      "Até 3 acessos diferentes (3 funcionários)",
-      "Tudo do Correspondente Individual",
       "Painel multi-correspondentes",
-      "Relatórios consolidados da operação",
-      "Suporte prioritário",
-    ],
-  },
-  correspondente_connect: {
-    id: "correspondente_connect", label: "Correspondente Connect", group: "correspondent",
-    role: "correspondent", priceMonthly: 1297.00, leadLimit: null, enterprise: false,
-    color: "#5B21B6", bg: "#F5F3FF", icon: Crown,
-    description: "Tudo do Correspondente de Sucesso + extensão de espelhamento Caixa Aqui",
-    features: [
-      "Tudo do Correspondente de Sucesso",
-      "Extensão Chrome: espelhamento Caixa Aqui",
-      "ScoreCasa Conectado (integração CEF)",
       "Gerente de conta bancária dedicado",
       "Contrato sob medida",
     ],
@@ -390,7 +367,7 @@ function IndividualView({ role }: { role: string }) {
   const { data: me } = useGetMe({});
 
   const defaultPlanMap: Record<string, PlanId> = {
-    client: "free", broker: "corretor", correspondent: "correspondente_individual",
+    client: "free", broker: "corretor", correspondent: "bank_connect",
   };
   const myDefaultPlan = defaultPlanMap[role] ?? "free";
   const currentPlanId = (sub as any)?.plan as PlanId | undefined;

@@ -21,9 +21,8 @@ const ALL_PLANS = [
   // Estrutura atual
   "free", "individual", "plus",
   "corretor", "imobiliaria", "enterprise",
-  "correspondente_individual", "correspondente_sucesso", "correspondente_connect",
-  // Legacy
   "bank_connect",
+  // Legacy
   "corretor_50", "corretor_200", "corretor_enterprise",
   "correspondent_50", "correspondent_200", "correspondent_enterprise",
   "client", "correspondent",
