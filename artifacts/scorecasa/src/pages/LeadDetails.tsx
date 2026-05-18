@@ -696,7 +696,7 @@ export function LeadDetails({ id }: { id: number }) {
                     aprovacao
                   </text>
                 </svg>
-                <div className="text-xs font-medium text-muted-foreground mt-1">Chance IA</div>
+                <div className="text-xs font-medium text-muted-foreground mt-1">Índice de Aprovação</div>
               </div>
               <ScoreGauge value={lead.scoreCaixa} max={1000} label="Score Caixa" />
               <ScoreGauge value={lead.scoreMCMV} max={1000} label="Score MCMV" />

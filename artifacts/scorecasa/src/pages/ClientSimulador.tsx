@@ -198,6 +198,20 @@ function simulate(opts: {
   };
 }
 
+function LtvRow({ label, pct, color }: { label: string; pct: number; color: string }) {
+  return (
+    <div>
+      <div className="flex items-center justify-between text-xs mb-1">
+        <span className="text-gray-700">{label}</span>
+        <span className="font-bold" style={{ color }}>até {pct}%</span>
+      </div>
+      <div className="h-1.5 bg-gray-100 rounded-full overflow-hidden">
+        <div className="h-full rounded-full" style={{ width: `${pct}%`, background: color }} />
+      </div>
+    </div>
+  );
+}
+
 export function ClientSimulador() {
   const [, setLocation] = useLocation();
 
@@ -213,7 +227,39 @@ export function ClientSimulador() {
     if (!loadingMe && !me) setLocation("/login");
   }, [loadingMe, me, setLocation]);
 
-  const lead = profile?.lead;
+  const lead = profile?.lead as undefined | (NonNullable<typeof profile>["lead"] & { birthDate?: string | null; spouseBirthDate?: string | null });
+  const BASE = useMemo(() => import.meta.env.BASE_URL.replace(/\/$/, ""), []);
+
+  // Calculadora de prazo máximo: regra idade + prazo ≤ 80 anos e 6 meses.
+  const [maxTerm, setMaxTerm] = useState<{
+    maxYearsLabel: string;
+    maxTotalMonths: number;
+    ageReference: number;
+    usedSpouseAge: boolean;
+    explanation: string;
+  } | null>(null);
+  useEffect(() => {
+    if (!lead?.birthDate) return;
+    const qs = new URLSearchParams({ birthDate: lead.birthDate });
+    if (lead.spouseBirthDate) qs.set("spouseBirthDate", lead.spouseBirthDate);
+    fetch(`${BASE}/api/calc/max-term?${qs}`).then(async (r) => {
+      if (r.ok) setMaxTerm(await r.json());
+    }).catch(() => {});
+  }, [BASE, lead?.birthDate, lead?.spouseBirthDate]);
+
+  // LTV oficial Caixa (scraping com fallback 90/80/70).
+  const [caixaLtv, setCaixaLtv] = useState<{
+    empreendimentoLtv: number;
+    novoIndividualLtv: number;
+    usadoLtv: number;
+    status: string;
+    fetchedAt: string;
+  } | null>(null);
+  useEffect(() => {
+    fetch(`${BASE}/api/caixa-ltv`).then(async (r) => {
+      if (r.ok) setCaixaLtv(await r.json());
+    }).catch(() => {});
+  }, [BASE]);
 
   const initialIncome = lead?.income ?? 0;
   const initialPropValue = lead?.propertyValue ?? 0;
@@ -430,6 +476,58 @@ export function ClientSimulador() {
                 Bancos limitam parcela a 30% da renda mensal.
               </p>
             </div>
+          </div>
+
+          {/* ── Prazo máximo do financiamento ── */}
+          <div className="rounded-2xl shadow-sm border border-gray-100 bg-white p-5">
+            <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">
+              Prazo máximo do financiamento
+            </p>
+            {maxTerm ? (
+              <>
+                <div className="text-3xl font-extrabold" style={{ color: "#0D1B8C" }} data-testid="max-term-value">
+                  {maxTerm.maxYearsLabel}
+                </div>
+                <div className="text-xs text-gray-500 mt-1">
+                  {maxTerm.maxTotalMonths} parcelas · idade de referência: {maxTerm.ageReference.toFixed(0)} anos
+                  {maxTerm.usedSpouseAge && " (cônjuge)"}
+                </div>
+                <p className="text-[11px] text-gray-500 mt-3 leading-relaxed">
+                  {maxTerm.explanation}
+                </p>
+              </>
+            ) : lead?.birthDate ? (
+              <p className="text-xs text-gray-400">Calculando…</p>
+            ) : (
+              <p className="text-xs text-gray-500">
+                Preencha sua data de nascimento em <strong>Meus dados</strong> para ver o prazo máximo permitido pela regra <em>idade + prazo ≤ 80 anos e 6 meses</em>.
+              </p>
+            )}
+          </div>
+
+          {/* ── Quanto a Caixa financia (LTV) ── */}
+          <div className="rounded-2xl shadow-sm border border-gray-100 bg-white p-5">
+            <p className="text-xs font-semibold uppercase tracking-widest text-gray-400 mb-3">
+              Quanto a Caixa financia
+            </p>
+            {caixaLtv ? (
+              <>
+                <div className="space-y-2">
+                  <LtvRow label="Empreendimento (apoio à produção)" pct={caixaLtv.empreendimentoLtv} color="#0D1B8C" />
+                  <LtvRow label="Imóvel novo (uso próprio)" pct={caixaLtv.novoIndividualLtv} color="#10A65A" />
+                  <LtvRow label="Imóvel usado" pct={caixaLtv.usadoLtv} color="#EC7000" />
+                </div>
+                <p className="text-[10px] text-gray-400 mt-3 italic">
+                  {caixaLtv.status === "scraped"
+                    ? `Dados atualizados de caixa.gov.br em ${new Date(caixaLtv.fetchedAt).toLocaleDateString("pt-BR")}.`
+                    : caixaLtv.status === "stale"
+                    ? "Última leitura disponível — não foi possível atualizar agora."
+                    : "Valores de referência (a página oficial da Caixa estava indisponível)."}
+                </p>
+              </>
+            ) : (
+              <p className="text-xs text-gray-400">Carregando…</p>
+            )}
           </div>
         </div>
 

@@ -9,3 +9,4 @@ export * from "./sales-history";
 export * from "./processes";
 export * from "./client-payments";
 export * from "./password-resets";
+export * from "./caixa-ltv";

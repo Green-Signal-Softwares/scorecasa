@@ -17,6 +17,9 @@ import bureauOcrRouter from "./bureau-ocr";
 import storageRouter from "./storage";
 import processesRouter from "./processes";
 import cpfLookupRouter from "./cpf-lookup";
+import openFinanceRouter from "./open-finance";
+import caixaLtvRouter from "./caixa-ltv";
+import calcRouter from "./calc";
 
 const router: IRouter = Router();
 
@@ -38,5 +41,8 @@ router.use("/bureau-ocr", bureauOcrRouter);
 router.use(storageRouter);
 router.use("/correspondent/processes", processesRouter);
 router.use("/cpf", cpfLookupRouter);
+router.use("/client/open-finance", openFinanceRouter);
+router.use("/caixa-ltv", caixaLtvRouter);
+router.use("/calc", calcRouter);
 
 export default router;

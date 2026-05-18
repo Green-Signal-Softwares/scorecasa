@@ -4,8 +4,20 @@ import { useGetMe, getGetMeQueryKey } from "@workspace/api-client-react";
 import { ClientLayout } from "@/components/layout/ClientLayout";
 import {
   Car, Wallet, CreditCard, Landmark, ExternalLink, Save, ShieldCheck,
-  AlertTriangle, CheckCircle2, Info,
+  AlertTriangle, CheckCircle2, Info, Building2, Link2, Unlink, Loader2,
 } from "lucide-react";
+
+interface OpenFinanceState {
+  connected: boolean;
+  connectedAt: string | null;
+  bank: string | null;
+  avgBalance: number | null;
+  recurringIncome: number | null;
+  cardUsage: number | null;
+  noLatePayments: boolean | null;
+  cpfClear: boolean | null;
+  availableBanks: string[];
+}
 
 interface ClientProfile {
   user: { id: number; name: string; email: string; role: string; leadId: number };
@@ -50,6 +62,10 @@ export function ClientDividas() {
   const [saved, setSaved] = useState(false);
   const [err, setErr] = useState<string | null>(null);
 
+  const [of, setOf] = useState<OpenFinanceState | null>(null);
+  const [ofLoading, setOfLoading] = useState(false);
+  const [ofConsent, setOfConsent] = useState<string | null>(null); // null = fechado, string = banco selecionado
+
   const [form, setForm] = useState({
     vehicleLoanMonthly: "",
     otherLoansMonthly: "",
@@ -85,7 +101,53 @@ export function ClientDividas() {
         setLoading(false);
       }
     })();
+    (async () => {
+      try {
+        const r = await fetch(`${BASE}/api/client/open-finance`, { credentials: "include" });
+        if (r.ok) setOf(await r.json());
+      } catch { /* ignore */ }
+    })();
   }, [BASE]);
+
+  async function handleConnectOF(bank: string) {
+    setOfLoading(true);
+    setErr(null);
+    try {
+      const r = await fetch(`${BASE}/api/client/open-finance/connect`, {
+        method: "POST",
+        credentials: "include",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ bank }),
+      });
+      if (!r.ok) throw new Error("Falha ao conectar.");
+      const data = await r.json();
+      setOf((prev) => ({
+        ...(prev ?? { availableBanks: [] }),
+        ...data,
+      }));
+      setOfConsent(null);
+      setSaved(true);
+      setTimeout(() => setSaved(false), 3000);
+    } catch (e: any) {
+      setErr(e.message ?? "Não foi possível conectar ao Open Finance.");
+    } finally {
+      setOfLoading(false);
+    }
+  }
+
+  async function handleDisconnectOF() {
+    if (!confirm("Desconectar o Open Finance? Os indicadores deixarão de alimentar seu Índice de Aprovação.")) return;
+    setOfLoading(true);
+    try {
+      await fetch(`${BASE}/api/client/open-finance`, {
+        method: "DELETE",
+        credentials: "include",
+      });
+      setOf((prev) => prev ? { ...prev, connected: false, connectedAt: null, bank: null, avgBalance: null, recurringIncome: null, cardUsage: null, noLatePayments: null, cpfClear: null } : prev);
+    } finally {
+      setOfLoading(false);
+    }
+  }
 
   async function handleSave() {
     setSaving(true);
@@ -344,6 +406,115 @@ export function ClientDividas() {
             </div>
           </section>
 
+          {/* ── Open Finance (simulado) ── */}
+          <section className="rounded-2xl border border-gray-100 bg-white p-5 shadow-sm">
+            <div className="flex items-start gap-3 mb-3">
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: "#0D1B8C15" }}>
+                <Building2 className="w-5 h-5" style={{ color: "#0D1B8C" }} />
+              </div>
+              <div className="flex-1 min-w-0">
+                <h2 className="text-base font-bold text-gray-900">Open Finance</h2>
+                <p className="text-xs text-gray-500 mt-0.5">
+                  Conecte seu banco para que sua movimentação real (saldo médio, salário, pontualidade) alimente automaticamente o bloco <strong>Histórico Financeiro</strong> do seu Índice de Aprovação.
+                </p>
+              </div>
+            </div>
+
+            {of?.connected ? (
+              <div className="rounded-xl border p-4" style={{ background: "#F0FDF4", borderColor: "#10A65A55" }}>
+                <div className="flex items-center justify-between gap-3 mb-3">
+                  <div className="flex items-center gap-2">
+                    <CheckCircle2 className="w-4 h-4" style={{ color: "#065F46" }} />
+                    <span className="text-sm font-semibold" style={{ color: "#065F46" }}>
+                      Conectado a {of.bank}
+                    </span>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={handleDisconnectOF}
+                    disabled={ofLoading}
+                    className="flex items-center gap-1 text-xs font-medium text-gray-600 hover:text-red-600 disabled:opacity-50"
+                    data-testid="button-disconnect-of"
+                  >
+                    <Unlink className="w-3.5 h-3.5" />
+                    Desconectar
+                  </button>
+                </div>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
+                  <OFStat label="Saldo médio (6m)" value={brl(of.avgBalance)} />
+                  <OFStat label="Renda recorrente" value={brl(of.recurringIncome)} />
+                  <OFStat label="Uso do cartão" value={of.cardUsage != null ? `${of.cardUsage}%` : "—"} />
+                  <OFStat
+                    label="Pontualidade"
+                    value={of.noLatePayments ? "Sem atrasos" : "Houve atrasos"}
+                    good={of.noLatePayments === true}
+                    bad={of.noLatePayments === false}
+                  />
+                  <OFStat
+                    label="CPF"
+                    value={of.cpfClear ? "Sem restrições" : "Com restrições"}
+                    good={of.cpfClear === true}
+                    bad={of.cpfClear === false}
+                  />
+                  {of.connectedAt && (
+                    <OFStat label="Conectado em" value={new Date(of.connectedAt).toLocaleDateString("pt-BR")} />
+                  )}
+                </div>
+              </div>
+            ) : ofConsent ? (
+              <div className="rounded-xl border border-blue-200 bg-blue-50 p-4">
+                <div className="flex items-start gap-2 mb-3">
+                  <ShieldCheck className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: "#0D1B8C" }} />
+                  <div className="text-xs text-gray-700 leading-relaxed">
+                    Ao conectar com <strong>{ofConsent}</strong>, você autoriza a ScoreCasa a consultar de forma <strong>somente leitura</strong>:
+                    saldo médio, renda recorrente, uso do cartão e histórico de pontualidade dos últimos 6 meses. Os dados são usados exclusivamente para calcular seu Índice de Aprovação. Você pode revogar a qualquer momento.
+                  </div>
+                </div>
+                <div className="flex flex-wrap gap-2">
+                  <button
+                    type="button"
+                    onClick={() => handleConnectOF(ofConsent)}
+                    disabled={ofLoading}
+                    className="flex items-center gap-2 px-4 py-2 rounded-lg text-sm font-semibold text-white disabled:opacity-60"
+                    style={{ background: "#0D1B8C" }}
+                    data-testid="button-confirm-consent"
+                  >
+                    {ofLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
+                    Autorizar e conectar
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setOfConsent(null)}
+                    className="px-4 py-2 rounded-lg text-sm font-medium text-gray-600 hover:bg-gray-100"
+                  >
+                    Cancelar
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <div>
+                <p className="text-xs text-gray-600 mb-2">Escolha seu banco principal:</p>
+                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
+                  {(of?.availableBanks ?? []).map((b) => (
+                    <button
+                      key={b}
+                      type="button"
+                      onClick={() => setOfConsent(b)}
+                      className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 hover:border-[#0D1B8C] hover:bg-blue-50 transition-colors"
+                      data-testid={`button-of-bank-${b.replace(/\s+/g, "-").toLowerCase()}`}
+                    >
+                      <Building2 className="w-3.5 h-3.5 text-gray-400" />
+                      <span className="truncate">{b}</span>
+                    </button>
+                  ))}
+                </div>
+                <p className="text-[11px] text-gray-400 mt-2 italic">
+                  Fluxo simulado para demonstração. Em produção, redireciona ao consentimento oficial do Open Finance Brasil.
+                </p>
+              </div>
+            )}
+          </section>
+
           {/* Feedback */}
           {err && (
             <div className="rounded-lg p-3 flex items-start gap-2 text-xs" style={{ background: "#FEF2F2", color: "#991B1B" }}>
@@ -378,6 +549,16 @@ export function ClientDividas() {
         </div>
       )}
     </ClientLayout>
+  );
+}
+
+function OFStat({ label, value, good, bad }: { label: string; value: string; good?: boolean; bad?: boolean }) {
+  const color = good ? "#065F46" : bad ? "#991B1B" : "#0F172A";
+  return (
+    <div>
+      <div className="text-[10px] uppercase tracking-wider text-gray-500">{label}</div>
+      <div className="text-sm font-bold mt-0.5" style={{ color }}>{value}</div>
+    </div>
   );
 }
 

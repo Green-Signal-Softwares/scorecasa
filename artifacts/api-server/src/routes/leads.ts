@@ -100,14 +100,64 @@ interface ScoreInput {
   vehicleLoanMonthly?: number | null;
   creditCardUsage?: number | null;
   otherLoansMonthly?: number | null;
+  bcbMonthlyCommitment?: number | null;
+  propertyCity?: string | null;
+  propertyState?: string | null;
+  openFinanceConnected?: boolean | null;
+  openFinanceAvgBalance?: number | null;
+  openFinanceRecurringIncome?: number | null;
+  openFinanceCardUsage?: number | null;
+  openFinanceNoLatePayments?: boolean | null;
+  openFinanceCpfClear?: boolean | null;
 }
 
-function computeScore(input: ScoreInput): {
+// ── Fórmula ScoreCasa v1 — Índice de Aprovação Caixa ─────────────────────
+//
+// Pontuação total = 100, dividida em 6 blocos:
+//   1. Comprometimento de renda          (30)
+//   2. Entrada + FGTS + subsídio         (20)
+//   3. Score de crédito (Serasa/SPC)     (15)
+//   4. Renda elegível                    (15)
+//   5. Imóvel elegível                   (10)
+//   6. Histórico financeiro / Open Fin.  (10)
+//
+// Cada bloco é exposto separadamente no GET /leads/:id/score como um fator
+// com o nome, peso máximo e pontuação obtida — assim a UI consegue mostrar
+// "Comprometimento: 25/30" etc.
+
+export interface ScoreBlock {
+  key:
+    | "comprometimento"
+    | "entrada_fgts"
+    | "score_credito"
+    | "renda_elegivel"
+    | "imovel"
+    | "historico";
+  label: string;
+  weight: number;
+  score: number;
+  detail: string;
+}
+
+export interface ScoreBreakdown {
   approvalChance: number;
   scoreCaixa: number;
   scoreMCMV: number;
   aiRecommendation: string;
-} {
+  blocks: ScoreBlock[];
+}
+
+/** Estima a parcela mensal alvo do financiamento (Tabela Price aproximada,
+ *  360 meses, 10,49% a.a. + TR). Usado para calcular comprometimento e
+ *  renda mínima necessária. */
+function estimateMonthlyInstallment(financedAmount: number): number {
+  if (financedAmount <= 0) return 0;
+  const monthlyRate = (1 + 0.1049) ** (1 / 12) - 1 + 0.0162 / 12;
+  const n = 360;
+  return (financedAmount * monthlyRate) / (1 - (1 + monthlyRate) ** -n);
+}
+
+function computeScore(input: ScoreInput): ScoreBreakdown {
   const {
     income,
     propertyValue,
@@ -115,11 +165,9 @@ function computeScore(input: ScoreInput): {
     spouseIncome = 0,
     hasFgts = false,
     fgtsBalance = 0,
-    employmentType,
-    employmentMonths = 0,
-    maritalStatus,
     propertyType,
-    birthDate,
+    propertyCity,
+    propertyState,
   } = input;
 
   const {
@@ -127,120 +175,206 @@ function computeScore(input: ScoreInput): {
     hasNegativations,
     hasProtests,
     siricStatus,
-    fgtsMonths,
     caixaScoreReal,
     vehicleLoanMonthly,
     creditCardUsage,
     otherLoansMonthly,
+    bcbMonthlyCommitment,
+    openFinanceConnected,
+    openFinanceAvgBalance,
+    openFinanceRecurringIncome,
+    openFinanceCardUsage,
+    openFinanceNoLatePayments,
+    openFinanceCpfClear,
   } = input;
 
-  // ── Renda total composta ───────────────────────────────────────────────────
-  const totalIncome = income + (informalIncome ?? 0) * 0.7 + (spouseIncome ?? 0);
+  // ── Renda comprovada (formal + 70% informal + cônjuge) ─────────────────
+  const rendaComprovada =
+    income + (informalIncome ?? 0) * 0.7 + (spouseIncome ?? 0);
 
-  // ── Comprometimento (relação imóvel / renda anual) ─────────────────────────
-  const ratio = propertyValue / (totalIncome * 12);
-  const maxRatio = 4.5;
-  let baseChance = Math.max(0, Math.min(100, 100 - (ratio / maxRatio) * 60));
+  // Assumimos 80% LTV padrão Caixa. O componente de entrada é o que sobra.
+  const entradaEstimadaCash = Math.max(0, propertyValue * 0.2);
+  const valorFinanciado = Math.max(0, propertyValue - entradaEstimadaCash);
+  const parcelaAlvo = estimateMonthlyInstallment(valorFinanciado);
+  const rendaNecessaria = parcelaAlvo / 0.3; // teto Caixa: parcela ≤ 30% da renda
+  const monthlyDebt =
+    (vehicleLoanMonthly ?? 0) +
+    (otherLoansMonthly ?? 0) +
+    (bcbMonthlyCommitment ?? 0);
+  const margemDisponivel = Math.max(0, rendaComprovada * 0.3 - monthlyDebt);
+  const indiceComprometimento =
+    margemDisponivel > 0 ? parcelaAlvo / margemDisponivel : 999;
 
-  // ── Bônus: FGTS ───────────────────────────────────────────────────────────
-  if (hasFgts && (fgtsBalance ?? 0) > 0) {
-    const fgtsRatio = (fgtsBalance ?? 0) / propertyValue;
-    baseChance += Math.min(10, fgtsRatio * 100);
-  }
-  // FGTS real: tempo de contribuição adiciona estabilidade
-  if ((fgtsMonths ?? 0) >= 36) baseChance += 5;
-  else if ((fgtsMonths ?? 0) >= 12) baseChance += 2;
+  // ── 1. Comprometimento de renda (até 30 pts) ───────────────────────────
+  let comprometimentoScore = 0;
+  if (indiceComprometimento <= 0.8) comprometimentoScore = 30;
+  else if (indiceComprometimento <= 0.9) comprometimentoScore = 25;
+  else if (indiceComprometimento <= 1.0) comprometimentoScore = 18;
+  else if (indiceComprometimento <= 1.1) comprometimentoScore = 8;
+  else comprometimentoScore = 0;
 
-  // ── Bônus: estabilidade empregatícia ─────────────────────────────────────
-  if (employmentType === "clt" || employmentType === "servidor_publico") {
-    baseChance += 8;
-  } else if (employmentType === "autonomo" || employmentType === "liberal") {
-    baseChance -= 5;
-    if ((employmentMonths ?? 0) >= 24) baseChance += 6;
-  } else if (employmentType === "aposentado") {
-    baseChance += 5;
-  }
+  // ── 2. Entrada + FGTS + subsídio (até 20 pts) ──────────────────────────
+  const entradaTotal =
+    entradaEstimadaCash + (hasFgts ? fgtsBalance ?? 0 : 0);
+  const entradaPercentual =
+    propertyValue > 0 ? entradaTotal / propertyValue : 0;
+  let entradaScore = 0;
+  if (entradaPercentual >= 0.3) entradaScore = 20;
+  else if (entradaPercentual >= 0.2) entradaScore = 16;
+  else if (entradaPercentual >= 0.15) entradaScore = 10;
+  else if (entradaPercentual >= 0.1) entradaScore = 6;
 
-  // ── Bônus: tempo no emprego ───────────────────────────────────────────────
-  if ((employmentMonths ?? 0) >= 36) baseChance += 5;
-  else if ((employmentMonths ?? 0) >= 12) baseChance += 2;
-
-  // ── Bônus: composição familiar ────────────────────────────────────────────
-  if ((maritalStatus === "casado" || maritalStatus === "uniao_estavel") && (spouseIncome ?? 0) > 0) {
-    baseChance += 4;
-  }
-
-  // ── Bônus: imóvel novo tem aprovação mais fácil na Caixa ──────────────────
-  if (propertyType === "novo") baseChance += 3;
-  else if (propertyType === "construcao") baseChance -= 3;
-
-  // ── Idade mínima Caixa (18 anos) ─────────────────────────────────────────
-  if (birthDate) {
-    const age = (Date.now() - new Date(birthDate).getTime()) / (1000 * 60 * 60 * 24 * 365.25);
-    if (age < 18) baseChance = 0;
-    else if (age > 70) baseChance -= 10;
-  }
-
-  // ── Dados reais dos bureaus (alta prioridade) ─────────────────────────────
+  // ── 3. Score de crédito (até 15 pts) ───────────────────────────────────
+  let creditoScore = 8; // neutro quando não há Serasa
   if (serasaScore != null) {
-    if (serasaScore >= 800) baseChance += 12;
-    else if (serasaScore >= 700) baseChance += 8;
-    else if (serasaScore >= 600) baseChance += 3;
-    else if (serasaScore >= 500) baseChance -= 5;
-    else if (serasaScore >= 400) baseChance -= 12;
-    else baseChance -= 20;
+    if (serasaScore >= 750) creditoScore = 15;
+    else if (serasaScore >= 650) creditoScore = 12;
+    else if (serasaScore >= 550) creditoScore = 8;
+    else if (serasaScore >= 450) creditoScore = 4;
+    else creditoScore = 0;
   }
-  if (hasNegativations) baseChance -= 25;
-  if (hasProtests) baseChance -= 30;
-  if (siricStatus === "irregular") baseChance -= 40;
-  else if (siricStatus === "regular") baseChance += 5;
 
-  // ── Comprometimento financeiro ativo (veículo, empréstimos, cartão) ────────
-  const monthlyDebt = (vehicleLoanMonthly ?? 0) + (otherLoansMonthly ?? 0);
-  const debtRatio = totalIncome > 0 ? monthlyDebt / totalIncome : 0;
-  if (debtRatio > 0.30) baseChance -= 18;
-  else if (debtRatio > 0.20) baseChance -= 10;
-  else if (debtRatio > 0.10) baseChance -= 4;
+  // ── 4. Renda elegível (até 15 pts) ─────────────────────────────────────
+  const razaoRenda =
+    rendaNecessaria > 0 ? rendaComprovada / rendaNecessaria : 0;
+  let rendaScore = 0;
+  if (razaoRenda >= 1.2) rendaScore = 15;
+  else if (razaoRenda >= 1.0) rendaScore = 12;
+  else if (razaoRenda >= 0.9) rendaScore = 7;
+  else rendaScore = 0;
 
-  // Utilização de cartão de crédito > 80% indica stress financeiro
-  if ((creditCardUsage ?? 0) > 80) baseChance -= 10;
-  else if ((creditCardUsage ?? 0) > 50) baseChance -= 5;
+  // ── 5. Imóvel elegível (até 10 pts) ────────────────────────────────────
+  let imovelScore = 0;
+  const isMcmv = rendaComprovada <= 8000 && propertyValue <= 350_000;
+  const valorDentroTeto = propertyValue <= 1_500_000 || isMcmv;
+  if (propertyType) imovelScore += 4; // tipo definido = regularizado
+  if (valorDentroTeto) imovelScore += 3;
+  if (propertyCity && propertyState) imovelScore += 2;
+  if (propertyType && propertyType !== "terreno") imovelScore += 1;
+  imovelScore = Math.min(10, imovelScore);
 
-  const approvalChance = Math.round(Math.max(0, Math.min(100, baseChance)));
-
-  // ── Score Caixa: usa real se disponível, senão calcula ───────────────────
-  const scoreCaixa = caixaScoreReal != null
-    ? Math.min(1000, Math.max(0, caixaScoreReal))
-    : Math.min(1000, Math.max(300, Math.round(300 + (approvalChance / 100) * 550 + (Math.random() * 80 - 40))));
-
-  const scoreMCMV = totalIncome <= 8000 ? Math.round(600 + Math.random() * 250) : Math.round(300 + Math.random() * 200);
-
-  // ── Recomendação ─────────────────────────────────────────────────────────
-  const issues: string[] = [];
-  if (ratio > 4) issues.push("comprometimento de renda elevado");
-  if (employmentType === "autonomo" && (employmentMonths ?? 0) < 24) issues.push("renda autônoma com menos de 2 anos de histórico");
-  if (!hasFgts) issues.push("ausência de FGTS para abater entrada");
-  if ((maritalStatus === "casado" || maritalStatus === "uniao_estavel") && !(spouseIncome ?? 0)) issues.push("renda do cônjuge não informada");
-  if (hasNegativations) issues.push("negativações ativas no Serasa/SPC");
-  if (hasProtests) issues.push("protestos em cartório");
-  if (siricStatus === "irregular") issues.push("situação irregular no SIRIC Caixa");
-
-  let recommendation = "";
-  if (approvalChance >= 75) {
-    recommendation = `Perfil com alta chance de aprovação. Recomendamos avançar com o processo imediatamente.${issues.length ? ` Pontos de atenção: ${issues.join("; ")}.` : ""}`;
-  } else if (approvalChance >= 50) {
-    recommendation = `Perfil com chances moderadas.${issues.length ? ` Melhorias sugeridas: ${issues.join("; ")}.` : " Ajustando o comprometimento de renda, a aprovação pode ser garantida."}`;
-  } else if (approvalChance >= 30) {
-    recommendation = `Perfil em análise. ${issues.length ? `Principais obstáculos: ${issues.join("; ")}.` : "Sugerimos aumentar a renda comprovada ou reduzir o valor do imóvel."}`;
+  // ── 6. Histórico financeiro / Open Finance (até 10 pts) ────────────────
+  let historicoScore = 0;
+  if (openFinanceConnected) {
+    if (openFinanceNoLatePayments) historicoScore += 3;
+    if ((openFinanceAvgBalance ?? 0) > 500) historicoScore += 2;
+    if ((openFinanceRecurringIncome ?? 0) > 0) historicoScore += 2;
+    if ((openFinanceCardUsage ?? 100) < 50) historicoScore += 2;
+    if (openFinanceCpfClear) historicoScore += 1;
   } else {
-    recommendation = `Perfil com baixa chance no momento. ${issues.length ? `Pontos críticos: ${issues.join("; ")}.` : ""} Recomendamos trabalhar o score Caixa por pelo menos 3 meses antes de nova tentativa.`;
+    // Sem Open Finance: usa sinais existentes como proxy parcial.
+    if (!hasNegativations) historicoScore += 3;
+    if (!hasProtests) historicoScore += 2;
+    if ((creditCardUsage ?? 100) < 50) historicoScore += 2;
+    if (siricStatus === "regular") historicoScore += 1;
+    if (serasaScore != null && serasaScore >= 600) historicoScore += 1;
   }
+  historicoScore = Math.min(10, historicoScore);
+
+  const approvalChance = Math.round(
+    comprometimentoScore +
+      entradaScore +
+      creditoScore +
+      rendaScore +
+      imovelScore +
+      historicoScore,
+  );
+
+  // Score Caixa (0–1000): usa real se disponível, senão deriva.
+  const scoreCaixa =
+    caixaScoreReal != null
+      ? Math.min(1000, Math.max(0, caixaScoreReal))
+      : Math.min(1000, Math.round(300 + (approvalChance / 100) * 600));
+
+  const scoreMCMV = isMcmv
+    ? Math.min(1000, 550 + Math.round(approvalChance * 3))
+    : Math.min(500, 250 + Math.round(approvalChance * 1.5));
+
+  // ── Recomendação ─────────────────────────────────────────────────────
+  let classificacao = "";
+  if (approvalChance >= 90) classificacao = "Muito alta chance de aprovação";
+  else if (approvalChance >= 75) classificacao = "Alta chance de aprovação";
+  else if (approvalChance >= 60) classificacao = "Boa chance de aprovação";
+  else if (approvalChance >= 40) classificacao = "Chance moderada";
+  else classificacao = "Baixa chance no momento";
+
+  const fraquezas: string[] = [];
+  if (comprometimentoScore < 18) fraquezas.push("reduzir parcelas ativas ou o valor financiado");
+  if (entradaScore < 10) fraquezas.push("aumentar a entrada (incluindo FGTS)");
+  if (creditoScore < 8) fraquezas.push("subir o score Serasa antes de pedir o crédito");
+  if (rendaScore < 7) fraquezas.push("aumentar a renda comprovada (cônjuge, informal)");
+  if (historicoScore < 5 && !openFinanceConnected)
+    fraquezas.push("conectar o Open Finance para mostrar histórico positivo");
+
+  const recommendation = fraquezas.length
+    ? `${classificacao}. Para melhorar: ${fraquezas.join("; ")}.`
+    : `${classificacao}. Perfil pronto para avançar com a Caixa.`;
+
+  const blocks: ScoreBlock[] = [
+    {
+      key: "comprometimento",
+      label: "Comprometimento de renda",
+      weight: 30,
+      score: comprometimentoScore,
+      detail:
+        indiceComprometimento === 999
+          ? "Margem de 30% comprometida com parcelas atuais"
+          : `Parcela estimada usa ${(indiceComprometimento * 100).toFixed(0)}% da margem de 30% da renda`,
+    },
+    {
+      key: "entrada_fgts",
+      label: "Entrada + FGTS",
+      weight: 20,
+      score: entradaScore,
+      detail: `Estimativa: entrada mínima de 20% + FGTS = ${(entradaPercentual * 100).toFixed(0)}% do imóvel`,
+    },
+    {
+      key: "score_credito",
+      label: "Score Serasa/SPC",
+      weight: 15,
+      score: creditoScore,
+      detail:
+        serasaScore != null
+          ? `Score atual: ${serasaScore}`
+          : "Score Serasa não informado",
+    },
+    {
+      key: "renda_elegivel",
+      label: "Renda familiar compatível",
+      weight: 15,
+      score: rendaScore,
+      detail: `Renda comprovada R$ ${Math.round(rendaComprovada).toLocaleString("pt-BR")} vs necessária R$ ${Math.round(rendaNecessaria).toLocaleString("pt-BR")}`,
+    },
+    {
+      key: "imovel",
+      label: "Imóvel dentro das regras",
+      weight: 10,
+      score: imovelScore,
+      detail: isMcmv
+        ? "Elegível ao Minha Casa Minha Vida"
+        : valorDentroTeto
+          ? "Imóvel dentro do teto SBPE"
+          : "Valor do imóvel acima do teto SBPE",
+    },
+    {
+      key: "historico",
+      label: openFinanceConnected
+        ? "Histórico via Open Finance"
+        : "Histórico financeiro",
+      weight: 10,
+      score: historicoScore,
+      detail: openFinanceConnected
+        ? "Dados bancários conectados via Open Finance"
+        : "Conecte o Open Finance para ganhar mais pontos neste bloco",
+    },
+  ];
 
   return {
-    approvalChance,
+    approvalChance: Math.max(0, Math.min(100, approvalChance)),
     scoreCaixa,
-    scoreMCMV: Math.min(1000, Math.max(0, scoreMCMV)),
-    aiRecommendation: recommendation.trim(),
+    scoreMCMV,
+    aiRecommendation: recommendation,
+    blocks,
   };
 }
 
@@ -331,7 +465,7 @@ router.post("/", async (req, res) => {
     return;
   }
 
-  const scores = computeScore(parsed.data);
+  const { blocks: _initBlocks, ...scores } = computeScore(parsed.data);
 
   const [lead] = await db
     .insert(leadsTable)
@@ -416,7 +550,7 @@ router.put("/:id", async (req, res) => {
 
   const updateData: Record<string, any> = { ...bodyParsed.data, updatedAt: new Date() };
   if (bodyParsed.data.income !== undefined || bodyParsed.data.propertyValue !== undefined) {
-    const scores = computeScore({
+    const breakdown = computeScore({
       income: bodyParsed.data.income ?? existing.income,
       propertyValue: bodyParsed.data.propertyValue ?? existing.propertyValue,
       informalIncome: existing.informalIncome,
@@ -427,9 +561,27 @@ router.put("/:id", async (req, res) => {
       employmentMonths: existing.employmentMonths,
       maritalStatus: existing.maritalStatus,
       propertyType: existing.propertyType,
+      propertyCity: existing.propertyCity,
+      propertyState: existing.propertyState,
       birthDate: existing.birthDate,
+      serasaScore: existing.serasaScore,
+      hasNegativations: existing.hasNegativations,
+      hasProtests: existing.hasProtests,
+      siricStatus: existing.siricStatus,
+      caixaScoreReal: existing.caixaScoreReal,
+      vehicleLoanMonthly: existing.vehicleLoanMonthly,
+      creditCardUsage: existing.creditCardUsage,
+      otherLoansMonthly: existing.otherLoansMonthly,
+      bcbMonthlyCommitment: existing.bcbMonthlyCommitment,
+      openFinanceConnected: existing.openFinanceConnected,
+      openFinanceAvgBalance: existing.openFinanceAvgBalance,
+      openFinanceRecurringIncome: existing.openFinanceRecurringIncome,
+      openFinanceCardUsage: existing.openFinanceCardUsage,
+      openFinanceNoLatePayments: existing.openFinanceNoLatePayments,
+      openFinanceCpfClear: existing.openFinanceCpfClear,
     });
-    Object.assign(updateData, scores);
+    const { blocks: _b, ...scoreFields } = breakdown;
+    Object.assign(updateData, scoreFields);
   }
 
   if (bodyParsed.data.status === "approved" && existing.status !== "approved" && existing.brokerId) {
@@ -523,7 +675,7 @@ router.put("/:id/enrich", async (req, res) => {
     if (f in enrichData) delete enrichData[f];
   }
 
-  const scores = computeScore({
+  const breakdown = computeScore({
     income: existing.income,
     propertyValue: existing.propertyValue,
     informalIncome: existing.informalIncome,
@@ -534,6 +686,8 @@ router.put("/:id/enrich", async (req, res) => {
     employmentMonths: existing.employmentMonths,
     maritalStatus: existing.maritalStatus,
     propertyType: existing.propertyType,
+    propertyCity: existing.propertyCity,
+    propertyState: existing.propertyState,
     birthDate: existing.birthDate,
     serasaScore: enrichData.serasaScore ?? existing.serasaScore,
     hasNegativations: enrichData.hasNegativations ?? existing.hasNegativations,
@@ -545,7 +699,15 @@ router.put("/:id/enrich", async (req, res) => {
     vehicleLoanMonthly: existing.vehicleLoanMonthly,
     creditCardUsage: existing.creditCardUsage,
     otherLoansMonthly: existing.otherLoansMonthly,
+    bcbMonthlyCommitment: existing.bcbMonthlyCommitment,
+    openFinanceConnected: existing.openFinanceConnected,
+    openFinanceAvgBalance: existing.openFinanceAvgBalance,
+    openFinanceRecurringIncome: existing.openFinanceRecurringIncome,
+    openFinanceCardUsage: existing.openFinanceCardUsage,
+    openFinanceNoLatePayments: existing.openFinanceNoLatePayments,
+    openFinanceCpfClear: existing.openFinanceCpfClear,
   });
+  const { blocks: _enrichBlocks, ...scores } = breakdown;
 
   const [updated] = await db
     .update(leadsTable)
@@ -592,41 +754,68 @@ router.get("/:id/score", async (req, res) => {
     return;
   }
 
-  const factors = [];
+  // Recalcula os 6 blocos a partir dos dados atuais do lead para retornar
+  // o detalhamento ao cliente (UI mostra "Comprometimento: 25/30" etc).
+  const breakdown = computeScore({
+    income: lead.income,
+    propertyValue: lead.propertyValue,
+    informalIncome: lead.informalIncome,
+    spouseIncome: lead.spouseIncome,
+    hasFgts: lead.hasFgts,
+    fgtsBalance: lead.fgtsBalance,
+    employmentType: lead.employmentType,
+    employmentMonths: lead.employmentMonths,
+    maritalStatus: lead.maritalStatus,
+    propertyType: lead.propertyType,
+    propertyCity: lead.propertyCity,
+    propertyState: lead.propertyState,
+    birthDate: lead.birthDate,
+    serasaScore: lead.serasaScore,
+    hasNegativations: lead.hasNegativations,
+    hasProtests: lead.hasProtests,
+    siricStatus: lead.siricStatus,
+    fgtsMonths: lead.fgtsMonths,
+    caixaScoreReal: lead.caixaScoreReal,
+    vehicleLoanMonthly: lead.vehicleLoanMonthly,
+    creditCardUsage: lead.creditCardUsage,
+    otherLoansMonthly: lead.otherLoansMonthly,
+    bcbMonthlyCommitment: lead.bcbMonthlyCommitment,
+    openFinanceConnected: lead.openFinanceConnected,
+    openFinanceAvgBalance: lead.openFinanceAvgBalance,
+    openFinanceRecurringIncome: lead.openFinanceRecurringIncome,
+    openFinanceCardUsage: lead.openFinanceCardUsage,
+    openFinanceNoLatePayments: lead.openFinanceNoLatePayments,
+    openFinanceCpfClear: lead.openFinanceCpfClear,
+  });
 
-  if (lead.income >= 5000) {
-    factors.push({ name: "Renda Mensal", impact: "positive", description: "Renda compatível com o financiamento solicitado", value: `R$ ${lead.income.toLocaleString("pt-BR")}` });
-  } else {
-    factors.push({ name: "Renda Mensal", impact: "negative", description: "Renda abaixo do recomendado para o valor do imóvel", value: `R$ ${lead.income.toLocaleString("pt-BR")}` });
-  }
-
-  const comprometimento = (lead.propertyValue / (lead.income * 12)) * 100;
-  if (comprometimento <= 30) {
-    factors.push({ name: "Comprometimento de Renda", impact: "positive", description: "Excelente relação entre renda e valor do imóvel", value: `${comprometimento.toFixed(1)}%` });
-  } else if (comprometimento <= 50) {
-    factors.push({ name: "Comprometimento de Renda", impact: "neutral", description: "Comprometimento dentro do limite aceitável", value: `${comprometimento.toFixed(1)}%` });
-  } else {
-    factors.push({ name: "Comprometimento de Renda", impact: "negative", description: "Alto comprometimento de renda. Considere reduzir o valor do imóvel.", value: `${comprometimento.toFixed(1)}%` });
-  }
-
-  factors.push({ name: "Score Caixa", impact: lead.scoreCaixa >= 600 ? "positive" : "negative", description: lead.scoreCaixa >= 600 ? "Score dentro do range de aprovação Caixa" : "Score abaixo do mínimo para aprovação Caixa", value: String(lead.scoreCaixa) });
-  factors.push({ name: "Elegibilidade MCMV", impact: lead.scoreMCMV >= 500 ? "positive" : "neutral", description: lead.scoreMCMV >= 500 ? "Elegível para Minha Casa Minha Vida" : "Não elegível para MCMV no momento", value: String(lead.scoreMCMV) });
+  // Mapeia cada bloco da fórmula para a estrutura de "factor" que a UI consome.
+  const factors = breakdown.blocks.map((b) => {
+    const pct = b.score / b.weight;
+    const impact = pct >= 0.7 ? "positive" : pct >= 0.4 ? "neutral" : "negative";
+    return {
+      name: b.label,
+      impact,
+      description: b.detail,
+      value: `${b.score}/${b.weight} pts`,
+    };
+  });
 
   const eligibleBanks = [];
-  if (lead.scoreCaixa >= 600) eligibleBanks.push("Caixa Econômica Federal");
-  if (lead.scoreCaixa >= 650) eligibleBanks.push("Banco do Brasil");
-  if (lead.scoreCaixa >= 700) eligibleBanks.push("Bradesco");
-  if (lead.scoreCaixa >= 720) eligibleBanks.push("Itaú Unibanco");
-  if (lead.scoreCaixa >= 680) eligibleBanks.push("Santander");
+  if (breakdown.scoreCaixa >= 600) eligibleBanks.push("Caixa Econômica Federal");
+  if (breakdown.scoreCaixa >= 650) eligibleBanks.push("Banco do Brasil");
+  if (breakdown.scoreCaixa >= 700) eligibleBanks.push("Bradesco");
+  if (breakdown.scoreCaixa >= 720) eligibleBanks.push("Itaú Unibanco");
+  if (breakdown.scoreCaixa >= 680) eligibleBanks.push("Santander");
 
   res.json({
     leadId: lead.id,
-    overallScore: lead.scoreCaixa,
-    approvalChance: lead.approvalChance,
-    scoreCaixa: lead.scoreCaixa,
-    scoreMCMV: lead.scoreMCMV,
+    overallScore: breakdown.scoreCaixa,
+    approvalChance: breakdown.approvalChance,
+    scoreCaixa: breakdown.scoreCaixa,
+    scoreMCMV: breakdown.scoreMCMV,
     factors,
-    recommendation: lead.aiRecommendation ?? "Análise em andamento.",
+    blocks: breakdown.blocks,
+    recommendation: breakdown.aiRecommendation,
     eligibleBanks,
   });
 });
