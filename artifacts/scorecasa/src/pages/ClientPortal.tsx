@@ -11,7 +11,128 @@ import { useEffect, useState } from "react";
 import {
   CheckCircle, TrendingUp, TrendingDown, Minus,
   BarChart3, SlidersHorizontal, Navigation,
+  UserCheck, Wallet, ArrowRight, Lock,
 } from "lucide-react";
+
+// ── Onboarding ───────────────────────────────────────────────────────────────
+// Determina em qual passo o cliente está. Os scores só ficam visíveis quando
+// (1) os dados básicos do perfil estão preenchidos e (2) o cliente conectou
+// Bacen (SCR) + Open Finance. Antes disso, mostramos um balão guiando o
+// próximo passo, pois sem esses dados o cálculo do score não é confiável.
+
+type OnboardingStage = "profile" | "debts" | "complete";
+
+function getOnboardingStage(lead: any): OnboardingStage {
+  const hasBasics =
+    !!lead?.birthDate &&
+    !!lead?.profession &&
+    (lead?.income ?? 0) > 0 &&
+    (lead?.propertyValue ?? 0) > 0 &&
+    !!lead?.propertyState &&
+    !!lead?.propertyCity &&
+    !!lead?.maritalStatus;
+  const needsSpouse =
+    lead?.maritalStatus === "casado" || lead?.maritalStatus === "uniao_estavel";
+  const hasSpouse =
+    !needsSpouse ||
+    (!!lead?.spouseName && !!lead?.spouseCpf && !!lead?.spouseBirthDate);
+  if (!hasBasics || !hasSpouse) return "profile";
+  const hasOpenFinance = !!lead?.openFinanceConnected;
+  const hasBacen = !!lead?.bcbQueryDate;
+  if (!hasOpenFinance || !hasBacen) return "debts";
+  return "complete";
+}
+
+function OnboardingBanner({
+  stage,
+  lead,
+  onGo,
+}: {
+  stage: Exclude<OnboardingStage, "complete">;
+  lead: any;
+  onGo: () => void;
+}) {
+  const isProfile = stage === "profile";
+  const Icon = isProfile ? UserCheck : Wallet;
+  const title = isProfile
+    ? "Vamos completar seus dados primeiro"
+    : "Falta conectar Bacen e Open Finance";
+  const description = isProfile
+    ? "Para calcularmos o Score Caixa, Score MCMV e o Índice de Aprovação, precisamos das suas informações básicas (renda, imóvel desejado, estado civil)."
+    : "Agora vincule seu relatório do Banco Central (SCR) e conecte um banco via Open Finance em Minhas dívidas. Sem esses dados, o cálculo do score não fica confiável.";
+  const buttonLabel = isProfile ? "Ir para Meus dados" : "Ir para Minhas dívidas";
+  const checklist: { label: string; done: boolean }[] = isProfile
+    ? [
+        { label: "Data de nascimento", done: !!lead?.birthDate },
+        { label: "Profissão", done: !!lead?.profession },
+        { label: "Renda formal", done: (lead?.income ?? 0) > 0 },
+        { label: "Valor e UF do imóvel", done: (lead?.propertyValue ?? 0) > 0 && !!lead?.propertyState },
+        { label: "Estado civil", done: !!lead?.maritalStatus },
+      ]
+    : [
+        { label: "Relatório do Banco Central (SCR)", done: !!lead?.bcbQueryDate },
+        { label: "Conexão Open Finance", done: !!lead?.openFinanceConnected },
+      ];
+  return (
+    <div
+      className="rounded-2xl border p-5 shadow-sm"
+      style={{ background: "#EEF1FF", borderColor: "#0D1B8C33" }}
+      data-testid={`onboarding-banner-${stage}`}
+    >
+      <div className="flex items-start gap-4">
+        <div
+          className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0"
+          style={{ background: "#0D1B8C" }}
+        >
+          <Icon className="w-5 h-5 text-white" />
+        </div>
+        <div className="flex-1 min-w-0">
+          <h2 className="text-base font-bold" style={{ color: "#07113A" }}>{title}</h2>
+          <p className="text-sm text-gray-600 mt-1 leading-relaxed">{description}</p>
+          <ul className="mt-3 space-y-1.5">
+            {checklist.map((item) => (
+              <li key={item.label} className="flex items-center gap-2 text-xs">
+                <CheckCircle
+                  className="w-3.5 h-3.5 flex-shrink-0"
+                  style={{ color: item.done ? "#10A65A" : "#CBD5E1" }}
+                />
+                <span style={{ color: item.done ? "#065F46" : "#475569" }}>
+                  {item.label}
+                </span>
+              </li>
+            ))}
+          </ul>
+          <button
+            type="button"
+            onClick={onGo}
+            className="mt-4 inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-sm font-semibold text-white transition-colors hover:opacity-90"
+            style={{ background: "#0D1B8C" }}
+            data-testid={`onboarding-cta-${stage}`}
+          >
+            {buttonLabel}
+            <ArrowRight className="w-4 h-4" />
+          </button>
+        </div>
+      </div>
+    </div>
+  );
+}
+
+function ScoresLockedCard({ stage }: { stage: Exclude<OnboardingStage, "complete"> }) {
+  return (
+    <div className="bg-card rounded-xl border border-card-border p-6 shadow-sm">
+      <div className="flex items-center gap-2 mb-2">
+        <Lock className="w-4 h-4 text-gray-400" />
+        <div className="text-sm font-semibold text-foreground">Análise de Crédito</div>
+      </div>
+      <p className="text-sm text-muted-foreground">
+        {stage === "profile"
+          ? "Os scores serão calculados assim que você completar seus dados."
+          : "Os scores serão calculados quando você conectar Bacen e Open Finance em Minhas dívidas."}
+      </p>
+    </div>
+  );
+}
 
 const IMPACT_CONFIG = {
   positive: { icon: TrendingUp, color: "#10A65A", bg: "#D1FAE5" },
@@ -86,6 +207,8 @@ export function ClientPortal() {
 
   const { lead } = profile;
   const approvalColor = lead.approvalChance >= 70 ? "#10A65A" : lead.approvalChance >= 40 ? "#F59E0B" : "#EF4444";
+  const onboardingStage = getOnboardingStage(lead);
+  const showOnboarding = onboardingStage !== "complete";
 
   return (
     <ClientLayout userName={me.name} activePage="dashboard">
@@ -130,6 +253,17 @@ export function ClientPortal() {
         <BankComparison lead={lead as any} />
       ) : tab === "gps" ? (
         <CreditGPS lead={lead as any} />
+      ) : showOnboarding ? (
+        <div className="space-y-4">
+          <OnboardingBanner
+            stage={onboardingStage as Exclude<OnboardingStage, "complete">}
+            lead={lead}
+            onGo={() =>
+              setLocation(onboardingStage === "profile" ? "/portal/meus-dados" : "/portal/dividas")
+            }
+          />
+          <ScoresLockedCard stage={onboardingStage as Exclude<OnboardingStage, "complete">} />
+        </div>
       ) : (
         <div className="space-y-4">
           {/* Scores */}
