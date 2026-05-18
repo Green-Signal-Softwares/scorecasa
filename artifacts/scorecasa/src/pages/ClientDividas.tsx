@@ -63,9 +63,36 @@ export function ClientDividas() {
   const [saved, setSaved] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [errFields, setErrFields] = useState<Set<string>>(new Set());
+  const [sessionExpired, setSessionExpired] = useState(false);
+  const [draftRestored, setDraftRestored] = useState(false);
+
+  const DRAFT_KEY = "scorecasa:dividas:draft";
+
+  function snapshotForm(currentForm: typeof form) {
+    const hasData = Object.values(currentForm).some((v) => v !== "");
+    if (!hasData) return;
+    try {
+      sessionStorage.setItem(DRAFT_KEY, JSON.stringify(currentForm));
+    } catch {
+      /* sessionStorage indisponível — segue sem snapshot */
+    }
+  }
+
+  function handleAuthFailure(currentForm: typeof form) {
+    snapshotForm(currentForm);
+    setErr(null);
+    setErrFields(new Set());
+    setSessionExpired(true);
+  }
+
+  function goToLogin() {
+    snapshotForm(form);
+    setLocation("/login");
+  }
 
   function updateField(name: keyof typeof form, value: string) {
     setForm((f) => ({ ...f, [name]: value }));
+    if (draftRestored) setDraftRestored(false);
     setErrFields((prev) => {
       if (!prev.has(name)) return prev;
       const next = new Set(prev);
@@ -93,13 +120,17 @@ export function ClientDividas() {
     (async () => {
       try {
         const r = await fetch(`${BASE}/api/client/profile`, { credentials: "include" });
+        if (r.status === 401) {
+          setSessionExpired(true);
+          return;
+        }
         if (!r.ok) {
           setErr("Não foi possível carregar seus dados. Tente recarregar a página.");
           return;
         }
         const p = (await r.json()) as ClientProfile;
         setProfile(p);
-        setForm({
+        const fromProfile = {
           vehicleLoanMonthly: p.lead.vehicleLoanMonthly?.toString() ?? "",
           otherLoansMonthly: p.lead.otherLoansMonthly?.toString() ?? "",
           creditCardLimit: p.lead.creditCardLimit?.toString() ?? "",
@@ -108,7 +139,24 @@ export function ClientDividas() {
           bcbMonthlyCommitment: p.lead.bcbMonthlyCommitment?.toString() ?? "",
           bcbOperationsCount: p.lead.bcbOperationsCount?.toString() ?? "",
           bcbQueryDate: p.lead.bcbQueryDate ?? "",
-        });
+        };
+        // Restaura rascunho de uma sessão anterior (ex.: usuário acabou de relogar).
+        let restored = false;
+        try {
+          const saved = sessionStorage.getItem(DRAFT_KEY);
+          if (saved) {
+            const draft = JSON.parse(saved);
+            if (draft && typeof draft === "object") {
+              setForm({ ...fromProfile, ...draft });
+              restored = true;
+              setDraftRestored(true);
+            }
+            sessionStorage.removeItem(DRAFT_KEY);
+          }
+        } catch {
+          /* ignore */
+        }
+        if (!restored) setForm(fromProfile);
       } finally {
         setLoading(false);
       }
@@ -116,6 +164,10 @@ export function ClientDividas() {
     (async () => {
       try {
         const r = await fetch(`${BASE}/api/client/open-finance`, { credentials: "include" });
+        if (r.status === 401) {
+          setSessionExpired(true);
+          return;
+        }
         if (r.ok) setOf(await r.json());
       } catch { /* ignore */ }
     })();
@@ -131,6 +183,10 @@ export function ClientDividas() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify({ bank }),
       });
+      if (r.status === 401) {
+        handleAuthFailure(form);
+        return;
+      }
       if (!r.ok) throw new Error("Falha ao conectar.");
       const data = await r.json();
       setOf((prev) => ({
@@ -151,10 +207,14 @@ export function ClientDividas() {
     if (!confirm("Desconectar o Open Finance? Os indicadores deixarão de alimentar seu Índice de Aprovação.")) return;
     setOfLoading(true);
     try {
-      await fetch(`${BASE}/api/client/open-finance`, {
+      const r = await fetch(`${BASE}/api/client/open-finance`, {
         method: "DELETE",
         credentials: "include",
       });
+      if (r.status === 401) {
+        handleAuthFailure(form);
+        return;
+      }
       setOf((prev) => prev ? { ...prev, connected: false, connectedAt: null, bank: null, avgBalance: null, recurringIncome: null, cardUsage: null, noLatePayments: null, cpfClear: null } : prev);
     } finally {
       setOfLoading(false);
@@ -177,6 +237,10 @@ export function ClientDividas() {
         headers: { "Content-Type": "application/json" },
         body: JSON.stringify(payload),
       });
+      if (r.status === 401) {
+        handleAuthFailure(form);
+        return;
+      }
       if (!r.ok) {
         const j = await r.json().catch(() => ({} as any));
         if (Array.isArray(j?.fields)) {
@@ -541,7 +605,44 @@ export function ClientDividas() {
           </section>
 
           {/* Feedback */}
-          {err && (
+          {sessionExpired && (
+            <div
+              className="rounded-lg p-4 flex items-start gap-3 text-sm"
+              style={{ background: "#FFFBEB", border: "1px solid #F59E0B66", color: "#92400E" }}
+              role="alert"
+              data-testid="banner-session-expired"
+            >
+              <AlertTriangle className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: "#B45309" }} />
+              <div className="flex-1">
+                <div className="font-semibold mb-1">Sua sessão expirou</div>
+                <div className="text-xs mb-3" style={{ color: "#78350F" }}>
+                  Para salvar o que você digitou, faça login novamente. Seus valores ficam guardados aqui e voltam automaticamente assim que você entrar.
+                </div>
+                <button
+                  type="button"
+                  onClick={goToLogin}
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-md text-xs font-semibold text-white"
+                  style={{ background: "#0D1B8C" }}
+                  data-testid="button-relogin"
+                >
+                  Fazer login para salvar
+                </button>
+              </div>
+            </div>
+          )}
+          {draftRestored && !sessionExpired && (
+            <div
+              className="rounded-lg p-3 flex items-start gap-2 text-xs"
+              style={{ background: "#EFF6FF", color: "#1E40AF" }}
+              data-testid="banner-draft-restored"
+            >
+              <Info className="w-4 h-4 flex-shrink-0 mt-0.5" />
+              <span>
+                Recuperamos os valores que você tinha digitado antes da sessão expirar. Confira e clique em <strong>Salvar e recalcular score</strong>.
+              </span>
+            </div>
+          )}
+          {err && !sessionExpired && (
             <div className="rounded-lg p-3 flex items-start gap-2 text-xs" style={{ background: "#FEF2F2", color: "#991B1B" }}>
               <AlertTriangle className="w-4 h-4 flex-shrink-0 mt-0.5" />
               <span>{err}</span>
@@ -562,14 +663,18 @@ export function ClientDividas() {
           {/* Salvar */}
           <button
             type="button"
-            onClick={handleSave}
+            onClick={sessionExpired ? goToLogin : handleSave}
             disabled={saving}
             className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3 rounded-lg text-sm font-semibold text-white transition-opacity disabled:opacity-60"
-            style={{ background: "#10A65A" }}
+            style={{ background: sessionExpired ? "#0D1B8C" : "#10A65A" }}
             data-testid="button-save-debts"
           >
             <Save className="w-4 h-4" />
-            {saving ? "Recalculando score..." : "Salvar e recalcular score"}
+            {sessionExpired
+              ? "Fazer login para salvar"
+              : saving
+              ? "Recalculando score..."
+              : "Salvar e recalcular score"}
           </button>
         </div>
       )}
