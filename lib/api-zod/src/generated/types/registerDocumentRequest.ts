@@ -13,4 +13,8 @@ export interface RegisterDocumentRequest {
   fileUrl: string;
   contentType?: string;
   notes?: string;
+  /** Se true, o cliente vê o documento no portal dele. */
+  visibleToClient?: boolean;
+  /** Se true, o cliente precisa assinar via gov.br. */
+  signatureRequired?: boolean;
 }

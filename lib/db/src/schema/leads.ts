@@ -101,6 +101,11 @@ export const leadsTable = pgTable("leads", {
   openFinanceNoLatePayments: boolean("open_finance_no_late_payments"),
   openFinanceCpfClear: boolean("open_finance_cpf_clear"),
 
+  // ── Preferência de banco para prosseguir (cliente escolhe) ───
+  // null = ainda não escolheu; "caixa" = vai prosseguir pela CEF
+  // (libera fluxo de assinatura dos formulários via gov.br).
+  proceedWithBank: text("proceed_with_bank"),
+
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

@@ -12,6 +12,7 @@ const router: IRouter = Router();
 const objectStorageService = new ObjectStorageService();
 
 const STAFF_ROLES = new Set(["admin", "analyst", "correspondent", "broker"]);
+const UPLOAD_ROLES = new Set(["admin", "analyst", "correspondent", "broker", "client"]);
 
 async function requireStaff(req: Request, res: Response, next: NextFunction) {
   const userId = (req as any).session?.userId as number | undefined;
@@ -28,6 +29,24 @@ async function requireStaff(req: Request, res: Response, next: NextFunction) {
   next();
 }
 
+// Permite upload por qualquer usuário autenticado (incluindo o cliente
+// subindo os próprios documentos do processo Caixa). A URL pré-assinada
+// é opaca — não expõe nada sobre outros leads.
+async function requireAuthUpload(req: Request, res: Response, next: NextFunction) {
+  const userId = (req as any).session?.userId as number | undefined;
+  if (!userId) {
+    res.status(401).json({ error: "Unauthorized" });
+    return;
+  }
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+  if (!user || !UPLOAD_ROLES.has(user.role)) {
+    res.status(403).json({ error: "Forbidden" });
+    return;
+  }
+  (req as any).sessionUser = user;
+  next();
+}
+
 /**
  * POST /storage/uploads/request-url
  *
@@ -35,7 +54,7 @@ async function requireStaff(req: Request, res: Response, next: NextFunction) {
  * The client sends JSON metadata (name, size, contentType) — NOT the file.
  * Then uploads the file directly to the returned presigned URL.
  */
-router.post("/storage/uploads/request-url", requireStaff, async (req: Request, res: Response) => {
+router.post("/storage/uploads/request-url", requireAuthUpload, async (req: Request, res: Response) => {
   const parsed = RequestUploadUrlBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Missing or invalid required fields" });
@@ -102,11 +121,48 @@ router.get("/storage/public-objects/*filePath", async (req: Request, res: Respon
  * These are served from a separate path from /public-objects and can optionally
  * be protected with authentication or ACL checks based on the use case.
  */
-router.get("/storage/objects/*path", requireStaff, async (req: Request, res: Response) => {
+// Serve objetos privados. Staff vê tudo (autorização já feita nos endpoints
+// de negócio). Cliente só vê objeto se houver um `process_documents` cujo
+// `file_url` bate com o caminho pedido E (foi o próprio cliente que subiu
+// OU o doc está marcado como `visibleToClient` e pertence ao lead dele).
+router.get("/storage/objects/*path", requireAuthUpload, async (req: Request, res: Response) => {
   try {
     const raw = req.params.path;
     const wildcardPath = Array.isArray(raw) ? raw.join("/") : raw;
     const objectPath = `/objects/${wildcardPath}`;
+
+    const user = (req as any).sessionUser as { id: number; role: string };
+    if (user.role === "client") {
+      // ACL: localizar o documento pelo file_url e validar posse.
+      const { processDocumentsTable, leadsTable, usersTable } = await import("@workspace/db");
+      const docs = await db
+        .select()
+        .from(processDocumentsTable)
+        .where(eq(processDocumentsTable.fileUrl, objectPath))
+        .limit(1);
+      const doc = docs[0];
+      if (!doc) {
+        res.status(404).end();
+        return;
+      }
+      const [clientUser] = await db
+        .select()
+        .from(usersTable)
+        .where(eq(usersTable.id, user.id))
+        .limit(1);
+      if (!clientUser?.leadId || clientUser.leadId !== doc.leadId) {
+        res.status(403).json({ error: "Forbidden" });
+        return;
+      }
+      const ownedByClient = doc.uploadedBy === user.id;
+      if (!ownedByClient && !doc.visibleToClient) {
+        res.status(403).json({ error: "Documento não disponível para o cliente." });
+        return;
+      }
+      // Touch para silenciar eventual unused; (leadsTable é importado para
+      // consistência mas não usado aqui pois validamos via clientUser.leadId).
+      void leadsTable;
+    }
     const objectFile = await objectStorageService.getObjectEntityFile(objectPath);
 
     const response = await objectStorageService.downloadObject(objectFile);

@@ -2262,6 +2262,11 @@ components:
           enum: [pending, approved, rejected]
         notes: { type: string }
         uploadedByName: { type: string }
+        visibleToClient: { type: boolean }
+        signatureRequired: { type: boolean }
+        signedAt: { type: string, format: date-time, nullable: true }
+        signatureProvider: { type: string }
+        signatureRef: { type: string }
         createdAt: { type: string, format: date-time }
         updatedAt: { type: string, format: date-time }
 
@@ -2333,6 +2338,12 @@ components:
         fileUrl: { type: string }
         contentType: { type: string }
         notes: { type: string }
+        visibleToClient:
+          type: boolean
+          description: Se true, o cliente vê o documento no portal dele.
+        signatureRequired:
+          type: boolean
+          description: Se true, o cliente precisa assinar via gov.br.
 
     UpdateDocumentRequest:
       type: object

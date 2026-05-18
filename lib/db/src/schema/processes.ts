@@ -1,4 +1,4 @@
-import { pgTable, serial, text, timestamp, integer } from "drizzle-orm/pg-core";
+import { pgTable, serial, text, timestamp, integer, boolean } from "drizzle-orm/pg-core";
 
 export const PROCESS_STAGES = [
   "analise",
@@ -23,6 +23,14 @@ export const processDocumentsTable = pgTable("process_documents", {
   uploadedByName: text("uploaded_by_name"),
   status: text("status", { enum: ["pending", "approved", "rejected"] }).notNull().default("pending"),
   notes: text("notes"),
+  // Visível para o cliente (formulários compartilhados pelo CCA; docs
+  // que o próprio cliente subiu são sempre visíveis para ele).
+  visibleToClient: boolean("visible_to_client").notNull().default(false),
+  // Formulários que exigem assinatura via gov.br (Proposta CEF, DPS etc).
+  signatureRequired: boolean("signature_required").notNull().default(false),
+  signedAt: timestamp("signed_at"),
+  signatureProvider: text("signature_provider"),
+  signatureRef: text("signature_ref"),
   createdAt: timestamp("created_at").notNull().defaultNow(),
   updatedAt: timestamp("updated_at").notNull().defaultNow(),
 });

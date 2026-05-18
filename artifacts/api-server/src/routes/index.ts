@@ -20,6 +20,7 @@ import cpfLookupRouter from "./cpf-lookup";
 import openFinanceRouter from "./open-finance";
 import caixaLtvRouter from "./caixa-ltv";
 import calcRouter from "./calc";
+import clientDocumentsRouter from "./client-documents";
 
 const router: IRouter = Router();
 
@@ -42,6 +43,7 @@ router.use(storageRouter);
 router.use("/correspondent/processes", processesRouter);
 router.use("/cpf", cpfLookupRouter);
 router.use("/client/open-finance", openFinanceRouter);
+router.use("/client/documents", clientDocumentsRouter);
 router.use("/caixa-ltv", caixaLtvRouter);
 router.use("/calc", calcRouter);
 

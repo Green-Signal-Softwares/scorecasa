@@ -18,6 +18,11 @@ export interface ProcessDocument {
   status: ProcessDocumentStatus;
   notes?: string;
   uploadedByName?: string;
+  visibleToClient?: boolean;
+  signatureRequired?: boolean;
+  signedAt?: Date | null;
+  signatureProvider?: string;
+  signatureRef?: string;
   createdAt: Date;
   updatedAt?: Date;
 }

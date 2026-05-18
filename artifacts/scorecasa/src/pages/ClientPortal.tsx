@@ -11,7 +11,7 @@ import { useEffect, useState } from "react";
 import {
   CheckCircle, TrendingUp, TrendingDown, Minus,
   BarChart3, SlidersHorizontal, Navigation,
-  UserCheck, Wallet, ArrowRight, Lock,
+  UserCheck, Wallet, ArrowRight, Lock, FileText,
 } from "lucide-react";
 
 // ── Onboarding ───────────────────────────────────────────────────────────────
@@ -20,7 +20,7 @@ import {
 // Bacen (SCR) + Open Finance. Antes disso, mostramos um balão guiando o
 // próximo passo, pois sem esses dados o cálculo do score não é confiável.
 
-type OnboardingStage = "profile" | "debts" | "complete";
+type OnboardingStage = "profile" | "debts" | "docs" | "complete";
 
 function getOnboardingStage(lead: any): OnboardingStage {
   const hasBasics =
@@ -40,6 +40,11 @@ function getOnboardingStage(lead: any): OnboardingStage {
   const hasOpenFinance = !!lead?.openFinanceConnected;
   const hasBacen = !!lead?.bcbQueryDate;
   if (!hasOpenFinance || !hasBacen) return "debts";
+  // Score aprovado + sem escolha de banco → convida a confirmar Caixa e
+  // enviar documentos para iniciar o processo.
+  const scoreApproved =
+    (lead?.scoreCaixa ?? 0) >= 650 && (lead?.approvalChance ?? 0) >= 60;
+  if (scoreApproved && !lead?.proceedWithBank) return "docs";
   return "complete";
 }
 
@@ -52,27 +57,44 @@ function OnboardingBanner({
   lead: any;
   onGo: () => void;
 }) {
-  const isProfile = stage === "profile";
-  const Icon = isProfile ? UserCheck : Wallet;
-  const title = isProfile
-    ? "Vamos completar seus dados primeiro"
-    : "Falta conectar Bacen e Open Finance";
-  const description = isProfile
-    ? "Para calcularmos o Score Caixa, Score MCMV e o Índice de Aprovação, precisamos das suas informações básicas (renda, imóvel desejado, estado civil)."
-    : "Agora vincule seu relatório do Banco Central (SCR) e conecte um banco via Open Finance em Minhas dívidas. Sem esses dados, o cálculo do score não fica confiável.";
-  const buttonLabel = isProfile ? "Ir para Meus dados" : "Ir para Minhas dívidas";
-  const checklist: { label: string; done: boolean }[] = isProfile
-    ? [
-        { label: "Data de nascimento", done: !!lead?.birthDate },
-        { label: "Profissão", done: !!lead?.profession },
-        { label: "Renda formal", done: (lead?.income ?? 0) > 0 },
-        { label: "Valor e UF do imóvel", done: (lead?.propertyValue ?? 0) > 0 && !!lead?.propertyState },
-        { label: "Estado civil", done: !!lead?.maritalStatus },
-      ]
-    : [
-        { label: "Relatório do Banco Central (SCR)", done: !!lead?.bcbQueryDate },
-        { label: "Conexão Open Finance", done: !!lead?.openFinanceConnected },
-      ];
+  const Icon = stage === "profile" ? UserCheck : stage === "debts" ? Wallet : FileText;
+  const title =
+    stage === "profile"
+      ? "Vamos completar seus dados primeiro"
+      : stage === "debts"
+      ? "Falta conectar Bacen e Open Finance"
+      : "Seu score foi aprovado — vamos finalizar com a Caixa";
+  const description =
+    stage === "profile"
+      ? "Para calcularmos o Score Caixa, Score MCMV e o Índice de Aprovação, precisamos das suas informações básicas (renda, imóvel desejado, estado civil)."
+      : stage === "debts"
+      ? "Agora vincule seu relatório do Banco Central (SCR) e conecte um banco via Open Finance em Minhas dívidas. Sem esses dados, o cálculo do score não fica confiável."
+      : "Sua análise foi aprovada (Score Caixa ≥ 650 e Índice de Aprovação ≥ 60%). Para iniciar o financiamento, confirme que quer prosseguir com a Caixa e envie seus documentos pessoais em Meus dados → Meus documentos.";
+  const buttonLabel =
+    stage === "profile"
+      ? "Ir para Meus dados"
+      : stage === "debts"
+      ? "Ir para Minhas dívidas"
+      : "Ir para Meus documentos";
+  const checklist: { label: string; done: boolean }[] =
+    stage === "profile"
+      ? [
+          { label: "Data de nascimento", done: !!lead?.birthDate },
+          { label: "Profissão", done: !!lead?.profession },
+          { label: "Renda formal", done: (lead?.income ?? 0) > 0 },
+          { label: "Valor e UF do imóvel", done: (lead?.propertyValue ?? 0) > 0 && !!lead?.propertyState },
+          { label: "Estado civil", done: !!lead?.maritalStatus },
+        ]
+      : stage === "debts"
+      ? [
+          { label: "Relatório do Banco Central (SCR)", done: !!lead?.bcbQueryDate },
+          { label: "Conexão Open Finance", done: !!lead?.openFinanceConnected },
+        ]
+      : [
+          { label: "Confirmar Caixa como banco do financiamento", done: lead?.proceedWithBank === "caixa" },
+          { label: "Enviar documentos pessoais", done: false },
+          { label: "Assinar formulários CEF via gov.br", done: false },
+        ];
   return (
     <div
       className="rounded-2xl border p-5 shadow-sm"
@@ -119,6 +141,9 @@ function OnboardingBanner({
 }
 
 function ScoresLockedCard({ stage }: { stage: Exclude<OnboardingStage, "complete"> }) {
+  // No stage "docs" os scores JÁ estão prontos — mostramos eles normalmente
+  // junto com o banner. Esta tela só bloqueia em "profile" e "debts".
+  if (stage === "docs") return null;
   return (
     <div className="bg-card rounded-xl border border-card-border p-6 shadow-sm">
       <div className="flex items-center gap-2 mb-2">
@@ -253,7 +278,7 @@ export function ClientPortal() {
         <BankComparison lead={lead as any} />
       ) : tab === "gps" ? (
         <CreditGPS lead={lead as any} />
-      ) : showOnboarding ? (
+      ) : showOnboarding && onboardingStage !== "docs" ? (
         <div className="space-y-4">
           <OnboardingBanner
             stage={onboardingStage as Exclude<OnboardingStage, "complete">}
@@ -266,6 +291,13 @@ export function ClientPortal() {
         </div>
       ) : (
         <div className="space-y-4">
+          {onboardingStage === "docs" && (
+            <OnboardingBanner
+              stage="docs"
+              lead={lead}
+              onGo={() => setLocation("/portal/meus-dados?tab=documentos")}
+            />
+          )}
           {/* Scores */}
           <div className="bg-card rounded-xl border border-card-border p-5 shadow-sm">
             <div className="text-sm font-semibold text-foreground mb-4">Análise de Crédito</div>

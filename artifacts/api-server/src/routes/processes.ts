@@ -298,6 +298,10 @@ router.post("/:leadId/documents", async (req, res) => {
       notes: parsed.data.notes ?? null,
       uploadedBy: sessionUser.id,
       uploadedByName: sessionUser.name,
+      // Flags opcionais usadas pelo CCA para compartilhar formulários CEF
+      // já preenchidos com o cliente (que assina via gov.br).
+      visibleToClient: parsed.data.visibleToClient ?? false,
+      signatureRequired: parsed.data.signatureRequired ?? false,
     })
     .returning();
 
@@ -312,6 +316,11 @@ router.post("/:leadId/documents", async (req, res) => {
     status: doc.status,
     notes: doc.notes ?? undefined,
     uploadedByName: doc.uploadedByName ?? undefined,
+    visibleToClient: doc.visibleToClient,
+    signatureRequired: doc.signatureRequired,
+    signedAt: doc.signedAt ? doc.signedAt.toISOString() : null,
+    signatureProvider: doc.signatureProvider ?? undefined,
+    signatureRef: doc.signatureRef ?? undefined,
     createdAt: doc.createdAt.toISOString(),
     updatedAt: doc.updatedAt.toISOString(),
   });

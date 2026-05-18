@@ -2141,6 +2141,11 @@ export const GetProcessResponse = zod.object({
       status: zod.enum(["pending", "approved", "rejected"]),
       notes: zod.string().optional(),
       uploadedByName: zod.string().optional(),
+      visibleToClient: zod.boolean().optional(),
+      signatureRequired: zod.boolean().optional(),
+      signedAt: zod.coerce.date().nullish(),
+      signatureProvider: zod.string().optional(),
+      signatureRef: zod.string().optional(),
       createdAt: zod.coerce.date(),
       updatedAt: zod.coerce.date().optional(),
     }),
@@ -2248,6 +2253,11 @@ export const ChangeProcessStageResponse = zod.object({
       status: zod.enum(["pending", "approved", "rejected"]),
       notes: zod.string().optional(),
       uploadedByName: zod.string().optional(),
+      visibleToClient: zod.boolean().optional(),
+      signatureRequired: zod.boolean().optional(),
+      signedAt: zod.coerce.date().nullish(),
+      signatureProvider: zod.string().optional(),
+      signatureRef: zod.string().optional(),
       createdAt: zod.coerce.date(),
       updatedAt: zod.coerce.date().optional(),
     }),
@@ -2315,6 +2325,14 @@ export const RegisterProcessDocumentBody = zod.object({
   fileUrl: zod.string(),
   contentType: zod.string().optional(),
   notes: zod.string().optional(),
+  visibleToClient: zod
+    .boolean()
+    .optional()
+    .describe("Se true, o cliente vê o documento no portal dele."),
+  signatureRequired: zod
+    .boolean()
+    .optional()
+    .describe("Se true, o cliente precisa assinar via gov.br."),
 });
 
 export const UpdateProcessDocumentParams = zod.object({
@@ -2346,6 +2364,11 @@ export const UpdateProcessDocumentResponse = zod.object({
   status: zod.enum(["pending", "approved", "rejected"]),
   notes: zod.string().optional(),
   uploadedByName: zod.string().optional(),
+  visibleToClient: zod.boolean().optional(),
+  signatureRequired: zod.boolean().optional(),
+  signedAt: zod.coerce.date().nullish(),
+  signatureProvider: zod.string().optional(),
+  signatureRef: zod.string().optional(),
   createdAt: zod.coerce.date(),
   updatedAt: zod.coerce.date().optional(),
 });

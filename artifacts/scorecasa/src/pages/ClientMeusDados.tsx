@@ -3,6 +3,7 @@ import { useLocation } from "wouter";
 import { useGetMe, getGetMeQueryKey, useGetClientProfile, getGetClientProfileQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { ClientLayout } from "@/components/layout/ClientLayout";
+import { ClientDocumentosTab } from "@/components/ClientDocumentosTab";
 import { useToast } from "@/hooks/use-toast";
 
 // ── Helpers ──────────────────────────────────────────────────────────────────
@@ -142,7 +143,12 @@ export function ClientMeusDados() {
 
   // ── Form state ─────────────────────────────────────────────────────────────
 
-  const [tab, setTab] = useState<"dados" | "conta">("dados");
+  // Aceita ?tab=documentos vindo do balão do portal.
+  const initialTab =
+    typeof window !== "undefined" && new URLSearchParams(window.location.search).get("tab") === "documentos"
+      ? "documentos"
+      : "dados";
+  const [tab, setTab] = useState<"dados" | "documentos" | "conta">(initialTab as any);
   const [saving, setSaving] = useState(false);
   const [errors, setErrors] = useState<Record<string, string>>({});
 
@@ -261,6 +267,7 @@ export function ClientMeusDados() {
       <div className="flex gap-0 mb-6 border-b border-gray-200">
         {[
           { key: "dados" as const, label: "Meus dados" },
+          { key: "documentos" as const, label: "Meus documentos" },
           { key: "conta" as const, label: "Conta e segurança" },
         ].map((t) => (
           <button
@@ -276,6 +283,10 @@ export function ClientMeusDados() {
           </button>
         ))}
       </div>
+
+      {tab === "documentos" && profile?.lead && (
+        <ClientDocumentosTab lead={profile.lead} />
+      )}
 
       {tab === "conta" && (
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
