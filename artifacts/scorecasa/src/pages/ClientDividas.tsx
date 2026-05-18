@@ -61,6 +61,17 @@ export function ClientDividas() {
   const [saving, setSaving] = useState(false);
   const [saved, setSaved] = useState(false);
   const [err, setErr] = useState<string | null>(null);
+  const [errFields, setErrFields] = useState<Set<string>>(new Set());
+
+  function updateField(name: keyof typeof form, value: string) {
+    setForm((f) => ({ ...f, [name]: value }));
+    setErrFields((prev) => {
+      if (!prev.has(name)) return prev;
+      const next = new Set(prev);
+      next.delete(name);
+      return next;
+    });
+  }
 
   const [of, setOf] = useState<OpenFinanceState | null>(null);
   const [ofLoading, setOfLoading] = useState(false);
@@ -152,6 +163,7 @@ export function ClientDividas() {
   async function handleSave() {
     setSaving(true);
     setErr(null);
+    setErrFields(new Set());
     setSaved(false);
     try {
       const payload: Record<string, any> = {};
@@ -165,8 +177,12 @@ export function ClientDividas() {
         body: JSON.stringify(payload),
       });
       if (!r.ok) {
-        const j = await r.json().catch(() => ({}));
-        throw new Error(j.error ?? "Não foi possível salvar.");
+        const j = await r.json().catch(() => ({} as any));
+        if (Array.isArray(j?.fields)) {
+          setErrFields(new Set(j.fields.filter((f: any) => typeof f === "string")));
+        }
+        setErr(typeof j?.error === "string" && j.error ? j.error : "Não foi possível salvar.");
+        return;
       }
       const p = (await r.json()) as ClientProfile;
       setProfile(p);
@@ -257,33 +273,37 @@ export function ClientDividas() {
                 label="Parcela do veículo (R$/mês)"
                 placeholder="Ex: 850"
                 value={form.vehicleLoanMonthly}
-                onChange={(v) => setForm((f) => ({ ...f, vehicleLoanMonthly: v }))}
+                onChange={(v) => updateField("vehicleLoanMonthly", v)}
                 testId="input-vehicle-loan"
+                invalid={errFields.has("vehicleLoanMonthly")}
               />
               <Field
                 icon={Wallet}
                 label="Outras parcelas (R$/mês)"
                 placeholder="CDC, consignado, empréstimo"
                 value={form.otherLoansMonthly}
-                onChange={(v) => setForm((f) => ({ ...f, otherLoansMonthly: v }))}
+                onChange={(v) => updateField("otherLoansMonthly", v)}
                 testId="input-other-loans"
+                invalid={errFields.has("otherLoansMonthly")}
               />
               <Field
                 icon={CreditCard}
                 label="Limite total dos cartões (R$)"
                 placeholder="Ex: 15.000"
                 value={form.creditCardLimit}
-                onChange={(v) => setForm((f) => ({ ...f, creditCardLimit: v }))}
+                onChange={(v) => updateField("creditCardLimit", v)}
                 testId="input-credit-card-limit"
+                invalid={errFields.has("creditCardLimit")}
               />
               <Field
                 icon={CreditCard}
                 label="Utilização do cartão (%)"
                 placeholder="0 a 100"
                 value={form.creditCardUsage}
-                onChange={(v) => setForm((f) => ({ ...f, creditCardUsage: v }))}
+                onChange={(v) => updateField("creditCardUsage", v)}
                 max={100}
                 testId="input-credit-card-usage"
+                invalid={errFields.has("creditCardUsage")}
               />
             </div>
 
@@ -344,30 +364,34 @@ export function ClientDividas() {
                 label="Total de dívidas ativas (R$)"
                 placeholder="Ex: 45.000"
                 value={form.bcbTotalDebt}
-                onChange={(v) => setForm((f) => ({ ...f, bcbTotalDebt: v }))}
+                onChange={(v) => updateField("bcbTotalDebt", v)}
                 testId="input-bcb-total-debt"
+                invalid={errFields.has("bcbTotalDebt")}
               />
               <Field
                 label="Parcelas mensais BCB (R$/mês)"
                 placeholder="Ex: 1.200"
                 value={form.bcbMonthlyCommitment}
-                onChange={(v) => setForm((f) => ({ ...f, bcbMonthlyCommitment: v }))}
+                onChange={(v) => updateField("bcbMonthlyCommitment", v)}
                 testId="input-bcb-monthly"
+                invalid={errFields.has("bcbMonthlyCommitment")}
               />
               <Field
                 label="Qtd. operações ativas"
                 placeholder="Ex: 3"
                 value={form.bcbOperationsCount}
-                onChange={(v) => setForm((f) => ({ ...f, bcbOperationsCount: v }))}
+                onChange={(v) => updateField("bcbOperationsCount", v)}
                 testId="input-bcb-ops"
+                invalid={errFields.has("bcbOperationsCount")}
               />
               <Field
                 type="text"
                 label="Data de referência"
                 placeholder="Ex: 05/2026"
                 value={form.bcbQueryDate}
-                onChange={(v) => setForm((f) => ({ ...f, bcbQueryDate: v }))}
+                onChange={(v) => updateField("bcbQueryDate", v)}
                 testId="input-bcb-date"
+                invalid={errFields.has("bcbQueryDate")}
               />
             </div>
 
@@ -563,7 +587,7 @@ function OFStat({ label, value, good, bad }: { label: string; value: string; goo
 }
 
 function Field({
-  icon: Icon, label, placeholder, value, onChange, max, type = "number", testId,
+  icon: Icon, label, placeholder, value, onChange, max, type = "number", testId, invalid,
 }: {
   icon?: typeof Car;
   label: string;
@@ -573,10 +597,15 @@ function Field({
   max?: number;
   type?: "number" | "text";
   testId?: string;
+  invalid?: boolean;
 }) {
+  const labelColor = invalid ? "text-red-600" : "text-gray-600";
+  const inputCls = invalid
+    ? "w-full h-10 px-3 rounded-md border border-red-500 bg-red-50 text-sm text-red-700 placeholder-red-300 focus:outline-none focus:ring-2 focus:ring-red-300 focus:border-red-500"
+    : "w-full h-10 px-3 rounded-md border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#0D1B8C]/30 focus:border-[#0D1B8C]";
   return (
     <div>
-      <label className="text-xs text-gray-600 block mb-1 flex items-center gap-1">
+      <label className={`text-xs block mb-1 flex items-center gap-1 ${labelColor}`}>
         {Icon && <Icon className="w-3 h-3" />}
         {label}
       </label>
@@ -588,7 +617,8 @@ function Field({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         data-testid={testId}
-        className="w-full h-10 px-3 rounded-md border border-gray-300 text-sm focus:outline-none focus:ring-2 focus:ring-[#0D1B8C]/30 focus:border-[#0D1B8C]"
+        aria-invalid={invalid || undefined}
+        className={inputCls}
       />
     </div>
   );
