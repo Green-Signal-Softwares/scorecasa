@@ -63,7 +63,7 @@ function Field({
         className={`w-full px-3 py-2.5 rounded-lg border text-sm outline-none transition-colors ${
           readOnly ? "bg-gray-50 text-gray-400 border-gray-200 cursor-default" :
           error ? "border-red-400 bg-red-50" :
-          "border-gray-200 bg-white focus:border-[#6B21A8] focus:ring-1 focus:ring-[#6B21A8]/20"
+          "border-gray-200 bg-white focus:border-[#0D1B8C] focus:ring-1 focus:ring-[#0D1B8C]/20"
         }`}
       />
       {hint && !error && <p className="text-xs text-gray-400 mt-1">{hint}</p>}
@@ -84,7 +84,7 @@ function SelectField({
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        className="w-full px-3 py-2.5 rounded-lg border border-gray-200 bg-white text-sm outline-none focus:border-[#6B21A8] focus:ring-1 focus:ring-[#6B21A8]/20 text-gray-700"
+        className="w-full px-3 py-2.5 rounded-lg border border-gray-200 bg-white text-sm outline-none focus:border-[#0D1B8C] focus:ring-1 focus:ring-[#0D1B8C]/20 text-gray-700"
       >
         <option value="">{placeholder ?? "Selecione..."}</option>
         {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
@@ -110,7 +110,7 @@ function RadioGroup({
               value={o.value}
               checked={value === o.value}
               onChange={() => onChange(o.value)}
-              className="w-4 h-4 accent-[#6B21A8]"
+              className="w-4 h-4 accent-[#0D1B8C]"
             />
             <span className="text-sm text-gray-700">{o.label}</span>
           </label>
@@ -268,7 +268,7 @@ export function ClientMeusDados() {
             onClick={() => setTab(t.key)}
             className={`px-5 py-3 text-sm font-medium border-b-2 transition-colors ${
               tab === t.key
-                ? "border-[#6B21A8] text-[#6B21A8]"
+                ? "border-[#0D1B8C] text-[#0D1B8C]"
                 : "border-transparent text-gray-500 hover:text-gray-700"
             }`}
           >
@@ -460,7 +460,7 @@ export function ClientMeusDados() {
               onClick={handleSave}
               disabled={saving}
               className="px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition-colors disabled:opacity-60"
-              style={{ background: "#6B21A8" }}
+              style={{ background: "#0D1B8C" }}
             >
               {saving ? "Salvando..." : "Salvar alterações"}
             </button>
