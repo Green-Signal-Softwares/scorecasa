@@ -10,36 +10,20 @@ import { and, eq, desc } from "drizzle-orm";
 const router = Router();
 
 // ── Categorias de documentos do cliente ─────────────────────────────────────
-// Reusamos a tabela `process_documents` (mesma esteira do CCA) com slugs
-// próprios começando com `cli_`. Assim os documentos do cliente já entram
-// no mesmo lugar que o CCA usa para conferir o processo Caixa.
+// Mesma lista do checklist de aprovação do correspondente (artifacts/api-server/
+// src/routes/processes.ts CHECKLIST stage="aprovacao"). Compartilhamos os
+// slugs para que tudo que o cliente subir aqui apareça automaticamente no
+// checklist da aba "Processos" do correspondente, sem duplicação.
 
 const CLIENT_DOC_CATEGORIES = [
-  {
-    slug: "cli_identidade",
-    name: "Documento de identidade (RG ou CNH)",
-    required: true,
-  },
-  {
-    slug: "cli_estado_civil",
-    name: "Certidão de estado civil (nascimento ou casamento)",
-    required: true,
-  },
-  {
-    slug: "cli_conjuge_identidade",
-    name: "Documento de identidade do cônjuge",
-    required: false, // só obrigatório se casado/união estável
-  },
-  {
-    slug: "cli_comprovante_renda",
-    name: "Comprovante de renda (contracheque, decore, IRPF)",
-    required: false,
-  },
-  {
-    slug: "cli_comprovante_endereco",
-    name: "Comprovante de endereço (últimos 3 meses)",
-    required: true,
-  },
+  { slug: "rg_cnh",           name: "RG ou CNH (frente e verso)",                  required: true  },
+  { slug: "cpf",              name: "CPF",                                         required: true  },
+  { slug: "comp_residencia",  name: "Comprovante de residência (últimos 3 meses)", required: true  },
+  { slug: "estado_civil",     name: "Certidão de nascimento ou casamento",         required: true  },
+  { slug: "contracheque",     name: "Contracheques (3 últimos)",                   required: true  },
+  { slug: "irpf",             name: "Declaração de IRPF + recibo",                 required: true  },
+  { slug: "extrato_bancario", name: "Extrato bancário (3 meses)",                  required: true  },
+  { slug: "fgts",             name: "Extrato do FGTS",                             required: false },
 ] as const;
 
 function requireClient(req: any, res: any, next: any) {
