@@ -1,11 +1,13 @@
-import { useState } from "react";
-import { Link, useLocation } from "wouter";
+import { useEffect, useMemo, useState } from "react";
+import { Link, useLocation, useSearch } from "wouter";
 import {
   useGetLeads,
   useCreateLead,
   useDeleteLead,
   useGetBrokers,
+  useGetProperty,
   getGetLeadsQueryKey,
+  getGetPropertyQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { Search, Plus, Trash2, ChevronRight, Filter, Users, CheckCircle2, TrendingUp, ArrowRight, RotateCcw } from "lucide-react";
@@ -98,10 +100,19 @@ type LeadCreated = {
   aiRecommendation?: string | null;
 };
 
+interface PrefilledProperty {
+  id: number;
+  title: string;
+  price: number;
+  city?: string | null;
+  state?: string | null;
+}
+
 interface CreateLeadFormProps {
   brokers: Array<{ id: number; name: string }>;
   onCreated: (lead: LeadCreated) => void;
   onCancel: () => void;
+  prefilledProperty?: PrefilledProperty | null;
 }
 
 const MARITAL_OPTIONS = [
@@ -143,18 +154,27 @@ type FieldKey =
 
 const STEPS = ["Identificação", "Profissão & Renda", "Imóvel", "Cônjuge"];
 
-function CreateLeadForm({ brokers, onCreated, onCancel }: CreateLeadFormProps) {
+function CreateLeadForm({ brokers, onCreated, onCancel, prefilledProperty }: CreateLeadFormProps) {
   const createLead = useCreateLead();
   const { toast } = useToast();
 
   const [step, setStep] = useState(0);
   const [errors, setErrors] = useState<Partial<Record<FieldKey, string>>>({});
-  const [fields, setFields] = useState<Record<FieldKey, string>>({
-    name: "", cpf: "", email: "", phone: "", birthDate: "", maritalStatus: "",
-    profession: "", employmentType: "", employmentMonths: "",
-    income: "", informalIncome: "", hasFgts: "", fgtsBalance: "",
-    propertyValue: "", propertyType: "", propertyCity: "", propertyState: "", brokerId: "",
-    spouseName: "", spouseCpf: "", spouseBirthDate: "", spouseProfession: "", spouseIncome: "",
+  const [fields, setFields] = useState<Record<FieldKey, string>>(() => {
+    const priceCents = prefilledProperty
+      ? String(Math.round(Number(prefilledProperty.price) || 0) * 100)
+      : "";
+    return {
+      name: "", cpf: "", email: "", phone: "", birthDate: "", maritalStatus: "",
+      profession: "", employmentType: "", employmentMonths: "",
+      income: "", informalIncome: "", hasFgts: "", fgtsBalance: "",
+      propertyValue: priceCents ? maskBRL(priceCents) : "",
+      propertyType: "",
+      propertyCity: prefilledProperty?.city ?? "",
+      propertyState: prefilledProperty?.state ?? "",
+      brokerId: "",
+      spouseName: "", spouseCpf: "", spouseBirthDate: "", spouseProfession: "", spouseIncome: "",
+    };
   });
 
   const needsSpouse = fields.maritalStatus === "casado" || fields.maritalStatus === "uniao_estavel";
@@ -407,6 +427,21 @@ function CreateLeadForm({ brokers, onCreated, onCancel }: CreateLeadFormProps) {
 
   return (
     <div className="space-y-4">
+      {prefilledProperty && (
+        <div
+          className="flex items-start gap-2 p-3 rounded-xl border"
+          style={{ background: "#EEF2FF", borderColor: "#C7D2FE" }}
+          data-testid="banner-prefill-property"
+        >
+          <CheckCircle2 className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: "#0D1B8C" }} />
+          <div className="text-xs" style={{ color: "#0D1B8C" }}>
+            Simulando para o imóvel <strong>{prefilledProperty.title}</strong>
+            {prefilledProperty.city ? ` em ${prefilledProperty.city}/${prefilledProperty.state ?? ""}` : ""}
+            . Valor, cidade e UF foram pré-preenchidos.
+          </div>
+        </div>
+      )}
+
       {/* Step indicator */}
       <div className="flex items-center gap-1.5">
         {Array.from({ length: totalSteps }).map((_, i) => (
@@ -522,8 +557,38 @@ export function Leads() {
   const [createOpen, setCreateOpen]   = useState(false);
   const [createdLead, setCreatedLead] = useState<LeadCreated | null>(null);
   const [, setLocation]               = useLocation();
+  const searchString                  = useSearch();
   const queryClient                   = useQueryClient();
   const { toast }                     = useToast();
+
+  // Detect ?prefillProperty=<id> to open the create dialog pre-filled with the property.
+  const prefillPropertyId = useMemo(() => {
+    const params = new URLSearchParams(searchString);
+    const raw = params.get("prefillProperty");
+    const id = raw ? Number(raw) : NaN;
+    return Number.isInteger(id) && id > 0 ? id : null;
+  }, [searchString]);
+
+  const { data: prefilledPropertyData } = useGetProperty(prefillPropertyId ?? 0, {
+    query: {
+      enabled: !!prefillPropertyId,
+      retry: false,
+      queryKey: getGetPropertyQueryKey(prefillPropertyId ?? 0),
+    },
+  });
+  const prefilledProperty = prefilledPropertyData
+    ? {
+        id: (prefilledPropertyData as any).id,
+        title: (prefilledPropertyData as any).title,
+        price: Number((prefilledPropertyData as any).price) || 0,
+        city: (prefilledPropertyData as any).city,
+        state: (prefilledPropertyData as any).state,
+      }
+    : null;
+
+  useEffect(() => {
+    if (prefillPropertyId) setCreateOpen(true);
+  }, [prefillPropertyId]);
 
   const { data, isLoading } = useGetLeads(
     { search: search || undefined, status: statusFilter as any || undefined, page, limit: 15 },
@@ -592,9 +657,11 @@ export function Leads() {
               <ScoreResult lead={createdLead} onViewLead={handleViewLead} onNewLead={handleNewLead} />
             ) : (
               <CreateLeadForm
+                key={prefilledProperty?.id ?? "blank"}
                 brokers={brokers ?? []}
                 onCreated={handleCreated}
                 onCancel={handleClose}
+                prefilledProperty={prefilledProperty}
               />
             )}
           </DialogContent>

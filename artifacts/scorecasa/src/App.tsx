@@ -12,6 +12,7 @@ import { LeadDetails } from "@/pages/LeadDetails";
 import { Brokers } from "@/pages/Brokers";
 import { Ranking } from "@/pages/Ranking";
 import { Imoveis } from "@/pages/Imoveis";
+import { PropertyDetails } from "@/pages/PropertyDetails";
 import { Financeiro } from "@/pages/Financeiro";
 import { Historico } from "@/pages/Historico";
 import { Avaliacoes } from "@/pages/Avaliacoes";
@@ -138,6 +139,16 @@ function Router() {
           <StaffOnly>
             <AppLayout>
               <Ranking />
+            </AppLayout>
+          </StaffOnly>
+        )}
+      </Route>
+
+      <Route path="/imoveis/:id">
+        {(params) => (
+          <StaffOnly>
+            <AppLayout>
+              <PropertyDetails id={Number(params?.id)} />
             </AppLayout>
           </StaffOnly>
         )}

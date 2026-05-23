@@ -1,4 +1,5 @@
 import { useEffect, useState } from "react";
+import { Link } from "wouter";
 import { useGetProperties, useCreateProperty, useUpdateProperty, useDeleteProperty, useTogglePropertyInterest, useGetMyInterests, useGetMe, useGetMySubscription, ApiError } from "@workspace/api-client-react";
 import { useSessionGuard } from "@/hooks/use-session-guard";
 import { SessionExpiredBanner } from "@/components/SessionExpiredBanner";
@@ -79,6 +80,15 @@ function PropertyCard({
         </div>
         {/* Action buttons */}
         <div className="absolute bottom-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
+          <Link href={`/imoveis/${prop.id}`}>
+            <button
+              className="w-8 h-8 rounded-lg bg-white shadow flex items-center justify-center hover:bg-[#0D1B8C] hover:text-white transition-colors"
+              data-testid={`button-view-property-${prop.id}`}
+              title="Ver detalhes"
+            >
+              <Eye className="w-3.5 h-3.5" />
+            </button>
+          </Link>
           {canManage && (
             <>
               <button

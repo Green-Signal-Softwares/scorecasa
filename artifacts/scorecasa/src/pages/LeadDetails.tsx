@@ -679,7 +679,7 @@ export function LeadDetails({ id }: { id: number }) {
                               {linkedProperty.city}/{linkedProperty.state} · <span className="font-semibold" style={{ color: "#10A65A" }}>{formatBRL(linkedProperty.price)}</span>
                             </div>
                           </div>
-                          <Link href={`/imoveis?highlight=${linkedProperty.id}`}>
+                          <Link href={`/imoveis/${linkedProperty.id}`}>
                             <Button variant="outline" size="sm" className="flex-shrink-0" data-testid="link-linked-property">
                               Ver
                             </Button>

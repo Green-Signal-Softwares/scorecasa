@@ -262,7 +262,7 @@ export function ProcessDetails({ leadId }: { leadId: number }) {
                   </span>
                 </div>
               </div>
-              <Link href={`/imoveis?highlight=${summary.linkedProperty.id}`}>
+              <Link href={`/imoveis/${summary.linkedProperty.id}`}>
                 <Button variant="outline" size="sm" className="flex-shrink-0" data-testid="link-linked-property">
                   Ver imóvel
                 </Button>
