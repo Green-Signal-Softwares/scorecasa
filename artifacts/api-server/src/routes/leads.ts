@@ -248,10 +248,10 @@ function computeScore(input: ScoreInput): ScoreBreakdown {
 
   // ── 5. Imóvel elegível (até 10 pts) ────────────────────────────────────
   //
-  // Elegibilidade MCMV 2026 agora considera classificação A/B/C/D do
+  // Elegibilidade MCMV 2026 agora considera classificação A/B/C/D/E do
   // município (lib `@workspace/cities-br`) e a faixa de renda familiar.
-  // Tetos:  A 275k · B 264k · C 245k · D 230k (F1/F2)
-  //         F3 400k  · F4 600k (independente de tier)
+  // Tetos F1/F2:  A 275k · B 270k · C 260k · D 255k · E 230k
+  // Tetos F3 = 400k, F4 = 600k (independentes do tier)
   // Quando `alreadyOwnsPropertyInPropertyCity` = true, MCMV (FAR/PMCMV)
   // está bloqueado por regra do programa: titular não pode possuir outro
   // imóvel urbano no mesmo município. Nesse caso o scoreMCMV é zerado.

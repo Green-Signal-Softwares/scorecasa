@@ -11,13 +11,17 @@
 //
 // Classificação de município para MCMV 2026 (Portaria MCID e atos
 // vinculados ao Programa Minha Casa Minha Vida – FAR/PMCMV urbano):
-//   A — São Paulo, Rio de Janeiro e Distrito Federal: teto R$ 270.000
-//   B — Demais capitais + municípios em RM > 1M de habitantes
-//       (Grande SP, RJ, BH, Recife, Salvador, Fortaleza, Porto Alegre,
-//       Curitiba e equivalentes): teto R$ 264.000
-//   C — Municípios entre 250k e 1M de habitantes: teto R$ 255.000
-//   D — Municípios entre 100k e 250k de habitantes: teto R$ 245.000
-//   E — Demais municípios (até 100k de habitantes): teto R$ 230.000
+//   A — Grandes metrópoles: São Paulo, Rio de Janeiro, Distrito Federal
+//       e os principais municípios de suas regiões metropolitanas:
+//       teto R$ 275.000 (Faixas 1 e 2)
+//   B — Demais metrópoles e municípios em RM > 1M de habitantes
+//       (Grande BH, Recife, Salvador, Fortaleza, Porto Alegre,
+//       Curitiba, Manaus, Belém e equivalentes): teto R$ 270.000
+//   C — Capitais regionais e municípios entre 250k e 1M de habitantes:
+//       teto R$ 260.000
+//   D — Cidades médias (100k a 250k de habitantes): teto R$ 255.000
+//   E — Pequenas/médias (até 100k) e municípios fora do dataset
+//       (fallback conservador): teto R$ 230.000
 //
 // Faixas de renda MCMV 2026 (familiar bruta mensal):
 //   F1: até R$  3.200
@@ -37,10 +41,10 @@ export interface MCMV2026Limits {
 }
 
 export const MCMV_2026_BY_TIER: Record<MCMVTier, MCMV2026Limits> = {
-  A: { capFaixa12: 270_000, capFaixa3: 400_000, capFaixa4: 600_000 },
-  B: { capFaixa12: 264_000, capFaixa3: 400_000, capFaixa4: 600_000 },
-  C: { capFaixa12: 255_000, capFaixa3: 400_000, capFaixa4: 600_000 },
-  D: { capFaixa12: 245_000, capFaixa3: 400_000, capFaixa4: 600_000 },
+  A: { capFaixa12: 275_000, capFaixa3: 400_000, capFaixa4: 600_000 },
+  B: { capFaixa12: 270_000, capFaixa3: 400_000, capFaixa4: 600_000 },
+  C: { capFaixa12: 260_000, capFaixa3: 400_000, capFaixa4: 600_000 },
+  D: { capFaixa12: 255_000, capFaixa3: 400_000, capFaixa4: 600_000 },
   E: { capFaixa12: 230_000, capFaixa3: 400_000, capFaixa4: 600_000 },
 };
 
