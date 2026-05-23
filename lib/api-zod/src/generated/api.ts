@@ -970,6 +970,157 @@ export const GetMyInterestsResponseItem = zod.number();
 export const GetMyInterestsResponse = zod.array(GetMyInterestsResponseItem);
 
 /**
+ * @summary Lista taxas vigentes por banco/produto
+ */
+export const GetRatesCurrentResponseItem = zod.object({
+  id: zod.number(),
+  bankSlug: zod.string(),
+  bankName: zod.string(),
+  product: zod.string(),
+  productLabel: zod.string(),
+  rateAA: zod.number(),
+  previousRateAA: zod.number().nullish(),
+  bcbReferenceRate: zod.number().nullish(),
+  source: zod.enum(["bcb", "manual"]),
+  notes: zod.string().nullish(),
+  updatedAt: zod.coerce.date(),
+  reviewedAt: zod.coerce.date().nullish(),
+  staleDays: zod.number(),
+  divergence: zod.number(),
+  hasDivergence: zod.boolean(),
+  needsReview: zod.boolean(),
+});
+export const GetRatesCurrentResponse = zod.array(GetRatesCurrentResponseItem);
+
+/**
+ * @summary Histórico de taxas (admin)
+ */
+export const getRatesHistoryQueryDaysDefault = 90;
+export const getRatesHistoryQueryDaysMin = 7;
+export const getRatesHistoryQueryDaysMax = 730;
+
+export const GetRatesHistoryQueryParams = zod.object({
+  days: zod.coerce
+    .number()
+    .min(getRatesHistoryQueryDaysMin)
+    .max(getRatesHistoryQueryDaysMax)
+    .default(getRatesHistoryQueryDaysDefault),
+});
+
+export const GetRatesHistoryResponseItem = zod.object({
+  bankSlug: zod.string(),
+  product: zod.string(),
+  observedOn: zod.string(),
+  rateAA: zod.number(),
+  source: zod.string(),
+});
+export const GetRatesHistoryResponse = zod.array(GetRatesHistoryResponseItem);
+
+/**
+ * @summary Últimas execuções da rotina BCB (admin)
+ */
+export const GetRatesRunsResponseItem = zod.object({
+  id: zod.number(),
+  startedAt: zod.coerce.date(),
+  finishedAt: zod.coerce.date().nullish(),
+  success: zod.boolean(),
+  source: zod.string(),
+  trigger: zod.string(),
+  rowsProcessed: zod.number(),
+  rowsChanged: zod.number(),
+  error: zod.string().nullish(),
+});
+export const GetRatesRunsResponse = zod.array(GetRatesRunsResponseItem);
+
+/**
+ * @summary Executa rotina BCB manualmente (admin)
+ */
+export const RefreshRatesResponse = zod.object({
+  ok: zod.boolean(),
+  rowsProcessed: zod.number().optional(),
+  rowsChanged: zod.number().optional(),
+  bcbReference: zod.number().nullish(),
+  error: zod.string().optional(),
+  changes: zod
+    .array(
+      zod.object({
+        bankSlug: zod.string().optional(),
+        product: zod.string().optional(),
+        from: zod.number().optional(),
+        to: zod.number().optional(),
+      }),
+    )
+    .optional(),
+  divergences: zod
+    .array(
+      zod.object({
+        bankSlug: zod.string().optional(),
+        product: zod.string().optional(),
+        rate: zod.number().optional(),
+        reference: zod.number().optional(),
+      }),
+    )
+    .optional(),
+});
+
+/**
+ * @summary Edita taxa cadastrada manualmente (admin)
+ */
+export const UpdateRateParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const UpdateRateBody = zod.object({
+  rateAA: zod.number(),
+  notes: zod.string().nullish(),
+});
+
+export const UpdateRateResponse = zod.object({
+  id: zod.number(),
+  bankSlug: zod.string(),
+  bankName: zod.string(),
+  product: zod.string(),
+  productLabel: zod.string(),
+  rateAA: zod.number(),
+  previousRateAA: zod.number().nullish(),
+  bcbReferenceRate: zod.number().nullish(),
+  source: zod.enum(["bcb", "manual"]),
+  notes: zod.string().nullish(),
+  updatedAt: zod.coerce.date(),
+  reviewedAt: zod.coerce.date().nullish(),
+  staleDays: zod.number(),
+  divergence: zod.number(),
+  hasDivergence: zod.boolean(),
+  needsReview: zod.boolean(),
+});
+
+/**
+ * @summary Marca uma taxa como revisada (admin)
+ */
+export const AcknowledgeRateParams = zod.object({
+  id: zod.coerce.number(),
+});
+
+export const AcknowledgeRateResponse = zod.object({
+  id: zod.number(),
+  bankSlug: zod.string(),
+  bankName: zod.string(),
+  product: zod.string(),
+  productLabel: zod.string(),
+  rateAA: zod.number(),
+  previousRateAA: zod.number().nullish(),
+  bcbReferenceRate: zod.number().nullish(),
+  source: zod.enum(["bcb", "manual"]),
+  notes: zod.string().nullish(),
+  updatedAt: zod.coerce.date(),
+  reviewedAt: zod.coerce.date().nullish(),
+  staleDays: zod.number(),
+  divergence: zod.number(),
+  hasDivergence: zod.boolean(),
+  needsReview: zod.boolean(),
+});
+
+/**
  * @summary Get current user subscription
  */
 export const GetMySubscriptionResponse = zod.object({

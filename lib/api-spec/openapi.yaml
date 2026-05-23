@@ -354,6 +354,103 @@ paths:
                 items:
                   type: integer
 
+  /rates/current:
+    get:
+      operationId: getRatesCurrent
+      summary: Lista taxas vigentes por banco/produto
+      tags: [rates]
+      responses:
+        "200":
+          description: Lista de taxas
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/BankRate" }
+
+  /rates/history:
+    get:
+      operationId: getRatesHistory
+      summary: Histórico de taxas (admin)
+      tags: [rates]
+      parameters:
+        - name: days
+          in: query
+          schema: { type: integer, minimum: 7, maximum: 730, default: 90 }
+      responses:
+        "200":
+          description: Pontos do histórico
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/BankRateHistoryPoint" }
+
+  /rates/runs:
+    get:
+      operationId: getRatesRuns
+      summary: Últimas execuções da rotina BCB (admin)
+      tags: [rates]
+      responses:
+        "200":
+          description: Execuções
+          content:
+            application/json:
+              schema:
+                type: array
+                items: { $ref: "#/components/schemas/RateSyncRun" }
+
+  /rates/refresh:
+    post:
+      operationId: refreshRates
+      summary: Executa rotina BCB manualmente (admin)
+      tags: [rates]
+      responses:
+        "200":
+          description: Resultado
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/RateSyncResult" }
+
+  /rates/{id}:
+    patch:
+      operationId: updateRate
+      summary: Edita taxa cadastrada manualmente (admin)
+      tags: [rates]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema: { $ref: "#/components/schemas/UpdateBankRateRequest" }
+      responses:
+        "200":
+          description: Taxa atualizada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BankRate" }
+
+  /rates/{id}/acknowledge:
+    post:
+      operationId: acknowledgeRate
+      summary: Marca uma taxa como revisada (admin)
+      tags: [rates]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: integer }
+      responses:
+        "200":
+          description: Taxa marcada
+          content:
+            application/json:
+              schema: { $ref: "#/components/schemas/BankRate" }
+
   /subscriptions/me:
     get:
       operationId: getMySubscription
@@ -1000,6 +1097,86 @@ paths:
           description: Deleted
 components:
   schemas:
+    BankRate:
+      type: object
+      required: [id, bankSlug, bankName, product, productLabel, rateAA, source, updatedAt, staleDays, divergence, hasDivergence, needsReview]
+      properties:
+        id: { type: integer }
+        bankSlug: { type: string }
+        bankName: { type: string }
+        product: { type: string }
+        productLabel: { type: string }
+        rateAA: { type: number }
+        previousRateAA: { type: number, nullable: true }
+        bcbReferenceRate: { type: number, nullable: true }
+        source: { type: string, enum: [bcb, manual] }
+        notes: { type: string, nullable: true }
+        updatedAt: { type: string, format: date-time }
+        reviewedAt: { type: string, format: date-time, nullable: true }
+        staleDays: { type: integer }
+        divergence: { type: number }
+        hasDivergence: { type: boolean }
+        needsReview: { type: boolean }
+
+    UpdateBankRateRequest:
+      type: object
+      required: [rateAA]
+      properties:
+        rateAA: { type: number }
+        notes: { type: string, nullable: true }
+
+    BankRateHistoryPoint:
+      type: object
+      required: [bankSlug, product, observedOn, rateAA, source]
+      properties:
+        bankSlug: { type: string }
+        product: { type: string }
+        observedOn: { type: string }
+        rateAA: { type: number }
+        source: { type: string }
+
+    RateSyncRun:
+      type: object
+      required: [id, startedAt, success, source, trigger, rowsProcessed, rowsChanged]
+      properties:
+        id: { type: integer }
+        startedAt: { type: string, format: date-time }
+        finishedAt: { type: string, format: date-time, nullable: true }
+        success: { type: boolean }
+        source: { type: string }
+        trigger: { type: string }
+        rowsProcessed: { type: integer }
+        rowsChanged: { type: integer }
+        error: { type: string, nullable: true }
+
+    RateSyncResult:
+      type: object
+      required: [ok]
+      properties:
+        ok: { type: boolean }
+        rowsProcessed: { type: integer }
+        rowsChanged: { type: integer }
+        bcbReference: { type: number, nullable: true }
+        error: { type: string }
+        changes:
+          type: array
+          items:
+            type: object
+            properties:
+              bankSlug: { type: string }
+              product: { type: string }
+              from: { type: number }
+              to: { type: number }
+        divergences:
+          type: array
+          items:
+            type: object
+            properties:
+              bankSlug: { type: string }
+              product: { type: string }
+              rate: { type: number }
+              reference: { type: number }
+
     HealthStatus:
       type: object
       required: [status]

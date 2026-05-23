@@ -1,5 +1,5 @@
 import { useLocation, Link } from "wouter";
-import { LayoutDashboard, Users, UserCheck, Trophy, LogOut, Menu, X, Building2, CreditCard, ClipboardList, Star, Workflow, Plug } from "lucide-react";
+import { LayoutDashboard, Users, UserCheck, Trophy, LogOut, Menu, X, Building2, CreditCard, ClipboardList, Star, Workflow, Plug, Percent } from "lucide-react";
 import { useState } from "react";
 import { useLogout, useGetMe, useGetMySubscription } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -56,6 +56,10 @@ function getNavItems(role: string, marketplaceAddon: boolean) {
     base.push(
       { href: "/historico",  label: "Histórico",  icon: ClipboardList },
     );
+  }
+
+  if (["admin", "analyst"].includes(role)) {
+    base.push({ href: "/admin/taxas", label: "Taxas", icon: Percent });
   }
 
   if (role === "client") {

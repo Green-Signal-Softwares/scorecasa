@@ -4,6 +4,82 @@
  * Api
  * OpenAPI spec version: 1.0.0
  */
+export type BankRateSource =
+  (typeof BankRateSource)[keyof typeof BankRateSource];
+
+export const BankRateSource = {
+  bcb: "bcb",
+  manual: "manual",
+} as const;
+
+export interface BankRate {
+  id: number;
+  bankSlug: string;
+  bankName: string;
+  product: string;
+  productLabel: string;
+  rateAA: number;
+  previousRateAA?: number | null;
+  bcbReferenceRate?: number | null;
+  source: BankRateSource;
+  notes?: string | null;
+  updatedAt: string;
+  reviewedAt?: string | null;
+  staleDays: number;
+  divergence: number;
+  hasDivergence: boolean;
+  needsReview: boolean;
+}
+
+export interface UpdateBankRateRequest {
+  rateAA: number;
+  notes?: string | null;
+}
+
+export interface BankRateHistoryPoint {
+  bankSlug: string;
+  product: string;
+  observedOn: string;
+  rateAA: number;
+  source: string;
+}
+
+export interface RateSyncRun {
+  id: number;
+  startedAt: string;
+  finishedAt?: string | null;
+  success: boolean;
+  source: string;
+  trigger: string;
+  rowsProcessed: number;
+  rowsChanged: number;
+  error?: string | null;
+}
+
+export type RateSyncResultChangesItem = {
+  bankSlug?: string;
+  product?: string;
+  from?: number;
+  to?: number;
+};
+
+export type RateSyncResultDivergencesItem = {
+  bankSlug?: string;
+  product?: string;
+  rate?: number;
+  reference?: number;
+};
+
+export interface RateSyncResult {
+  ok: boolean;
+  rowsProcessed?: number;
+  rowsChanged?: number;
+  bcbReference?: number | null;
+  error?: string;
+  changes?: RateSyncResultChangesItem[];
+  divergences?: RateSyncResultDivergencesItem[];
+}
+
 export type HealthStatusStatus =
   (typeof HealthStatusStatus)[keyof typeof HealthStatusStatus];
 
@@ -1234,6 +1310,14 @@ export type DeleteProperty200 = {
 
 export type TogglePropertyInterest200 = {
   interested: boolean;
+};
+
+export type GetRatesHistoryParams = {
+  /**
+   * @minimum 7
+   * @maximum 730
+   */
+  days?: number;
 };
 
 export type GetLeadsParams = {

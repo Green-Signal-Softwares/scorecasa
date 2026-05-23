@@ -19,6 +19,7 @@ import { Processos } from "@/pages/Processos";
 import { ProcessDetails } from "@/pages/ProcessDetails";
 import { ScoreCasaConectado } from "@/pages/ScoreCasaConectado";
 import { Correspondente } from "@/pages/Correspondente";
+import { AdminTaxas } from "@/pages/AdminTaxas";
 import { Termos } from "@/pages/Termos";
 import { Privacidade } from "@/pages/Privacidade";
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -197,6 +198,16 @@ function Router() {
           <StaffOnly>
             <AppLayout>
               <Processos />
+            </AppLayout>
+          </StaffOnly>
+        )}
+      </Route>
+
+      <Route path="/admin/taxas">
+        {() => (
+          <StaffOnly>
+            <AppLayout>
+              <AdminTaxas />
             </AppLayout>
           </StaffOnly>
         )}

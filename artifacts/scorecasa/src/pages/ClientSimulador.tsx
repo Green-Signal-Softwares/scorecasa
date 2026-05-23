@@ -5,6 +5,8 @@ import {
   getGetMeQueryKey,
   useGetClientProfile,
   getGetClientProfileQueryKey,
+  useGetRatesCurrent,
+  getGetRatesCurrentQueryKey,
 } from "@workspace/api-client-react";
 import { ClientLayout } from "@/components/layout/ClientLayout";
 import { SessionExpiredBanner } from "@/components/SessionExpiredBanner";
@@ -25,6 +27,17 @@ interface BankProgram {
   minDownPct: number;
   notes: string;
 }
+
+// Mapeia (programId) → (bankSlug, productSlug) usado pela API /rates/current.
+// Quando a API devolve a taxa atualizada, ela sobrescreve o rateAA do PROGRAMS.
+const PROGRAM_RATE_KEYS: Record<string, { bankSlug: string; product: string }> = {
+  "caixa-sbpe":     { bankSlug: "caixa",     product: "sbpe" },
+  "caixa-mcmv":     { bankSlug: "caixa",     product: "mcmv_f3" },
+  "bb-sbpe":        { bankSlug: "bb",        product: "sbpe" },
+  "itau-sbpe":      { bankSlug: "itau",      product: "sbpe" },
+  "bradesco-sbpe":  { bankSlug: "bradesco",  product: "sbpe" },
+  "santander-sbpe": { bankSlug: "santander", product: "sbpe" },
+};
 
 const PROGRAMS: BankProgram[] = [
   {
@@ -225,6 +238,43 @@ export function ClientSimulador() {
     query: { queryKey: getGetClientProfileQueryKey(), staleTime: 30_000, retry: false },
   });
 
+  // Taxas vivas: sobrescrevem rateAA do PROGRAMS quando a API responde.
+  const { data: liveRatesData } = useGetRatesCurrent({
+    query: {
+      queryKey: getGetRatesCurrentQueryKey(),
+      staleTime: 5 * 60_000,
+      retry: false,
+    },
+  });
+  const livePrograms = useMemo<BankProgram[]>(() => {
+    const live = (liveRatesData ?? []) as Array<{
+      bankSlug: string;
+      product: string;
+      rateAA: number;
+      updatedAt: string;
+      source: string;
+    }>;
+    if (live.length === 0) return PROGRAMS;
+    const byKey = new Map(live.map((r) => [`${r.bankSlug}|${r.product}`, r]));
+    return PROGRAMS.map((p) => {
+      const m = PROGRAM_RATE_KEYS[p.id];
+      if (!m) return p;
+      const found = byKey.get(`${m.bankSlug}|${m.product}`);
+      return found ? { ...p, rateAA: found.rateAA } : p;
+    });
+  }, [liveRatesData]);
+  const ratesUpdatedAt = useMemo(() => {
+    const live = (liveRatesData ?? []) as Array<{ updatedAt: string }>;
+    if (live.length === 0) return null;
+    return live.reduce((latest, r) => {
+      const t = new Date(r.updatedAt).getTime();
+      return t > latest ? t : latest;
+    }, 0);
+  }, [liveRatesData]);
+  const ratesUpdatedLabel = ratesUpdatedAt
+    ? new Date(ratesUpdatedAt).toLocaleDateString("pt-BR")
+    : null;
+
   type SimulatorDraft = {
     valorImovelStr: string;
     entradaStr: string;
@@ -329,7 +379,7 @@ export function ClientSimulador() {
   const entrada = parseBRL(entradaStr);
   const renda = parseBRL(rendaStr);
   const prazoMeses = prazoAnos * 12;
-  const program = PROGRAMS.find((p) => p.id === programId)!;
+  const program = livePrograms.find((p) => p.id === programId) ?? PROGRAMS.find((p) => p.id === programId)!;
 
   const minEntrada = valorImovel * program.minDownPct;
   const entradaInsuficiente = entrada > 0 && entrada < minEntrada;
@@ -398,7 +448,7 @@ export function ClientSimulador() {
               Banco e Programa
             </p>
             <div className="space-y-2">
-              {PROGRAMS.map((p) => {
+              {livePrograms.map((p) => {
                 const active = p.id === programId;
                 return (
                   <button
@@ -431,6 +481,11 @@ export function ClientSimulador() {
             <p className="text-[11px] text-gray-400 mt-3 leading-relaxed italic">
               {program.notes}
             </p>
+            {ratesUpdatedLabel && (
+              <p className="text-[10px] text-gray-400 mt-2" data-testid="rates-footer">
+                Taxas vigentes em {ratesUpdatedLabel} · fonte: Banco Central do Brasil
+              </p>
+            )}
           </div>
 
           {/* Parâmetros do imóvel */}

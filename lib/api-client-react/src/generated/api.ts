@@ -18,6 +18,8 @@ import type {
 import type {
   ApprovalFunnel,
   AuthResult,
+  BankRate,
+  BankRateHistoryPoint,
   BanksAndCorrespondentsResponse,
   Broker,
   BrokerRanking,
@@ -37,6 +39,7 @@ import type {
   GetBrokersParams,
   GetLeadsParams,
   GetPropertiesParams,
+  GetRatesHistoryParams,
   HealthStatus,
   Lead,
   LeadList,
@@ -50,6 +53,8 @@ import type {
   ProcessDocument,
   ProcessSummary,
   Property,
+  RateSyncResult,
+  RateSyncRun,
   Rating,
   RatingSummary,
   RegisterDocumentRequest,
@@ -57,6 +62,7 @@ import type {
   SaleHistory,
   Subscription,
   TogglePropertyInterest200,
+  UpdateBankRateRequest,
   UpdateBrokerRequest,
   UpdateClientProfileRequest,
   UpdateDocumentRequest,
@@ -1636,6 +1642,502 @@ export function useGetMyInterests<
 
   return { ...query, queryKey: queryOptions.queryKey };
 }
+
+/**
+ * @summary Lista taxas vigentes por banco/produto
+ */
+export const getGetRatesCurrentUrl = () => {
+  return `/api/rates/current`;
+};
+
+export const getRatesCurrent = async (
+  options?: RequestInit,
+): Promise<BankRate[]> => {
+  return customFetch<BankRate[]>(getGetRatesCurrentUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetRatesCurrentQueryKey = () => {
+  return [`/api/rates/current`] as const;
+};
+
+export const getGetRatesCurrentQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRatesCurrent>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getRatesCurrent>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetRatesCurrentQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getRatesCurrent>>> = ({
+    signal,
+  }) => getRatesCurrent({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getRatesCurrent>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetRatesCurrentQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getRatesCurrent>>
+>;
+export type GetRatesCurrentQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Lista taxas vigentes por banco/produto
+ */
+
+export function useGetRatesCurrent<
+  TData = Awaited<ReturnType<typeof getRatesCurrent>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getRatesCurrent>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetRatesCurrentQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Histórico de taxas (admin)
+ */
+export const getGetRatesHistoryUrl = (params?: GetRatesHistoryParams) => {
+  const normalizedParams = new URLSearchParams();
+
+  Object.entries(params || {}).forEach(([key, value]) => {
+    if (value !== undefined) {
+      normalizedParams.append(key, value === null ? "null" : value.toString());
+    }
+  });
+
+  const stringifiedParams = normalizedParams.toString();
+
+  return stringifiedParams.length > 0
+    ? `/api/rates/history?${stringifiedParams}`
+    : `/api/rates/history`;
+};
+
+export const getRatesHistory = async (
+  params?: GetRatesHistoryParams,
+  options?: RequestInit,
+): Promise<BankRateHistoryPoint[]> => {
+  return customFetch<BankRateHistoryPoint[]>(getGetRatesHistoryUrl(params), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetRatesHistoryQueryKey = (params?: GetRatesHistoryParams) => {
+  return [`/api/rates/history`, ...(params ? [params] : [])] as const;
+};
+
+export const getGetRatesHistoryQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRatesHistory>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetRatesHistoryParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRatesHistory>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetRatesHistoryQueryKey(params);
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getRatesHistory>>> = ({
+    signal,
+  }) => getRatesHistory(params, { signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getRatesHistory>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetRatesHistoryQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getRatesHistory>>
+>;
+export type GetRatesHistoryQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Histórico de taxas (admin)
+ */
+
+export function useGetRatesHistory<
+  TData = Awaited<ReturnType<typeof getRatesHistory>>,
+  TError = ErrorType<unknown>,
+>(
+  params?: GetRatesHistoryParams,
+  options?: {
+    query?: UseQueryOptions<
+      Awaited<ReturnType<typeof getRatesHistory>>,
+      TError,
+      TData
+    >;
+    request?: SecondParameter<typeof customFetch>;
+  },
+): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetRatesHistoryQueryOptions(params, options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Últimas execuções da rotina BCB (admin)
+ */
+export const getGetRatesRunsUrl = () => {
+  return `/api/rates/runs`;
+};
+
+export const getRatesRuns = async (
+  options?: RequestInit,
+): Promise<RateSyncRun[]> => {
+  return customFetch<RateSyncRun[]>(getGetRatesRunsUrl(), {
+    ...options,
+    method: "GET",
+  });
+};
+
+export const getGetRatesRunsQueryKey = () => {
+  return [`/api/rates/runs`] as const;
+};
+
+export const getGetRatesRunsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getRatesRuns>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getRatesRuns>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetRatesRunsQueryKey();
+
+  const queryFn: QueryFunction<Awaited<ReturnType<typeof getRatesRuns>>> = ({
+    signal,
+  }) => getRatesRuns({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getRatesRuns>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetRatesRunsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getRatesRuns>>
+>;
+export type GetRatesRunsQueryError = ErrorType<unknown>;
+
+/**
+ * @summary Últimas execuções da rotina BCB (admin)
+ */
+
+export function useGetRatesRuns<
+  TData = Awaited<ReturnType<typeof getRatesRuns>>,
+  TError = ErrorType<unknown>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getRatesRuns>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetRatesRunsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Executa rotina BCB manualmente (admin)
+ */
+export const getRefreshRatesUrl = () => {
+  return `/api/rates/refresh`;
+};
+
+export const refreshRates = async (
+  options?: RequestInit,
+): Promise<RateSyncResult> => {
+  return customFetch<RateSyncResult>(getRefreshRatesUrl(), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getRefreshRatesMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof refreshRates>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof refreshRates>>,
+  TError,
+  void,
+  TContext
+> => {
+  const mutationKey = ["refreshRates"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof refreshRates>>,
+    void
+  > = () => {
+    return refreshRates(requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type RefreshRatesMutationResult = NonNullable<
+  Awaited<ReturnType<typeof refreshRates>>
+>;
+
+export type RefreshRatesMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Executa rotina BCB manualmente (admin)
+ */
+export const useRefreshRates = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof refreshRates>>,
+    TError,
+    void,
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof refreshRates>>,
+  TError,
+  void,
+  TContext
+> => {
+  return useMutation(getRefreshRatesMutationOptions(options));
+};
+
+/**
+ * @summary Edita taxa cadastrada manualmente (admin)
+ */
+export const getUpdateRateUrl = (id: number) => {
+  return `/api/rates/${id}`;
+};
+
+export const updateRate = async (
+  id: number,
+  updateBankRateRequest: UpdateBankRateRequest,
+  options?: RequestInit,
+): Promise<BankRate> => {
+  return customFetch<BankRate>(getUpdateRateUrl(id), {
+    ...options,
+    method: "PATCH",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(updateBankRateRequest),
+  });
+};
+
+export const getUpdateRateMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateRate>>,
+    TError,
+    { id: number; data: BodyType<UpdateBankRateRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof updateRate>>,
+  TError,
+  { id: number; data: BodyType<UpdateBankRateRequest> },
+  TContext
+> => {
+  const mutationKey = ["updateRate"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof updateRate>>,
+    { id: number; data: BodyType<UpdateBankRateRequest> }
+  > = (props) => {
+    const { id, data } = props ?? {};
+
+    return updateRate(id, data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type UpdateRateMutationResult = NonNullable<
+  Awaited<ReturnType<typeof updateRate>>
+>;
+export type UpdateRateMutationBody = BodyType<UpdateBankRateRequest>;
+export type UpdateRateMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Edita taxa cadastrada manualmente (admin)
+ */
+export const useUpdateRate = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof updateRate>>,
+    TError,
+    { id: number; data: BodyType<UpdateBankRateRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof updateRate>>,
+  TError,
+  { id: number; data: BodyType<UpdateBankRateRequest> },
+  TContext
+> => {
+  return useMutation(getUpdateRateMutationOptions(options));
+};
+
+/**
+ * @summary Marca uma taxa como revisada (admin)
+ */
+export const getAcknowledgeRateUrl = (id: number) => {
+  return `/api/rates/${id}/acknowledge`;
+};
+
+export const acknowledgeRate = async (
+  id: number,
+  options?: RequestInit,
+): Promise<BankRate> => {
+  return customFetch<BankRate>(getAcknowledgeRateUrl(id), {
+    ...options,
+    method: "POST",
+  });
+};
+
+export const getAcknowledgeRateMutationOptions = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof acknowledgeRate>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof acknowledgeRate>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  const mutationKey = ["acknowledgeRate"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof acknowledgeRate>>,
+    { id: number }
+  > = (props) => {
+    const { id } = props ?? {};
+
+    return acknowledgeRate(id, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type AcknowledgeRateMutationResult = NonNullable<
+  Awaited<ReturnType<typeof acknowledgeRate>>
+>;
+
+export type AcknowledgeRateMutationError = ErrorType<unknown>;
+
+/**
+ * @summary Marca uma taxa como revisada (admin)
+ */
+export const useAcknowledgeRate = <
+  TError = ErrorType<unknown>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof acknowledgeRate>>,
+    TError,
+    { id: number },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof acknowledgeRate>>,
+  TError,
+  { id: number },
+  TContext
+> => {
+  return useMutation(getAcknowledgeRateMutationOptions(options));
+};
 
 /**
  * @summary Get current user subscription

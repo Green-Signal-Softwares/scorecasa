@@ -21,6 +21,7 @@ import openFinanceRouter from "./open-finance";
 import caixaLtvRouter from "./caixa-ltv";
 import calcRouter from "./calc";
 import clientDocumentsRouter from "./client-documents";
+import ratesRouter from "./rates";
 
 const router: IRouter = Router();
 
@@ -46,5 +47,6 @@ router.use("/client/open-finance", openFinanceRouter);
 router.use("/client/documents", clientDocumentsRouter);
 router.use("/caixa-ltv", caixaLtvRouter);
 router.use("/calc", calcRouter);
+router.use("/rates", ratesRouter);
 
 export default router;
