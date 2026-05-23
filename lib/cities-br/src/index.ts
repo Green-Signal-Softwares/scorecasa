@@ -11,13 +11,13 @@
 //
 // Classificação de município para MCMV 2026 (Portaria MCID e atos
 // vinculados ao Programa Minha Casa Minha Vida – FAR/PMCMV urbano):
-//   A — Capitais SP/RJ/DF + regiões metropolitanas com pop > 1M
-//       (Grande SP, Grande RJ, Grande BH, Recife, Salvador, Fortaleza,
-//       Porto Alegre, Curitiba, Brasília): teto R$ 275.000
-//   B — Demais capitais e municípios em RM com pop > 1M (não cobertos por A),
-//       e municípios entre 250k e 1M de habitantes: teto R$ 264.000
-//   C — Municípios entre 100k e 250k habitantes: teto R$ 245.000
-//   D — Demais municípios (até 100k habitantes): teto R$ 230.000
+//   A — São Paulo, Rio de Janeiro e Distrito Federal: teto R$ 270.000
+//   B — Demais capitais + municípios em RM > 1M de habitantes
+//       (Grande SP, RJ, BH, Recife, Salvador, Fortaleza, Porto Alegre,
+//       Curitiba e equivalentes): teto R$ 264.000
+//   C — Municípios entre 250k e 1M de habitantes: teto R$ 255.000
+//   D — Municípios entre 100k e 250k de habitantes: teto R$ 245.000
+//   E — Demais municípios (até 100k de habitantes): teto R$ 230.000
 //
 // Faixas de renda MCMV 2026 (familiar bruta mensal):
 //   F1: até R$  3.200
@@ -25,7 +25,7 @@
 //   F3: até R$  9.600 (Faixa Urbano 3 — teto R$ 400.000 independente do município)
 //   F4: até R$ 13.000 (Faixa Urbano 4 — teto R$ 600.000 independente do município)
 
-export type MCMVTier = "A" | "B" | "C" | "D";
+export type MCMVTier = "A" | "B" | "C" | "D" | "E";
 
 export interface MCMV2026Limits {
   /** Teto do valor do imóvel para Faixas 1 e 2 (R$). */
@@ -37,10 +37,11 @@ export interface MCMV2026Limits {
 }
 
 export const MCMV_2026_BY_TIER: Record<MCMVTier, MCMV2026Limits> = {
-  A: { capFaixa12: 275_000, capFaixa3: 400_000, capFaixa4: 600_000 },
+  A: { capFaixa12: 270_000, capFaixa3: 400_000, capFaixa4: 600_000 },
   B: { capFaixa12: 264_000, capFaixa3: 400_000, capFaixa4: 600_000 },
-  C: { capFaixa12: 245_000, capFaixa3: 400_000, capFaixa4: 600_000 },
-  D: { capFaixa12: 230_000, capFaixa3: 400_000, capFaixa4: 600_000 },
+  C: { capFaixa12: 255_000, capFaixa3: 400_000, capFaixa4: 600_000 },
+  D: { capFaixa12: 245_000, capFaixa3: 400_000, capFaixa4: 600_000 },
+  E: { capFaixa12: 230_000, capFaixa3: 400_000, capFaixa4: 600_000 },
 };
 
 export type IncomeFaixa = "F1" | "F2" | "F3" | "F4" | "OUT";
@@ -404,9 +405,10 @@ export function citiesOf(uf: UF | null | undefined): readonly { name: string; ti
     .sort((a, b) => a.name.localeCompare(b.name, "pt-BR"));
 }
 
-/** Resolve o tier MCMV para a combinação UF + cidade. Default "D". */
+/** Resolve o tier MCMV para a combinação UF + cidade. Default "E"
+ *  (município fora do dataset curado → teto mais restrito, R$ 230.000). */
 export function cityTier(uf: string | null | undefined, city: string | null | undefined): MCMVTier {
-  if (!isValidUf(uf) || !city) return "D";
+  if (!isValidUf(uf) || !city) return "E";
   const tier = CITY_TIER_INDEX[uf].get(normalizeCity(city));
-  return tier ?? "D";
+  return tier ?? "E";
 }

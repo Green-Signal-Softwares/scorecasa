@@ -383,6 +383,7 @@ export function ClientMeusDados() {
     undefined,
     {
       query: {
+        queryKey: ["properties", "linkPicker"],
         enabled: propertiesQueryEnabled,
         staleTime: 60_000,
       },

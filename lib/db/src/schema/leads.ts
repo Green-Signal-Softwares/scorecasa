@@ -1,6 +1,7 @@
 import { pgTable, serial, text, timestamp, integer, real, boolean } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { propertiesTable } from "./properties";
 
 export const leadsTable = pgTable("leads", {
   id: serial("id").primaryKey(),
@@ -52,7 +53,9 @@ export const leadsTable = pgTable("leads", {
   // FK opcional para properties.id quando o cliente seleciona um
   // imóvel do catálogo. Quando preenchido, propertyCity/State/Value
   // são preenchidos a partir do imóvel selecionado.
-  linkedPropertyId: integer("linked_property_id"),
+  linkedPropertyId: integer("linked_property_id").references(() => propertiesTable.id, {
+    onDelete: "set null",
+  }),
 
   // ── Cônjuge / composição familiar ────────────────────────────
   spouseName: text("spouse_name"),
