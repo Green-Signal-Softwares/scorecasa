@@ -18,10 +18,12 @@ import type {
 import type {
   ApprovalFunnel,
   AuthResult,
+  BanksAndCorrespondentsResponse,
   Broker,
   BrokerRanking,
   CaixaEnrichRequest,
   ChangeStageRequest,
+  ChooseFinancingRequest,
   ClientProfile,
   CreateBrokerRequest,
   CreateLeadRequest,
@@ -625,6 +627,171 @@ export const useUpdateClientProfile = <
   TContext
 > => {
   return useMutation(getUpdateClientProfileMutationOptions(options));
+};
+
+/**
+ * @summary Banks eligible for this client + correspondents list + current linkage
+ */
+export const getGetBanksAndCorrespondentsUrl = () => {
+  return `/api/client/banks-and-correspondents`;
+};
+
+export const getBanksAndCorrespondents = async (
+  options?: RequestInit,
+): Promise<BanksAndCorrespondentsResponse> => {
+  return customFetch<BanksAndCorrespondentsResponse>(
+    getGetBanksAndCorrespondentsUrl(),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetBanksAndCorrespondentsQueryKey = () => {
+  return [`/api/client/banks-and-correspondents`] as const;
+};
+
+export const getGetBanksAndCorrespondentsQueryOptions = <
+  TData = Awaited<ReturnType<typeof getBanksAndCorrespondents>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getBanksAndCorrespondents>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey =
+    queryOptions?.queryKey ?? getGetBanksAndCorrespondentsQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getBanksAndCorrespondents>>
+  > = ({ signal }) => getBanksAndCorrespondents({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getBanksAndCorrespondents>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetBanksAndCorrespondentsQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getBanksAndCorrespondents>>
+>;
+export type GetBanksAndCorrespondentsQueryError = ErrorType<void>;
+
+/**
+ * @summary Banks eligible for this client + correspondents list + current linkage
+ */
+
+export function useGetBanksAndCorrespondents<
+  TData = Awaited<ReturnType<typeof getBanksAndCorrespondents>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getBanksAndCorrespondents>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetBanksAndCorrespondentsQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Client picks bank and correspondent for their financing
+ */
+export const getChooseFinancingUrl = () => {
+  return `/api/client/choose-financing`;
+};
+
+export const chooseFinancing = async (
+  chooseFinancingRequest: ChooseFinancingRequest,
+  options?: RequestInit,
+): Promise<BanksAndCorrespondentsResponse> => {
+  return customFetch<BanksAndCorrespondentsResponse>(getChooseFinancingUrl(), {
+    ...options,
+    method: "POST",
+    headers: { "Content-Type": "application/json", ...options?.headers },
+    body: JSON.stringify(chooseFinancingRequest),
+  });
+};
+
+export const getChooseFinancingMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof chooseFinancing>>,
+    TError,
+    { data: BodyType<ChooseFinancingRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof chooseFinancing>>,
+  TError,
+  { data: BodyType<ChooseFinancingRequest> },
+  TContext
+> => {
+  const mutationKey = ["chooseFinancing"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof chooseFinancing>>,
+    { data: BodyType<ChooseFinancingRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return chooseFinancing(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type ChooseFinancingMutationResult = NonNullable<
+  Awaited<ReturnType<typeof chooseFinancing>>
+>;
+export type ChooseFinancingMutationBody = BodyType<ChooseFinancingRequest>;
+export type ChooseFinancingMutationError = ErrorType<void>;
+
+/**
+ * @summary Client picks bank and correspondent for their financing
+ */
+export const useChooseFinancing = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof chooseFinancing>>,
+    TError,
+    { data: BodyType<ChooseFinancingRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof chooseFinancing>>,
+  TError,
+  { data: BodyType<ChooseFinancingRequest> },
+  TContext
+> => {
+  return useMutation(getChooseFinancingMutationOptions(options));
 };
 
 /**

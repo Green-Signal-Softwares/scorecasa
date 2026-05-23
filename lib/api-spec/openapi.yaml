@@ -117,6 +117,42 @@ paths:
               schema:
                 $ref: "#/components/schemas/ClientProfile"
 
+  /client/banks-and-correspondents:
+    get:
+      operationId: getBanksAndCorrespondents
+      summary: Banks eligible for this client + correspondents list + current linkage
+      tags: [client]
+      responses:
+        "200":
+          description: Bank options, correspondents and current link
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BanksAndCorrespondentsResponse"
+        "401":
+          description: Unauthorized
+
+  /client/choose-financing:
+    post:
+      operationId: chooseFinancing
+      summary: Client picks bank and correspondent for their financing
+      tags: [client]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/ChooseFinancingRequest"
+      responses:
+        "200":
+          description: Updated linkage
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BanksAndCorrespondentsResponse"
+        "400":
+          description: Invalid input
+
   /notifications:
     get:
       operationId: getNotifications
@@ -1080,6 +1116,87 @@ components:
           $ref: "#/components/schemas/User"
         lead:
           $ref: "#/components/schemas/Lead"
+        linkedCorrespondent:
+          $ref: "#/components/schemas/Correspondent"
+          nullable: true
+          description: Correspondente atualmente vinculado ao lead (se houver)
+
+    Correspondent:
+      type: object
+      required: [id, name, bank, code, status]
+      properties:
+        id: { type: integer }
+        name: { type: string }
+        bank:
+          type: string
+          description: "Slug do banco (caixa, bb, bradesco, itau, santander, inter)"
+        code:
+          type: string
+          description: "Código identificador no banco (ex.: CCA-1024)"
+        email: { type: string, nullable: true }
+        phone: { type: string, nullable: true }
+        status:
+          type: string
+          enum: [active, inactive]
+
+    BankOption:
+      type: object
+      required: [bank, shortName, name, color, eligible]
+      properties:
+        bank: { type: string, description: "Slug do banco" }
+        shortName: { type: string }
+        name: { type: string }
+        color: { type: string }
+        bgColor: { type: string, nullable: true }
+        eligible:
+          type: boolean
+          description: Se o cliente está elegível segundo computeOffers
+        eligibilityLabel:
+          type: string
+          nullable: true
+
+    BanksAndCorrespondentsResponse:
+      type: object
+      required: [banks, correspondents, chosenBank, linkedCorrespondentId]
+      properties:
+        banks:
+          type: array
+          items:
+            $ref: "#/components/schemas/BankOption"
+        correspondents:
+          type: array
+          items:
+            $ref: "#/components/schemas/Correspondent"
+        chosenBank:
+          type: string
+          nullable: true
+        linkedCorrespondentId:
+          type: integer
+          nullable: true
+        linkedCorrespondent:
+          $ref: "#/components/schemas/Correspondent"
+          nullable: true
+
+    ChooseFinancingRequest:
+      type: object
+      required: [bank]
+      properties:
+        bank:
+          type: string
+          nullable: true
+          description: Slug do banco escolhido. null limpa a escolha.
+        correspondentId:
+          type: integer
+          nullable: true
+          description: ID do correspondente escolhido na tabela correspondents.
+        correspondentCode:
+          type: string
+          nullable: true
+          description: Quando o cliente digita o código direto (ex.- "CCA-1024") ao invés de escolher na lista.
+        autoAssign:
+          type: boolean
+          nullable: true
+          description: Quando true e o cliente não tem correspondente, o servidor escolhe automaticamente um do banco.
 
     MaritalStatus:
       type: string
@@ -1184,6 +1301,14 @@ components:
         brokerName:
           type: string
           nullable: true
+        chosenBank:
+          type: string
+          nullable: true
+          description: Banco escolhido pelo cliente para tocar o financiamento (slug)
+        linkedCorrespondentId:
+          type: integer
+          nullable: true
+          description: ID do correspondente vinculado pelo cliente (correspondents.id)
         aiRecommendation:
           type: string
           nullable: true

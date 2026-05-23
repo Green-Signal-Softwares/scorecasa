@@ -1,7 +1,8 @@
 import { Router } from "express";
-import { db, usersTable, leadsTable, brokersTable } from "@workspace/db";
-import { eq } from "drizzle-orm";
+import { db, usersTable, leadsTable, brokersTable, correspondentsTable } from "@workspace/db";
+import { and, eq, isNull } from "drizzle-orm";
 import { extractBcbFromPdf, normalizeCpf, safeOcrErrorMessage } from "./bcb-ocr-helper";
+import { eligibleBankSlugs, type LeadInput as OffersLeadInput } from "@workspace/bank-offers";
 
 const router = Router();
 
@@ -26,6 +27,16 @@ async function getClientProfile(userId: number) {
     brokerName = broker?.name ?? null;
   }
 
+  let linkedCorrespondent: typeof correspondentsTable.$inferSelect | null = null;
+  if (lead.linkedCorrespondentId) {
+    const [c] = await db
+      .select()
+      .from(correspondentsTable)
+      .where(eq(correspondentsTable.id, lead.linkedCorrespondentId))
+      .limit(1);
+    linkedCorrespondent = c ?? null;
+  }
+
   return {
     user: {
       id: user.id,
@@ -41,6 +52,96 @@ async function getClientProfile(userId: number) {
       createdAt: lead.createdAt.toISOString(),
       updatedAt: lead.updatedAt.toISOString(),
     },
+    linkedCorrespondent: linkedCorrespondent
+      ? serializeCorrespondent(linkedCorrespondent)
+      : null,
+  };
+}
+
+// ── Banks/correspondents helpers ────────────────────────────────────────────
+// Catálogo de bancos compatível com o computeOffers do BankComparison.
+// shortName/color batem com o que o front renderiza para manter a aparência
+// consistente entre as duas superfícies (Bancos do Resumo e Meu Financiamento).
+const BANK_CATALOG = [
+  { bank: "caixa",     shortName: "CEF",   name: "Caixa Econômica Federal", color: "#0070C0", bgColor: "#E6F0FA" },
+  { bank: "bb",        shortName: "BB",    name: "Banco do Brasil",          color: "#FACC15", bgColor: "#FEF9C3" },
+  { bank: "bradesco",  shortName: "BRA",   name: "Bradesco",                 color: "#CC092F", bgColor: "#FEE2E2" },
+  { bank: "itau",      shortName: "ITAÚ",  name: "Itaú",                     color: "#EC7000", bgColor: "#FFEDD5" },
+  { bank: "santander", shortName: "SAN",   name: "Santander",                color: "#EC0000", bgColor: "#FEE2E2" },
+  { bank: "inter",     shortName: "INTER", name: "Inter",                    color: "#FF7A00", bgColor: "#FFEDD5" },
+] as const;
+const BANK_SLUGS: Set<string> = new Set(BANK_CATALOG.map((b) => b.bank as string));
+
+function serializeCorrespondent(c: typeof correspondentsTable.$inferSelect) {
+  return {
+    id: c.id,
+    name: c.name,
+    bank: c.bank,
+    code: c.code,
+    email: c.email ?? null,
+    phone: c.phone ?? null,
+    status: c.status,
+  };
+}
+
+// Elegibilidade vem do MESMO motor que o BankComparison.computeOffers
+// (lib/bank-offers). Garante que o seletor "Meu Financiamento" e o subtab
+// Bancos do Resumo nunca discordem sobre quais bancos o cliente pode tocar.
+function leadToOffersInput(lead: typeof leadsTable.$inferSelect): OffersLeadInput {
+  return {
+    income: lead.income,
+    propertyValue: lead.propertyValue,
+    hasFgts: lead.hasFgts,
+    fgtsBalance: lead.fgtsBalance,
+    employmentType: lead.employmentType,
+    maritalStatus: lead.maritalStatus,
+    spouseIncome: lead.spouseIncome,
+    informalIncome: lead.informalIncome,
+    scoreCaixa: lead.scoreCaixa ?? 0,
+    scoreMCMV: lead.scoreMCMV ?? 0,
+    approvalChance: lead.approvalChance ?? 0,
+    serasaScore: lead.serasaScore,
+    hasNegativations: lead.hasNegativations,
+    hasProtests: lead.hasProtests,
+    siricStatus: lead.siricStatus,
+    propertyType: lead.propertyType,
+  };
+}
+
+function eligibleBanksFor(lead: typeof leadsTable.$inferSelect): Set<string> {
+  return eligibleBankSlugs(leadToOffersInput(lead));
+}
+
+async function buildBanksAndCorrespondentsResponse(lead: typeof leadsTable.$inferSelect) {
+  const eligible = eligibleBanksFor(lead);
+  const banks = BANK_CATALOG.map((b) => ({
+    bank: b.bank,
+    shortName: b.shortName,
+    name: b.name,
+    color: b.color,
+    bgColor: b.bgColor,
+    eligible: eligible.has(b.bank),
+    eligibilityLabel: eligible.has(b.bank) ? "Elegível" : "Em análise",
+  }));
+  const corrs = await db
+    .select()
+    .from(correspondentsTable)
+    .where(eq(correspondentsTable.status, "active"));
+  let linkedCorrespondent: any = null;
+  if (lead.linkedCorrespondentId) {
+    const [c] = await db
+      .select()
+      .from(correspondentsTable)
+      .where(eq(correspondentsTable.id, lead.linkedCorrespondentId))
+      .limit(1);
+    linkedCorrespondent = c ? serializeCorrespondent(c) : null;
+  }
+  return {
+    banks,
+    correspondents: corrs.map(serializeCorrespondent),
+    chosenBank: lead.chosenBank ?? null,
+    linkedCorrespondentId: lead.linkedCorrespondentId ?? null,
+    linkedCorrespondent,
   };
 }
 
@@ -588,6 +689,158 @@ router.put("/debts", requireClient, async (req, res) => {
   await db.update(leadsTable).set(update).where(eq(leadsTable.id, user.leadId));
   const profile = await getClientProfile(userId);
   res.json(profile);
+});
+
+// ── GET /api/client/banks-and-correspondents ────────────────────────────────
+// Devolve o catálogo de bancos com a flag de elegibilidade para este lead,
+// a lista de correspondentes ativos e o vínculo atual. Mesma fonte usada
+// pelas duas telas (Bancos do Resumo e Meu Financiamento).
+router.get("/banks-and-correspondents", requireClient, async (req: any, res) => {
+  const userId = req.session.userId as number;
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+  if (!user || user.role !== "client" || !user.leadId) {
+    res.status(403).json({ error: "Apenas clientes." });
+    return;
+  }
+  const [lead] = await db.select().from(leadsTable).where(eq(leadsTable.id, user.leadId)).limit(1);
+  if (!lead) {
+    res.status(404).json({ error: "Lead não encontrado." });
+    return;
+  }
+  res.json(await buildBanksAndCorrespondentsResponse(lead));
+});
+
+// ── POST /api/client/choose-financing ───────────────────────────────────────
+// Cliente escolhe banco e (opcionalmente) correspondente. Três modos:
+//   1) bank=null → desfaz a escolha (limpa banco + correspondente).
+//   2) bank + correspondentId → linka direto a um correspondente da lista.
+//   3) bank + correspondentCode → procura por código, valida que pertence ao banco.
+//   4) bank + autoAssign=true → servidor pega o primeiro correspondente ativo do banco.
+//   5) bank apenas → registra a escolha de banco sem correspondente.
+//
+// Trocar de banco SEMPRE limpa o correspondente anterior (o vínculo é por banco).
+router.post("/choose-financing", requireClient, async (req: any, res) => {
+  const userId = req.session.userId as number;
+  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
+  if (!user || user.role !== "client" || !user.leadId) {
+    res.status(403).json({ error: "Apenas clientes." });
+    return;
+  }
+  const [lead] = await db.select().from(leadsTable).where(eq(leadsTable.id, user.leadId)).limit(1);
+  if (!lead) {
+    res.status(404).json({ error: "Lead não encontrado." });
+    return;
+  }
+
+  const body = req.body as Record<string, unknown>;
+  const bank = body.bank as string | null | undefined;
+  const correspondentId = body.correspondentId as number | null | undefined;
+  const correspondentCode = body.correspondentCode as string | null | undefined;
+  const autoAssign = body.autoAssign === true;
+
+  // Modo 1: limpar escolha
+  if (bank === null || bank === undefined) {
+    await db
+      .update(leadsTable)
+      .set({
+        chosenBank: null,
+        linkedCorrespondentId: null,
+        proceedWithBank: null,
+        updatedAt: new Date(),
+      })
+      .where(eq(leadsTable.id, lead.id));
+    const [updated] = await db.select().from(leadsTable).where(eq(leadsTable.id, lead.id)).limit(1);
+    res.json(await buildBanksAndCorrespondentsResponse(updated!));
+    return;
+  }
+
+  if (typeof bank !== "string" || !BANK_SLUGS.has(bank)) {
+    res.status(400).json({ error: `Banco inválido. Use um de: ${[...BANK_SLUGS].join(", ")}.` });
+    return;
+  }
+
+  // Backend também garante que o banco escolhido é elegível para este lead.
+  // O front já desabilita botões de bancos inaptos, mas a regra de negócio
+  // tem que ser autoritativa no servidor (mesma fonte computeOffers).
+  const eligible = eligibleBanksFor(lead);
+  if (!eligible.has(bank)) {
+    res.status(400).json({
+      error: `O banco ${bank} não está elegível para o seu perfil neste momento.`,
+    });
+    return;
+  }
+
+  // Resolve correspondente (modos 2/3/4)
+  let linkedCorrespondentId: number | null = null;
+
+  if (typeof correspondentId === "number" && Number.isFinite(correspondentId)) {
+    const [c] = await db.select().from(correspondentsTable).where(eq(correspondentsTable.id, correspondentId)).limit(1);
+    if (!c || c.status !== "active") {
+      res.status(400).json({ error: "Correspondente não encontrado ou inativo." });
+      return;
+    }
+    if (c.bank !== bank) {
+      res.status(400).json({ error: `Correspondente "${c.name}" pertence ao banco ${c.bank}, não a ${bank}.` });
+      return;
+    }
+    linkedCorrespondentId = c.id;
+  } else if (typeof correspondentCode === "string" && correspondentCode.trim()) {
+    const code = correspondentCode.trim();
+    const [c] = await db
+      .select()
+      .from(correspondentsTable)
+      .where(and(eq(correspondentsTable.code, code), eq(correspondentsTable.bank, bank)))
+      .limit(1);
+    if (!c) {
+      res.status(400).json({ error: `Código "${code}" não encontrado para o banco escolhido.` });
+      return;
+    }
+    if (c.status !== "active") {
+      res.status(400).json({ error: "Correspondente está inativo." });
+      return;
+    }
+    linkedCorrespondentId = c.id;
+  } else if (autoAssign) {
+    // Pega o primeiro correspondente ativo do banco sem leads (ou qualquer um se
+    // todos já tiverem). Round-robin simples — basta pra MVP.
+    const candidates = await db
+      .select()
+      .from(correspondentsTable)
+      .where(and(eq(correspondentsTable.bank, bank), eq(correspondentsTable.status, "active")));
+    if (candidates.length === 0) {
+      res.status(400).json({ error: "Nenhum correspondente disponível para este banco." });
+      return;
+    }
+    // Conta leads vinculados a cada candidato e escolhe o de menor carga.
+    const counts = await Promise.all(
+      candidates.map(async (c) => {
+        const rows = await db
+          .select({ id: leadsTable.id })
+          .from(leadsTable)
+          .where(eq(leadsTable.linkedCorrespondentId, c.id));
+        return { c, n: rows.length };
+      }),
+    );
+    counts.sort((a, b) => a.n - b.n);
+    linkedCorrespondentId = counts[0]!.c.id;
+  }
+  // Else: modo 5 — só registra o banco, sem correspondente.
+
+  await db
+    .update(leadsTable)
+    .set({
+      chosenBank: bank,
+      linkedCorrespondentId,
+      // Mantém proceedWithBank em sincronia com chosenBank quando for "caixa"
+      // (legado: client-documents.ts ainda usa essa coluna para liberar
+      // assinatura via gov.br). Quando trocar para outro banco, limpa.
+      proceedWithBank: bank === "caixa" ? "caixa" : null,
+      updatedAt: new Date(),
+    })
+    .where(eq(leadsTable.id, lead.id));
+
+  const [updated] = await db.select().from(leadsTable).where(eq(leadsTable.id, lead.id)).limit(1);
+  res.json(await buildBanksAndCorrespondentsResponse(updated!));
 });
 
 export default router;

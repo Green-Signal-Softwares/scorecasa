@@ -50,6 +50,10 @@ export interface Lead {
   scoreMCMV: number;
   brokerId?: number | null;
   brokerName?: string | null;
+  /** Banco escolhido pelo cliente para tocar o financiamento (slug) */
+  chosenBank?: string | null;
+  /** ID do correspondente vinculado pelo cliente (correspondents.id) */
+  linkedCorrespondentId?: number | null;
   aiRecommendation?: string | null;
   /** Serasa Score consultado (0-1000) */
   serasaScore?: number | null;

@@ -6,6 +6,7 @@ import {
   brokersTable,
   processDocumentsTable,
   processStageHistoryTable,
+  correspondentsTable,
 } from "@workspace/db";
 import { eq, and, or, isNotNull, desc, asc, inArray } from "drizzle-orm";
 import {
@@ -41,6 +42,45 @@ async function requireStaff(req: any, res: any, next: any) {
 }
 
 router.use(requireStaff);
+
+// ── Correspondent ownership helper ──────────────────────────────────────────
+// Para usuários com role=correspondent, exige que (a) exista linha em
+// `correspondents` mapeada pelo user.id e (b) o lead alvo esteja vinculado
+// a esse correspondente. Caso contrário, 403 (nunca 404 silencioso).
+// Admin/analyst são pulados (acesso total).
+async function getMyCorrespondent(sessionUser: { id: number; role: string }) {
+  if (sessionUser.role !== "correspondent") return null;
+  const [c] = await db
+    .select()
+    .from(correspondentsTable)
+    .where(eq(correspondentsTable.userId, sessionUser.id))
+    .limit(1);
+  return c ?? null;
+}
+
+async function enforceLeadOwnership(req: any, res: any, leadId: number): Promise<boolean> {
+  const sessionUser = req.sessionUser as { id: number; role: string };
+  if (sessionUser.role !== "correspondent") return true;
+  const myCorrespondent = await getMyCorrespondent(sessionUser);
+  if (!myCorrespondent) {
+    res.status(403).json({ error: "Correspondente sem cadastro vinculado." });
+    return false;
+  }
+  const [lead] = await db
+    .select({ id: leadsTable.id, linkedCorrespondentId: leadsTable.linkedCorrespondentId })
+    .from(leadsTable)
+    .where(eq(leadsTable.id, leadId))
+    .limit(1);
+  if (!lead) {
+    res.status(404).json({ error: "Lead not found" });
+    return false;
+  }
+  if (lead.linkedCorrespondentId !== myCorrespondent.id) {
+    res.status(403).json({ error: "Você não tem acesso a este lead." });
+    return false;
+  }
+  return true;
+}
 
 // ── Document checklist per stage (RAUZEE-style) ─────────────────────────────
 const CHECKLIST = [
@@ -90,17 +130,32 @@ router.get("/", async (req, res) => {
   }
   const stageFilter = parsed.data.stage;
 
-  // Only leads que foram aprovados (ou já estão na esteira de processos) entram aqui.
-  const leads = await db
-    .select()
-    .from(leadsTable)
-    .where(
-      or(
-        eq(leadsTable.status, "approved"),
-        eq(leadsTable.status, "in_progress"),
-        isNotNull(leadsTable.processStage),
-      ),
-    );
+  // ── Routing exclusivity ────────────────────────────────────────────────
+  // Correspondente só vê leads onde foi escolhido (linkedCorrespondentId
+  // == seu correspondents.id). Se o user.role é correspondent mas não tem
+  // linha em `correspondents`, devolvemos 403 — NUNCA fallback pra lista
+  // total (isso seria broken access control).
+  const sessionUser = (req as any).sessionUser as { id: number; role: string };
+  let myCorrespondent: typeof correspondentsTable.$inferSelect | null = null;
+  if (sessionUser.role === "correspondent") {
+    myCorrespondent = await getMyCorrespondent(sessionUser);
+    if (!myCorrespondent) {
+      res.status(403).json({ error: "Correspondente sem cadastro vinculado." });
+      return;
+    }
+  }
+
+  const statusFilter = or(
+    eq(leadsTable.status, "approved"),
+    eq(leadsTable.status, "in_progress"),
+    isNotNull(leadsTable.processStage),
+  );
+
+  const whereClause = myCorrespondent
+    ? and(statusFilter, eq(leadsTable.linkedCorrespondentId, myCorrespondent.id))
+    : statusFilter;
+
+  const leads = await db.select().from(leadsTable).where(whereClause);
   if (leads.length === 0) {
     res.json([]);
     return;
@@ -135,6 +190,8 @@ router.get("/", async (req, res) => {
       stage,
       brokerName: lead.brokerId ? brokerById.get(lead.brokerId) ?? undefined : undefined,
       correspondentName: lead.correspondentId ? corrById.get(lead.correspondentId) ?? undefined : undefined,
+      chosenBank: lead.chosenBank ?? undefined,
+      linkedCorrespondentId: lead.linkedCorrespondentId ?? undefined,
       documentsCount: myDocs.length,
       documentsApproved: myDocs.filter((d) => d.status === "approved").length,
       documentsPending: myDocs.filter((d) => d.status === "pending").length,
@@ -174,6 +231,26 @@ async function buildDetail(leadId: number) {
     correspondentName = c?.name;
   }
 
+  // Banco escolhido pelo cliente + correspondente linkado (visíveis no
+  // detalhe do processo para que o correspondente saiba com qual banco
+  // está tocando o financiamento).
+  let linkedCorrespondent: any = null;
+  if (lead.linkedCorrespondentId) {
+    const [c] = await db
+      .select()
+      .from(correspondentsTable)
+      .where(eq(correspondentsTable.id, lead.linkedCorrespondentId))
+      .limit(1);
+    if (c) {
+      linkedCorrespondent = {
+        id: c.id,
+        name: c.name,
+        bank: c.bank,
+        code: c.code,
+      };
+    }
+  }
+
   const stage = effectiveStage(lead);
   return {
     summary: {
@@ -186,6 +263,8 @@ async function buildDetail(leadId: number) {
       stage,
       brokerName,
       correspondentName,
+      chosenBank: lead.chosenBank ?? undefined,
+      linkedCorrespondent: linkedCorrespondent ?? undefined,
       documentsCount: docs.length,
       documentsApproved: docs.filter((d) => d.status === "approved").length,
       documentsPending: docs.filter((d) => d.status === "pending").length,
@@ -224,6 +303,7 @@ router.get("/:leadId", async (req, res) => {
     res.status(400).json({ error: "Invalid leadId" });
     return;
   }
+  if (!(await enforceLeadOwnership(req, res, leadId))) return;
   const detail = await buildDetail(leadId);
   if (!detail) {
     res.status(404).json({ error: "Process not found" });
@@ -239,6 +319,7 @@ router.put("/:leadId/stage", async (req, res) => {
     res.status(400).json({ error: "Invalid leadId" });
     return;
   }
+  if (!(await enforceLeadOwnership(req, res, leadId))) return;
   const parsed = ChangeStageRequest.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid body" });
@@ -274,6 +355,7 @@ router.post("/:leadId/documents", async (req, res) => {
     res.status(400).json({ error: "Invalid leadId" });
     return;
   }
+  if (!(await enforceLeadOwnership(req, res, leadId))) return;
   const parsed = RegisterDocumentRequest.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid body" });
@@ -334,6 +416,7 @@ router.put("/:leadId/documents/:docId", async (req, res) => {
     res.status(400).json({ error: "Invalid params" });
     return;
   }
+  if (!(await enforceLeadOwnership(req, res, leadId))) return;
   const parsed = UpdateDocumentRequest.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid body" });
@@ -379,6 +462,7 @@ router.delete("/:leadId/documents/:docId", async (req, res) => {
     res.status(400).json({ error: "Invalid params" });
     return;
   }
+  if (!(await enforceLeadOwnership(req, res, leadId))) return;
   await db
     .delete(processDocumentsTable)
     .where(and(eq(processDocumentsTable.id, docId), eq(processDocumentsTable.leadId, leadId)));

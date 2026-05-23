@@ -4,6 +4,7 @@ import {
   ShieldCheck, Loader2, AlertCircle, PenLine,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
+import { BankAndCorrespondentPicker } from "@/components/BankAndCorrespondentPicker";
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -482,11 +483,14 @@ export function ClientDocumentosTab({ lead }: { lead: any }) {
         </div>
       )}
 
-      <ProceedBankBanner
-        proceedWithBank={data.proceedWithBank}
-        scoreApproved={scoreApproved}
-        onSet={handleSetBank}
-      />
+      {/* Bloco "Meu Financiamento": escolha de banco + correspondente.
+          Mesma fonte (useBanksAndCorrespondents) que o subtab Bancos do
+          Resumo — qualquer mudança aqui reflete lá e vice-versa. */}
+      {scoreApproved && (
+        <section data-testid="meu-financiamento-section">
+          <BankAndCorrespondentPicker />
+        </section>
+      )}
 
       <section className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6">
         <h2 className="text-base font-bold text-[#07113A] mb-1">Documentos pessoais</h2>

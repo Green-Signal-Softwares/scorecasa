@@ -196,6 +196,10 @@ export interface Lead {
   scoreMCMV: number;
   brokerId?: number | null;
   brokerName?: string | null;
+  /** Banco escolhido pelo cliente para tocar o financiamento (slug) */
+  chosenBank?: string | null;
+  /** ID do correspondente vinculado pelo cliente (correspondents.id) */
+  linkedCorrespondentId?: number | null;
   aiRecommendation?: string | null;
   /** Serasa Score consultado (0-1000) */
   serasaScore?: number | null;
@@ -239,9 +243,62 @@ export interface Lead {
   updatedAt: string;
 }
 
+export type CorrespondentStatus =
+  (typeof CorrespondentStatus)[keyof typeof CorrespondentStatus];
+
+export const CorrespondentStatus = {
+  active: "active",
+  inactive: "inactive",
+} as const;
+
+export interface Correspondent {
+  id: number;
+  name: string;
+  /** Slug do banco (caixa, bb, bradesco, itau, santander, inter) */
+  bank: string;
+  /** Código identificador no banco (ex.: CCA-1024) */
+  code: string;
+  email?: string | null;
+  phone?: string | null;
+  status: CorrespondentStatus;
+}
+
 export interface ClientProfile {
   user: User;
   lead: Lead;
+  /** Correspondente atualmente vinculado ao lead (se houver) */
+  linkedCorrespondent?: Correspondent | null;
+}
+
+export interface BankOption {
+  /** Slug do banco */
+  bank: string;
+  shortName: string;
+  name: string;
+  color: string;
+  bgColor?: string | null;
+  /** Se o cliente está elegível segundo computeOffers */
+  eligible: boolean;
+  eligibilityLabel?: string | null;
+}
+
+export interface BanksAndCorrespondentsResponse {
+  banks: BankOption[];
+  correspondents: Correspondent[];
+  chosenBank: string | null;
+  linkedCorrespondentId: number | null;
+  linkedCorrespondent?: Correspondent | null;
+}
+
+export interface ChooseFinancingRequest {
+  /** Slug do banco escolhido. null limpa a escolha. */
+  bank: string | null;
+  /** ID do correspondente escolhido na tabela correspondents. */
+  correspondentId?: number | null;
+  /** Quando o cliente digita o código direto (ex.- "CCA-1024") ao invés de escolher na lista. */
+  correspondentCode?: string | null;
+  /** Quando true e o cliente não tem correspondente, o servidor escolhe automaticamente um do banco. */
+  autoAssign?: boolean | null;
 }
 
 export type CaixaEnrichRequestSiricStatus =

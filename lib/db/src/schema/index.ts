@@ -10,3 +10,4 @@ export * from "./processes";
 export * from "./client-payments";
 export * from "./password-resets";
 export * from "./caixa-ltv";
+export * from "./correspondents";

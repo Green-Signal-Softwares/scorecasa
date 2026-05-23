@@ -4,10 +4,13 @@
  * Api
  * OpenAPI spec version: 1.0.0
  */
+import type { Correspondent } from "./correspondent";
 import type { Lead } from "./lead";
 import type { User } from "./user";
 
 export interface ClientProfile {
   user: User;
   lead: Lead;
+  /** Correspondente atualmente vinculado ao lead (se houver) */
+  linkedCorrespondent?: Correspondent | null;
 }

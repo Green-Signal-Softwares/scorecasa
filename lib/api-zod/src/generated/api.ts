@@ -167,6 +167,18 @@ export const GetClientProfileResponse = zod.object({
     scoreMCMV: zod.number().describe("Minha Casa Minha Vida eligibility score"),
     brokerId: zod.number().nullish(),
     brokerName: zod.string().nullish(),
+    chosenBank: zod
+      .string()
+      .nullish()
+      .describe(
+        "Banco escolhido pelo cliente para tocar o financiamento (slug)",
+      ),
+    linkedCorrespondentId: zod
+      .number()
+      .nullish()
+      .describe(
+        "ID do correspondente vinculado pelo cliente (correspondents.id)",
+      ),
     aiRecommendation: zod.string().nullish(),
     serasaScore: zod
       .number()
@@ -250,6 +262,24 @@ export const GetClientProfileResponse = zod.object({
     createdAt: zod.coerce.date(),
     updatedAt: zod.coerce.date(),
   }),
+  linkedCorrespondent: zod
+    .object({
+      id: zod.number(),
+      name: zod.string(),
+      bank: zod
+        .string()
+        .describe(
+          "Slug do banco (caixa, bb, bradesco, itau, santander, inter)",
+        ),
+      code: zod
+        .string()
+        .describe("Código identificador no banco (ex.: CCA-1024)"),
+      email: zod.string().nullish(),
+      phone: zod.string().nullish(),
+      status: zod.enum(["active", "inactive"]),
+    })
+    .nullish()
+    .describe("Correspondente atualmente vinculado ao lead (se houver)"),
 });
 
 /**
@@ -330,6 +360,18 @@ export const UpdateClientProfileResponse = zod.object({
     scoreMCMV: zod.number().describe("Minha Casa Minha Vida eligibility score"),
     brokerId: zod.number().nullish(),
     brokerName: zod.string().nullish(),
+    chosenBank: zod
+      .string()
+      .nullish()
+      .describe(
+        "Banco escolhido pelo cliente para tocar o financiamento (slug)",
+      ),
+    linkedCorrespondentId: zod
+      .number()
+      .nullish()
+      .describe(
+        "ID do correspondente vinculado pelo cliente (correspondents.id)",
+      ),
     aiRecommendation: zod.string().nullish(),
     serasaScore: zod
       .number()
@@ -413,6 +455,157 @@ export const UpdateClientProfileResponse = zod.object({
     createdAt: zod.coerce.date(),
     updatedAt: zod.coerce.date(),
   }),
+  linkedCorrespondent: zod
+    .object({
+      id: zod.number(),
+      name: zod.string(),
+      bank: zod
+        .string()
+        .describe(
+          "Slug do banco (caixa, bb, bradesco, itau, santander, inter)",
+        ),
+      code: zod
+        .string()
+        .describe("Código identificador no banco (ex.: CCA-1024)"),
+      email: zod.string().nullish(),
+      phone: zod.string().nullish(),
+      status: zod.enum(["active", "inactive"]),
+    })
+    .nullish()
+    .describe("Correspondente atualmente vinculado ao lead (se houver)"),
+});
+
+/**
+ * @summary Banks eligible for this client + correspondents list + current linkage
+ */
+export const GetBanksAndCorrespondentsResponse = zod.object({
+  banks: zod.array(
+    zod.object({
+      bank: zod.string().describe("Slug do banco"),
+      shortName: zod.string(),
+      name: zod.string(),
+      color: zod.string(),
+      bgColor: zod.string().nullish(),
+      eligible: zod
+        .boolean()
+        .describe("Se o cliente está elegível segundo computeOffers"),
+      eligibilityLabel: zod.string().nullish(),
+    }),
+  ),
+  correspondents: zod.array(
+    zod.object({
+      id: zod.number(),
+      name: zod.string(),
+      bank: zod
+        .string()
+        .describe(
+          "Slug do banco (caixa, bb, bradesco, itau, santander, inter)",
+        ),
+      code: zod
+        .string()
+        .describe("Código identificador no banco (ex.: CCA-1024)"),
+      email: zod.string().nullish(),
+      phone: zod.string().nullish(),
+      status: zod.enum(["active", "inactive"]),
+    }),
+  ),
+  chosenBank: zod.string().nullable(),
+  linkedCorrespondentId: zod.number().nullable(),
+  linkedCorrespondent: zod
+    .object({
+      id: zod.number(),
+      name: zod.string(),
+      bank: zod
+        .string()
+        .describe(
+          "Slug do banco (caixa, bb, bradesco, itau, santander, inter)",
+        ),
+      code: zod
+        .string()
+        .describe("Código identificador no banco (ex.: CCA-1024)"),
+      email: zod.string().nullish(),
+      phone: zod.string().nullish(),
+      status: zod.enum(["active", "inactive"]),
+    })
+    .nullish(),
+});
+
+/**
+ * @summary Client picks bank and correspondent for their financing
+ */
+export const ChooseFinancingBody = zod.object({
+  bank: zod
+    .string()
+    .nullable()
+    .describe("Slug do banco escolhido. null limpa a escolha."),
+  correspondentId: zod
+    .number()
+    .nullish()
+    .describe("ID do correspondente escolhido na tabela correspondents."),
+  correspondentCode: zod
+    .string()
+    .nullish()
+    .describe(
+      'Quando o cliente digita o código direto (ex.- \"CCA-1024\") ao invés de escolher na lista.',
+    ),
+  autoAssign: zod
+    .boolean()
+    .nullish()
+    .describe(
+      "Quando true e o cliente não tem correspondente, o servidor escolhe automaticamente um do banco.",
+    ),
+});
+
+export const ChooseFinancingResponse = zod.object({
+  banks: zod.array(
+    zod.object({
+      bank: zod.string().describe("Slug do banco"),
+      shortName: zod.string(),
+      name: zod.string(),
+      color: zod.string(),
+      bgColor: zod.string().nullish(),
+      eligible: zod
+        .boolean()
+        .describe("Se o cliente está elegível segundo computeOffers"),
+      eligibilityLabel: zod.string().nullish(),
+    }),
+  ),
+  correspondents: zod.array(
+    zod.object({
+      id: zod.number(),
+      name: zod.string(),
+      bank: zod
+        .string()
+        .describe(
+          "Slug do banco (caixa, bb, bradesco, itau, santander, inter)",
+        ),
+      code: zod
+        .string()
+        .describe("Código identificador no banco (ex.: CCA-1024)"),
+      email: zod.string().nullish(),
+      phone: zod.string().nullish(),
+      status: zod.enum(["active", "inactive"]),
+    }),
+  ),
+  chosenBank: zod.string().nullable(),
+  linkedCorrespondentId: zod.number().nullable(),
+  linkedCorrespondent: zod
+    .object({
+      id: zod.number(),
+      name: zod.string(),
+      bank: zod
+        .string()
+        .describe(
+          "Slug do banco (caixa, bb, bradesco, itau, santander, inter)",
+        ),
+      code: zod
+        .string()
+        .describe("Código identificador no banco (ex.: CCA-1024)"),
+      email: zod.string().nullish(),
+      phone: zod.string().nullish(),
+      status: zod.enum(["active", "inactive"]),
+    })
+    .nullish(),
 });
 
 /**
@@ -1297,6 +1490,18 @@ export const GetLeadsResponse = zod.object({
         .describe("Minha Casa Minha Vida eligibility score"),
       brokerId: zod.number().nullish(),
       brokerName: zod.string().nullish(),
+      chosenBank: zod
+        .string()
+        .nullish()
+        .describe(
+          "Banco escolhido pelo cliente para tocar o financiamento (slug)",
+        ),
+      linkedCorrespondentId: zod
+        .number()
+        .nullish()
+        .describe(
+          "ID do correspondente vinculado pelo cliente (correspondents.id)",
+        ),
       aiRecommendation: zod.string().nullish(),
       serasaScore: zod
         .number()
@@ -1488,6 +1693,16 @@ export const GetLeadResponse = zod.object({
   scoreMCMV: zod.number().describe("Minha Casa Minha Vida eligibility score"),
   brokerId: zod.number().nullish(),
   brokerName: zod.string().nullish(),
+  chosenBank: zod
+    .string()
+    .nullish()
+    .describe("Banco escolhido pelo cliente para tocar o financiamento (slug)"),
+  linkedCorrespondentId: zod
+    .number()
+    .nullish()
+    .describe(
+      "ID do correspondente vinculado pelo cliente (correspondents.id)",
+    ),
   aiRecommendation: zod.string().nullish(),
   serasaScore: zod
     .number()
@@ -1636,6 +1851,16 @@ export const UpdateLeadResponse = zod.object({
   scoreMCMV: zod.number().describe("Minha Casa Minha Vida eligibility score"),
   brokerId: zod.number().nullish(),
   brokerName: zod.string().nullish(),
+  chosenBank: zod
+    .string()
+    .nullish()
+    .describe("Banco escolhido pelo cliente para tocar o financiamento (slug)"),
+  linkedCorrespondentId: zod
+    .number()
+    .nullish()
+    .describe(
+      "ID do correspondente vinculado pelo cliente (correspondents.id)",
+    ),
   aiRecommendation: zod.string().nullish(),
   serasaScore: zod
     .number()
@@ -1903,6 +2128,16 @@ export const EnrichLeadResponse = zod.object({
   scoreMCMV: zod.number().describe("Minha Casa Minha Vida eligibility score"),
   brokerId: zod.number().nullish(),
   brokerName: zod.string().nullish(),
+  chosenBank: zod
+    .string()
+    .nullish()
+    .describe("Banco escolhido pelo cliente para tocar o financiamento (slug)"),
+  linkedCorrespondentId: zod
+    .number()
+    .nullish()
+    .describe(
+      "ID do correspondente vinculado pelo cliente (correspondents.id)",
+    ),
   aiRecommendation: zod.string().nullish(),
   serasaScore: zod
     .number()

@@ -54,6 +54,14 @@ export const leadsTable = pgTable("leads", {
   scoreMCMV: integer("score_mcmv").notNull().default(0),
   brokerId: integer("broker_id"),
   correspondentId: integer("correspondent_id"),
+  // Banco escolhido pelo cliente para tocar o financiamento (slug:
+  // caixa, bb, bradesco, itau, santander, inter). Definido junto com
+  // o correspondente em "Meu Financiamento".
+  chosenBank: text("chosen_bank"),
+  // FK para correspondents.id — correspondente vinculado pelo cliente
+  // a este lead. Quando preenchido, o lead some do painel de outros
+  // correspondentes do mesmo banco (exclusividade de roteamento).
+  linkedCorrespondentId: integer("linked_correspondent_id"),
   processStage: text("process_stage", {
     enum: ["analise", "aprovacao", "engenharia", "conformidade", "assinatura", "concluido"],
   }),

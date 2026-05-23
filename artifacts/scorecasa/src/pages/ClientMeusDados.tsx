@@ -357,7 +357,7 @@ export function ClientMeusDados() {
       <div className="flex gap-0 mb-6 border-b border-gray-200">
         {[
           { key: "dados" as const, label: "Meus dados" },
-          { key: "documentos" as const, label: "Meus documentos" },
+          { key: "documentos" as const, label: "Meus Documentos / Meu Financiamento" },
           { key: "conta" as const, label: "Conta e segurança" },
         ].map((t) => (
           <button

@@ -7,6 +7,8 @@
 
 export * from "./approvalFunnel";
 export * from "./authResult";
+export * from "./bankOption";
+export * from "./banksAndCorrespondentsResponse";
 export * from "./broker";
 export * from "./brokerRanking";
 export * from "./brokerStatus";
@@ -14,7 +16,10 @@ export * from "./caixaEnrichRequest";
 export * from "./caixaEnrichRequestSiricStatus";
 export * from "./changeStageRequest";
 export * from "./changeStageRequestStage";
+export * from "./chooseFinancingRequest";
 export * from "./clientProfile";
+export * from "./correspondent";
+export * from "./correspondentStatus";
 export * from "./createBrokerRequest";
 export * from "./createLeadRequest";
 export * from "./createPropertyRequest";
