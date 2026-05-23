@@ -4,6 +4,7 @@
  * Api
  * OpenAPI spec version: 1.0.0
  */
+import type { SbpeRecommendation } from "./sbpeRecommendation";
 import type { ScoreFactor } from "./scoreFactor";
 
 export interface CreditScore {
@@ -17,4 +18,9 @@ export interface CreditScore {
   factors: ScoreFactor[];
   recommendation: string;
   eligibleBanks?: string[];
+  /** Pivot SBPE quando o MCMV está bloqueado por o cliente já possuir
+imóvel no município do imóvel pretendido. Lista bancos elegíveis,
+faixa de taxa, LTV máximo, entrada e parcela indicativa.
+ */
+  sbpeRecommendation?: SbpeRecommendation | null;
 }

@@ -21,6 +21,11 @@ async function requireAuth(req: any, res: any, next: any) {
 }
 import { cityTier, evaluateMcmv2026, FAIXA_LIMITS } from "@workspace/cities-br";
 import {
+  computeSbpeRecommendation,
+  type LeadInput as OffersLeadInput,
+  type SbpeRecommendation,
+} from "@workspace/bank-offers";
+import {
   CreateLeadBody,
   UpdateLeadBody,
   EnrichLeadBody,
@@ -147,6 +152,36 @@ export interface ScoreBreakdown {
   scoreMCMV: number;
   aiRecommendation: string;
   blocks: ScoreBlock[];
+  sbpeRecommendation: SbpeRecommendation | null;
+}
+
+// Constrói o LeadInput esperado pelo motor de bank-offers a partir do mesmo
+// payload usado em computeScore + os 3 scores já calculados na rodada atual.
+// Mantido próximo da função do `routes/client.ts` para SSOT.
+function buildOffersInput(
+  input: ScoreInput,
+  scoreCaixa: number,
+  scoreMCMV: number,
+  approvalChance: number,
+): OffersLeadInput {
+  return {
+    income: input.income,
+    propertyValue: input.propertyValue,
+    hasFgts: input.hasFgts,
+    fgtsBalance: input.fgtsBalance,
+    employmentType: input.employmentType,
+    maritalStatus: input.maritalStatus,
+    spouseIncome: input.spouseIncome,
+    informalIncome: input.informalIncome,
+    scoreCaixa,
+    scoreMCMV,
+    approvalChance,
+    serasaScore: input.serasaScore,
+    hasNegativations: input.hasNegativations,
+    hasProtests: input.hasProtests,
+    siricStatus: input.siricStatus,
+    propertyType: input.propertyType,
+  };
 }
 
 /** Estima a parcela mensal alvo do financiamento (Tabela Price aproximada,
@@ -329,33 +364,73 @@ function computeScore(input: ScoreInput): ScoreBreakdown {
   else if (approvalChance >= 40) classificacao = "Chance moderada";
   else classificacao = "Baixa chance no momento";
 
-  const fraquezas: string[] = [];
-  // ── Bloqueadores explícitos do MCMV ──────────────────────────────────
-  // Aparecem PRIMEIRO porque mudam a estratégia de produto (sair de MCMV
-  // para SBPE), não só o valor do score.
-  if (ownsBlocker) {
-    fraquezas.push(
-      "MCMV bloqueado: cliente já possui imóvel no município do imóvel pretendido (regra FAR/PMCMV). Analisar como SBPE / Caixa tradicional",
-    );
-  } else if (mcmvEval.fitsFaixa && !mcmvEval.fitsCap) {
-    fraquezas.push(
-      `MCMV indisponível: valor do imóvel (R$ ${propertyValue.toLocaleString("pt-BR")}) acima do teto de R$ ${mcmvEval.cap.toLocaleString("pt-BR")} para tier ${tier} na faixa ${mcmvEval.faixa}`,
-    );
-  } else if (!mcmvEval.fitsFaixa) {
-    fraquezas.push(
-      `MCMV indisponível: renda familiar (R$ ${Math.round(rendaComprovada).toLocaleString("pt-BR")}) acima do teto da Faixa 4 (R$ ${FAIXA_LIMITS.F4.toLocaleString("pt-BR")})`,
-    );
-  }
-  if (comprometimentoScore < 18) fraquezas.push("reduzir parcelas ativas ou o valor financiado");
-  if (entradaScore < 10) fraquezas.push("aumentar a entrada (incluindo FGTS)");
-  if (creditoScore < 8) fraquezas.push("subir o score Serasa antes de pedir o crédito");
-  if (rendaScore < 7) fraquezas.push("aumentar a renda comprovada (cônjuge, informal)");
-  if (historicoScore < 5 && !openFinanceConnected)
-    fraquezas.push("conectar o Open Finance para mostrar histórico positivo");
+  // ── SBPE recommendation (pivot quando MCMV está bloqueado) ───────────
+  // Reaproveita o motor de bank-offers para gerar uma lista de bancos SBPE
+  // elegíveis, faixa de taxa e parcela indicativa. Só preenchido quando o
+  // bloqueador "já possui imóvel no município" está ativo, pois é o caso em
+  // que o broker precisa de uma alternativa imediata.
+  const sbpeRecommendation: SbpeRecommendation | null = ownsBlocker
+    ? computeSbpeRecommendation(
+        buildOffersInput(input, scoreCaixa, scoreMCMV, approvalChance),
+      )
+    : null;
 
-  const recommendation = fraquezas.length
-    ? `${classificacao}. Para melhorar: ${fraquezas.join("; ")}.`
-    : `${classificacao}. Perfil pronto para avançar com a Caixa.`;
+  const improvements: string[] = [];
+  if (comprometimentoScore < 18) improvements.push("reduzir parcelas ativas ou o valor financiado");
+  if (entradaScore < 10) improvements.push("aumentar a entrada (incluindo FGTS)");
+  if (creditoScore < 8) improvements.push("subir o score Serasa antes de pedir o crédito");
+  if (rendaScore < 7) improvements.push("aumentar a renda comprovada (cônjuge, informal)");
+  if (historicoScore < 5 && !openFinanceConnected)
+    improvements.push("conectar o Open Finance para mostrar histórico positivo");
+
+  let recommendation: string;
+  if (ownsBlocker) {
+    // Em vez de só dizer "MCMV bloqueado, avaliar SBPE", traduz o pivot em
+    // números concretos (bancos, faixa de taxa, parcela, LTV, entrada).
+    const cityLabel = propertyCity ? ` em ${propertyCity}${propertyState ? `/${propertyState}` : ""}` : "";
+    if (sbpeRecommendation) {
+      const banksList = sbpeRecommendation.banks
+        .slice(0, 3)
+        .map((b) => b.shortName)
+        .join(", ");
+      const { min, max } = sbpeRecommendation.rateRange;
+      const rateLabel = min === max ? `${min.toFixed(2)}% a.a.` : `${min.toFixed(2)}–${max.toFixed(2)}% a.a.`;
+      const parcela = Math.round(sbpeRecommendation.bestMonthlyInstallment).toLocaleString("pt-BR");
+      const entrada = Math.round(sbpeRecommendation.estimatedDownPayment).toLocaleString("pt-BR");
+      const ltvPct = Math.round(sbpeRecommendation.maxFinancedPct * 100);
+      const parts = [
+        `${classificacao}`,
+        `MCMV bloqueado: cliente já possui imóvel${cityLabel} (regra FAR/PMCMV). Pivote para SBPE: ${banksList} com taxa ${rateLabel}, parcela estimada R$ ${parcela} em ${sbpeRecommendation.termYears} anos (LTV até ${ltvPct}%, entrada ~R$ ${entrada})`,
+      ];
+      if (improvements.length) {
+        parts.push(`Para fortalecer a análise: ${improvements.join("; ")}`);
+      }
+      recommendation = `${parts.join(". ")}.`;
+    } else {
+      // Sem nenhuma oferta SBPE elegível: explicita os pontos a corrigir.
+      const parts = [
+        `${classificacao}`,
+        `MCMV bloqueado: cliente já possui imóvel${cityLabel} (regra FAR/PMCMV). Nenhum banco SBPE elegível com os dados atuais`,
+      ];
+      if (improvements.length) parts.push(`Resolver antes: ${improvements.join("; ")}`);
+      recommendation = `${parts.join(". ")}.`;
+    }
+  } else {
+    const fraquezas: string[] = [];
+    if (mcmvEval.fitsFaixa && !mcmvEval.fitsCap) {
+      fraquezas.push(
+        `MCMV indisponível: valor do imóvel (R$ ${propertyValue.toLocaleString("pt-BR")}) acima do teto de R$ ${mcmvEval.cap.toLocaleString("pt-BR")} para tier ${tier} na faixa ${mcmvEval.faixa}`,
+      );
+    } else if (!mcmvEval.fitsFaixa) {
+      fraquezas.push(
+        `MCMV indisponível: renda familiar (R$ ${Math.round(rendaComprovada).toLocaleString("pt-BR")}) acima do teto da Faixa 4 (R$ ${FAIXA_LIMITS.F4.toLocaleString("pt-BR")})`,
+      );
+    }
+    fraquezas.push(...improvements);
+    recommendation = fraquezas.length
+      ? `${classificacao}. Para melhorar: ${fraquezas.join("; ")}.`
+      : `${classificacao}. Perfil pronto para avançar com a Caixa.`;
+  }
 
   const blocks: ScoreBlock[] = [
     {
@@ -430,6 +505,7 @@ function computeScore(input: ScoreInput): ScoreBreakdown {
     scoreMCMV,
     aiRecommendation: recommendation,
     blocks,
+    sbpeRecommendation,
   };
 }
 
@@ -520,7 +596,7 @@ router.post("/", async (req, res) => {
     return;
   }
 
-  const { blocks: _initBlocks, ...scores } = computeScore(parsed.data);
+  const { blocks: _initBlocks, sbpeRecommendation: _initSbpe, ...scores } = computeScore(parsed.data);
 
   const [lead] = await db
     .insert(leadsTable)
@@ -636,7 +712,7 @@ router.put("/:id", async (req, res) => {
       openFinanceNoLatePayments: existing.openFinanceNoLatePayments,
       openFinanceCpfClear: existing.openFinanceCpfClear,
     });
-    const { blocks: _b, ...scoreFields } = breakdown;
+    const { blocks: _b, sbpeRecommendation: _sbpe, ...scoreFields } = breakdown;
     Object.assign(updateData, scoreFields);
   }
 
@@ -764,7 +840,7 @@ router.put("/:id/enrich", async (req, res) => {
     openFinanceNoLatePayments: existing.openFinanceNoLatePayments,
     openFinanceCpfClear: existing.openFinanceCpfClear,
   });
-  const { blocks: _enrichBlocks, ...scores } = breakdown;
+  const { blocks: _enrichBlocks, sbpeRecommendation: _enrichSbpe, ...scores } = breakdown;
 
   const [updated] = await db
     .update(leadsTable)
@@ -924,6 +1000,7 @@ router.get("/:id/score", async (req, res) => {
     blocks: breakdown.blocks,
     recommendation: breakdown.aiRecommendation,
     eligibleBanks,
+    sbpeRecommendation: breakdown.sbpeRecommendation,
   });
 });
 

@@ -42,6 +42,7 @@ import {
   CheckCircle2, Clock, AlertCircle, History, ArrowRight,
   ShieldX, Home, Building2, MapPin,
 } from "lucide-react";
+import { SbpeRecommendationBlock } from "@/components/SbpeRecommendationBlock";
 
 const STAGES = [
   { id: "aprovacao",    label: "Aprovação",    color: "#0D1B8C", bg: "#EEF2FF" },
@@ -232,6 +233,14 @@ export function ProcessDetails({ leadId }: { leadId: number }) {
                 Cliente já possui imóvel no município{summary.propertyCity ? ` de ${summary.propertyCity}/${summary.propertyState}` : ""}. Avaliar SBPE como alternativa.
               </div>
             </Card>
+          )}
+          {/* Pivot SBPE — aparece logo abaixo (ou ao lado em md+) do bloqueador
+              MCMV para o broker já enxergar bancos elegíveis e parcela
+              indicativa sem precisar abrir o detalhe do lead. */}
+          {summary.alreadyOwnsPropertyInPropertyCity && summary.sbpeRecommendation && (
+            <div className="md:col-span-2">
+              <SbpeRecommendationBlock rec={summary.sbpeRecommendation} />
+            </div>
           )}
           {summary.linkedProperty && (
             <Card className="p-3 flex items-center gap-3" data-testid="card-linked-property">

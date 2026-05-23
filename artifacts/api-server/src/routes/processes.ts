@@ -11,6 +11,40 @@ import {
 } from "@workspace/db";
 import { eq, and, or, isNotNull, desc, asc, inArray } from "drizzle-orm";
 import {
+  computeSbpeRecommendation,
+  type LeadInput as OffersLeadInput,
+  type SbpeRecommendation,
+} from "@workspace/bank-offers";
+
+// Constrói o LeadInput do motor de bank-offers a partir do registro do lead.
+// Espelha a função `leadToOffersInput` em routes/client.ts e leads.ts para
+// manter SSOT na elegibilidade SBPE.
+function leadToOffersInput(lead: typeof leadsTable.$inferSelect): OffersLeadInput {
+  return {
+    income: lead.income,
+    propertyValue: lead.propertyValue,
+    hasFgts: lead.hasFgts,
+    fgtsBalance: lead.fgtsBalance,
+    employmentType: lead.employmentType,
+    maritalStatus: lead.maritalStatus,
+    spouseIncome: lead.spouseIncome,
+    informalIncome: lead.informalIncome,
+    scoreCaixa: lead.scoreCaixa ?? 0,
+    scoreMCMV: lead.scoreMCMV ?? 0,
+    approvalChance: lead.approvalChance ?? 0,
+    serasaScore: lead.serasaScore,
+    hasNegativations: lead.hasNegativations,
+    hasProtests: lead.hasProtests,
+    siricStatus: lead.siricStatus,
+    propertyType: lead.propertyType,
+  };
+}
+
+function sbpeFor(lead: typeof leadsTable.$inferSelect): SbpeRecommendation | null {
+  if (lead.alreadyOwnsPropertyInPropertyCity !== true) return null;
+  return computeSbpeRecommendation(leadToOffersInput(lead));
+}
+import {
   ChangeProcessStageBody as ChangeStageRequest,
   RegisterProcessDocumentBody as RegisterDocumentRequest,
   UpdateProcessDocumentBody as UpdateDocumentRequest,
@@ -204,6 +238,7 @@ router.get("/", async (req, res) => {
       linkedProperty: p
         ? { id: p.id, title: p.title, price: p.price, city: p.city, state: p.state, imageUrl: p.imageUrl ?? undefined }
         : undefined,
+      sbpeRecommendation: sbpeFor(lead) ?? undefined,
       stage,
       brokerName: lead.brokerId ? brokerById.get(lead.brokerId) ?? undefined : undefined,
       correspondentName: lead.correspondentId ? corrById.get(lead.correspondentId) ?? undefined : undefined,
@@ -302,6 +337,7 @@ async function buildDetail(leadId: number) {
       alreadyOwnsPropertyInPropertyCity: lead.alreadyOwnsPropertyInPropertyCity ?? undefined,
       linkedPropertyId: lead.linkedPropertyId ?? undefined,
       linkedProperty,
+      sbpeRecommendation: sbpeFor(lead) ?? undefined,
       stage,
       brokerName,
       correspondentName,

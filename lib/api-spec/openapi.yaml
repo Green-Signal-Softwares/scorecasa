@@ -1866,6 +1866,56 @@ components:
           type: array
           items:
             type: string
+        sbpeRecommendation:
+          $ref: "#/components/schemas/SbpeRecommendation"
+          nullable: true
+          description: |
+            Pivot SBPE quando o MCMV está bloqueado por o cliente já possuir
+            imóvel no município do imóvel pretendido. Lista bancos elegíveis,
+            faixa de taxa, LTV máximo, entrada e parcela indicativa.
+
+    SbpeRecommendation:
+      type: object
+      required:
+        [reason, banks, rateRange, maxFinancedPct, bestMonthlyInstallment,
+         estimatedDownPayment, estimatedLoanAmount, termYears]
+      properties:
+        reason: { type: string }
+        banks:
+          type: array
+          items:
+            $ref: "#/components/schemas/SbpeRecommendationBank"
+        rateRange:
+          type: object
+          required: [min, max]
+          properties:
+            min: { type: number }
+            max: { type: number }
+        maxFinancedPct: { type: number, description: "Maior LTV (0-1) entre os bancos SBPE elegíveis" }
+        bestMonthlyInstallment: { type: number }
+        estimatedDownPayment: { type: number }
+        estimatedLoanAmount: { type: number }
+        termYears: { type: integer }
+
+    SbpeRecommendationBank:
+      type: object
+      required:
+        [bank, bankSlug, shortName, annualRate, termYears, maxLTV,
+         monthlyInstallment, downPayment, loanAmount, approvalPct, status]
+      properties:
+        bank: { type: string }
+        bankSlug: { type: string }
+        shortName: { type: string }
+        annualRate: { type: number }
+        termYears: { type: integer }
+        maxLTV: { type: number }
+        monthlyInstallment: { type: number }
+        downPayment: { type: number }
+        loanAmount: { type: number }
+        approvalPct: { type: number }
+        status:
+          type: string
+          enum: [eligible, analysis]
 
     ScoreFactor:
       type: object
@@ -2590,6 +2640,11 @@ components:
         linkedProperty:
           $ref: '#/components/schemas/PropertyMini'
           nullable: true
+        sbpeRecommendation:
+          $ref: '#/components/schemas/SbpeRecommendation'
+          nullable: true
+          description: |
+            Pivot SBPE quando o MCMV está bloqueado (`alreadyOwnsPropertyInPropertyCity = true`).
         stage:
           type: string
           enum: [analise, aprovacao, engenharia, conformidade, assinatura, concluido]

@@ -547,6 +547,45 @@ export interface ScoreFactor {
   value?: string | null;
 }
 
+export type SbpeRecommendationBankStatus =
+  (typeof SbpeRecommendationBankStatus)[keyof typeof SbpeRecommendationBankStatus];
+
+export const SbpeRecommendationBankStatus = {
+  eligible: "eligible",
+  analysis: "analysis",
+} as const;
+
+export interface SbpeRecommendationBank {
+  bank: string;
+  bankSlug: string;
+  shortName: string;
+  annualRate: number;
+  termYears: number;
+  maxLTV: number;
+  monthlyInstallment: number;
+  downPayment: number;
+  loanAmount: number;
+  approvalPct: number;
+  status: SbpeRecommendationBankStatus;
+}
+
+export type SbpeRecommendationRateRange = {
+  min: number;
+  max: number;
+};
+
+export interface SbpeRecommendation {
+  reason: string;
+  banks: SbpeRecommendationBank[];
+  rateRange: SbpeRecommendationRateRange;
+  /** Maior LTV (0-1) entre os bancos SBPE elegíveis */
+  maxFinancedPct: number;
+  bestMonthlyInstallment: number;
+  estimatedDownPayment: number;
+  estimatedLoanAmount: number;
+  termYears: number;
+}
+
 export interface CreditScore {
   leadId: number;
   /** Overall credit score 0-1000 */
@@ -558,6 +597,11 @@ export interface CreditScore {
   factors: ScoreFactor[];
   recommendation: string;
   eligibleBanks?: string[];
+  /** Pivot SBPE quando o MCMV está bloqueado por o cliente já possuir
+imóvel no município do imóvel pretendido. Lista bancos elegíveis,
+faixa de taxa, LTV máximo, entrada e parcela indicativa.
+ */
+  sbpeRecommendation?: SbpeRecommendation | null;
 }
 
 export interface MonthlyData {
@@ -1119,6 +1163,9 @@ export interface ProcessSummary {
   alreadyOwnsPropertyInPropertyCity?: boolean | null;
   linkedPropertyId?: number | null;
   linkedProperty?: PropertyMini | null;
+  /** Pivot SBPE quando o MCMV está bloqueado (`alreadyOwnsPropertyInPropertyCity = true`).
+   */
+  sbpeRecommendation?: SbpeRecommendation | null;
   stage: ProcessSummaryStage;
   brokerName?: string;
   correspondentName?: string;

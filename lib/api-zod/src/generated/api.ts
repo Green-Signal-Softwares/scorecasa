@@ -2499,6 +2499,40 @@ export const GetLeadScoreResponse = zod.object({
   ),
   recommendation: zod.string(),
   eligibleBanks: zod.array(zod.string()).optional(),
+  sbpeRecommendation: zod
+    .object({
+      reason: zod.string(),
+      banks: zod.array(
+        zod.object({
+          bank: zod.string(),
+          bankSlug: zod.string(),
+          shortName: zod.string(),
+          annualRate: zod.number(),
+          termYears: zod.number(),
+          maxLTV: zod.number(),
+          monthlyInstallment: zod.number(),
+          downPayment: zod.number(),
+          loanAmount: zod.number(),
+          approvalPct: zod.number(),
+          status: zod.enum(["eligible", "analysis"]),
+        }),
+      ),
+      rateRange: zod.object({
+        min: zod.number(),
+        max: zod.number(),
+      }),
+      maxFinancedPct: zod
+        .number()
+        .describe("Maior LTV (0-1) entre os bancos SBPE elegíveis"),
+      bestMonthlyInstallment: zod.number(),
+      estimatedDownPayment: zod.number(),
+      estimatedLoanAmount: zod.number(),
+      termYears: zod.number(),
+    })
+    .nullish()
+    .describe(
+      "Pivot SBPE quando o MCMV está bloqueado por o cliente já possuir\nimóvel no município do imóvel pretendido. Lista bancos elegíveis,\nfaixa de taxa, LTV máximo, entrada e parcela indicativa.\n",
+    ),
 });
 
 /**
@@ -2608,6 +2642,40 @@ export const ListProcessesResponseItem = zod.object({
       imageUrl: zod.string().nullish(),
     })
     .nullish(),
+  sbpeRecommendation: zod
+    .object({
+      reason: zod.string(),
+      banks: zod.array(
+        zod.object({
+          bank: zod.string(),
+          bankSlug: zod.string(),
+          shortName: zod.string(),
+          annualRate: zod.number(),
+          termYears: zod.number(),
+          maxLTV: zod.number(),
+          monthlyInstallment: zod.number(),
+          downPayment: zod.number(),
+          loanAmount: zod.number(),
+          approvalPct: zod.number(),
+          status: zod.enum(["eligible", "analysis"]),
+        }),
+      ),
+      rateRange: zod.object({
+        min: zod.number(),
+        max: zod.number(),
+      }),
+      maxFinancedPct: zod
+        .number()
+        .describe("Maior LTV (0-1) entre os bancos SBPE elegíveis"),
+      bestMonthlyInstallment: zod.number(),
+      estimatedDownPayment: zod.number(),
+      estimatedLoanAmount: zod.number(),
+      termYears: zod.number(),
+    })
+    .nullish()
+    .describe(
+      "Pivot SBPE quando o MCMV está bloqueado (`alreadyOwnsPropertyInPropertyCity = true`).\n",
+    ),
   stage: zod.enum([
     "analise",
     "aprovacao",
@@ -2659,6 +2727,40 @@ export const GetProcessResponse = zod.object({
         imageUrl: zod.string().nullish(),
       })
       .nullish(),
+    sbpeRecommendation: zod
+      .object({
+        reason: zod.string(),
+        banks: zod.array(
+          zod.object({
+            bank: zod.string(),
+            bankSlug: zod.string(),
+            shortName: zod.string(),
+            annualRate: zod.number(),
+            termYears: zod.number(),
+            maxLTV: zod.number(),
+            monthlyInstallment: zod.number(),
+            downPayment: zod.number(),
+            loanAmount: zod.number(),
+            approvalPct: zod.number(),
+            status: zod.enum(["eligible", "analysis"]),
+          }),
+        ),
+        rateRange: zod.object({
+          min: zod.number(),
+          max: zod.number(),
+        }),
+        maxFinancedPct: zod
+          .number()
+          .describe("Maior LTV (0-1) entre os bancos SBPE elegíveis"),
+        bestMonthlyInstallment: zod.number(),
+        estimatedDownPayment: zod.number(),
+        estimatedLoanAmount: zod.number(),
+        termYears: zod.number(),
+      })
+      .nullish()
+      .describe(
+        "Pivot SBPE quando o MCMV está bloqueado (`alreadyOwnsPropertyInPropertyCity = true`).\n",
+      ),
     stage: zod.enum([
       "analise",
       "aprovacao",
@@ -2793,6 +2895,40 @@ export const ChangeProcessStageResponse = zod.object({
         imageUrl: zod.string().nullish(),
       })
       .nullish(),
+    sbpeRecommendation: zod
+      .object({
+        reason: zod.string(),
+        banks: zod.array(
+          zod.object({
+            bank: zod.string(),
+            bankSlug: zod.string(),
+            shortName: zod.string(),
+            annualRate: zod.number(),
+            termYears: zod.number(),
+            maxLTV: zod.number(),
+            monthlyInstallment: zod.number(),
+            downPayment: zod.number(),
+            loanAmount: zod.number(),
+            approvalPct: zod.number(),
+            status: zod.enum(["eligible", "analysis"]),
+          }),
+        ),
+        rateRange: zod.object({
+          min: zod.number(),
+          max: zod.number(),
+        }),
+        maxFinancedPct: zod
+          .number()
+          .describe("Maior LTV (0-1) entre os bancos SBPE elegíveis"),
+        bestMonthlyInstallment: zod.number(),
+        estimatedDownPayment: zod.number(),
+        estimatedLoanAmount: zod.number(),
+        termYears: zod.number(),
+      })
+      .nullish()
+      .describe(
+        "Pivot SBPE quando o MCMV está bloqueado (`alreadyOwnsPropertyInPropertyCity = true`).\n",
+      ),
     stage: zod.enum([
       "analise",
       "aprovacao",

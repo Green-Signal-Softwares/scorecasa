@@ -6,6 +6,7 @@
  */
 import type { ProcessSummaryStage } from "./processSummaryStage";
 import type { PropertyMini } from "./propertyMini";
+import type { SbpeRecommendation } from "./sbpeRecommendation";
 
 export interface ProcessSummary {
   leadId: number;
@@ -21,6 +22,9 @@ export interface ProcessSummary {
   alreadyOwnsPropertyInPropertyCity?: boolean | null;
   linkedPropertyId?: number | null;
   linkedProperty?: PropertyMini | null;
+  /** Pivot SBPE quando o MCMV está bloqueado (`alreadyOwnsPropertyInPropertyCity = true`).
+   */
+  sbpeRecommendation?: SbpeRecommendation | null;
   stage: ProcessSummaryStage;
   brokerName?: string;
   correspondentName?: string;

@@ -225,3 +225,77 @@ export function eligibleBankSlugs(lead: LeadInput): Set<string> {
   }
   return set;
 }
+
+// ── SBPE Recommendation (MCMV blocker pivot) ────────────────────────────────
+// Quando o cliente já possui imóvel no município do imóvel pretendido o MCMV
+// (FAR/PMCMV) está bloqueado. Em vez de deixar o corretor adivinhar o próximo
+// passo, computamos um bloco "alternativa SBPE" com os bancos elegíveis, faixa
+// de taxa, LTV máximo financiável e parcela indicativa. Reutiliza computeOffers
+// para garantir SSOT com o BankComparison.
+export interface SbpeRecommendationBank {
+  bank: string;
+  bankSlug: string;
+  shortName: string;
+  annualRate: number;
+  termYears: number;
+  maxLTV: number;
+  monthlyInstallment: number;
+  downPayment: number;
+  loanAmount: number;
+  approvalPct: number;
+  status: "eligible" | "analysis";
+}
+
+export interface SbpeRecommendation {
+  reason: string;
+  banks: SbpeRecommendationBank[];
+  rateRange: { min: number; max: number };
+  maxFinancedPct: number;
+  bestMonthlyInstallment: number;
+  estimatedDownPayment: number;
+  estimatedLoanAmount: number;
+  termYears: number;
+}
+
+export function computeSbpeRecommendation(lead: LeadInput): SbpeRecommendation | null {
+  const offers = computeOffers(lead);
+  const sbpe = offers.filter(
+    (o) => o.program === "SBPE" && (o.status === "eligible" || o.status === "analysis"),
+  );
+  if (sbpe.length === 0) return null;
+  // Ordena pelo melhor candidato: maior aprovação, depois menor taxa, depois
+  // menor parcela. O primeiro vira a referência de parcela/entrada exibida.
+  sbpe.sort(
+    (a, b) =>
+      b.approvalPct - a.approvalPct ||
+      a.annualRate - b.annualRate ||
+      a.monthlyInstallment - b.monthlyInstallment,
+  );
+  const best = sbpe[0];
+  return {
+    reason:
+      "MCMV bloqueado: cliente já possui imóvel no município. Estas são as alternativas SBPE elegíveis com os dados atuais do lead.",
+    banks: sbpe.map((o) => ({
+      bank: o.bank,
+      bankSlug: o.bankSlug,
+      shortName: o.shortName,
+      annualRate: o.annualRate,
+      termYears: o.termYears,
+      maxLTV: o.maxLTV,
+      monthlyInstallment: o.monthlyInstallment,
+      downPayment: o.downPayment,
+      loanAmount: o.loanAmount,
+      approvalPct: o.approvalPct,
+      status: o.status as "eligible" | "analysis",
+    })),
+    rateRange: {
+      min: Math.min(...sbpe.map((o) => o.annualRate)),
+      max: Math.max(...sbpe.map((o) => o.annualRate)),
+    },
+    maxFinancedPct: Math.max(...sbpe.map((o) => o.maxLTV)),
+    bestMonthlyInstallment: best.monthlyInstallment,
+    estimatedDownPayment: best.downPayment,
+    estimatedLoanAmount: best.loanAmount,
+    termYears: best.termYears,
+  };
+}

@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 import { BankComparison } from "@/components/BankComparison";
+import { SbpeRecommendationBlock } from "@/components/SbpeRecommendationBlock";
 import { CreditGPS, computeGpsSteps } from "@/components/CreditGPS";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
@@ -651,6 +652,14 @@ export function LeadDetails({ id }: { id: number }) {
                           Cliente já possui imóvel no município{lead.propertyCity ? ` de ${lead.propertyCity}/${lead.propertyState ?? ""}` : ""}. Avaliar SBPE como alternativa.
                         </div>
                       </div>
+                    )}
+
+                    {/* SBPE pivot — alternativa quando o MCMV está bloqueado.
+                        Renderiza imediatamente abaixo do bloqueador para o
+                        broker já enxergar bancos elegíveis, faixa de taxa,
+                        LTV máximo e parcela indicativa. */}
+                    {lead.alreadyOwnsPropertyInPropertyCity === true && score?.sbpeRecommendation && (
+                      <SbpeRecommendationBlock rec={score.sbpeRecommendation} />
                     )}
 
                     {/* Linked property (ScoreCasa Imóveis) */}

@@ -246,6 +246,28 @@ export interface LeadReportProps {
   score: {
     factors: Array<{ name: string; description: string; impact: string; value?: string | null }>;
     eligibleBanks?: string[];
+    sbpeRecommendation?: {
+      reason: string;
+      banks: Array<{
+        bank: string;
+        bankSlug: string;
+        shortName: string;
+        annualRate: number;
+        termYears: number;
+        maxLTV: number;
+        monthlyInstallment: number;
+        downPayment: number;
+        loanAmount: number;
+        approvalPct: number;
+        status: "eligible" | "analysis";
+      }>;
+      rateRange: { min: number; max: number };
+      maxFinancedPct: number;
+      bestMonthlyInstallment: number;
+      estimatedDownPayment: number;
+      estimatedLoanAmount: number;
+      termYears: number;
+    } | null;
   } | null;
   gpsSteps?: Array<{ title: string; description: string; timeEstimate: string; impactPct: number; status: string }>;
   linkedProperty?: {
@@ -349,6 +371,85 @@ export function LeadReport({ lead, score, gpsSteps, linkedProperty, generatedAt 
                   FAR/PMCMV exige que o titular nao tenha outro imovel urbano no municipio do imovel pretendido.
                   Avaliar SBPE como alternativa de financiamento.
                 </Text>
+              </View>
+            </View>
+          )}
+
+          {/* 1b.1. Pivot SBPE — renderiza logo abaixo do bloqueador MCMV
+              mostrando bancos elegíveis, faixa de taxa, LTV e parcela
+              indicativa para o broker conduzir a alternativa. */}
+          {lead.alreadyOwnsPropertyInPropertyCity === true && score?.sbpeRecommendation && (
+            <View style={s.section}>
+              <View
+                style={{
+                  backgroundColor: "#EFF6FF",
+                  borderRadius: 6,
+                  padding: "10 12",
+                  borderLeftWidth: 3,
+                  borderLeftColor: BLUE,
+                }}
+              >
+                <Text style={{ fontFamily: "Helvetica-Bold", fontSize: 10, color: BLUE, marginBottom: 4 }}>
+                  Pivot SBPE — alternativa recomendada
+                </Text>
+                <Text style={{ fontFamily: "Helvetica", fontSize: 9, color: "#1E3A8A", lineHeight: 1.5, marginBottom: 8 }}>
+                  {score.sbpeRecommendation.reason}
+                </Text>
+                <View style={{ flexDirection: "row", gap: 6, marginBottom: 8 }}>
+                  {[
+                    {
+                      label: "Taxa",
+                      value:
+                        score.sbpeRecommendation.rateRange.min === score.sbpeRecommendation.rateRange.max
+                          ? `${score.sbpeRecommendation.rateRange.min.toFixed(2)}% a.a.`
+                          : `${score.sbpeRecommendation.rateRange.min.toFixed(2)}–${score.sbpeRecommendation.rateRange.max.toFixed(2)}% a.a.`,
+                    },
+                    { label: "LTV máx.", value: `${Math.round(score.sbpeRecommendation.maxFinancedPct * 100)}%` },
+                    {
+                      label: `Parcela (${score.sbpeRecommendation.termYears}a)`,
+                      value: `R$ ${Math.round(score.sbpeRecommendation.bestMonthlyInstallment).toLocaleString("pt-BR")}`,
+                    },
+                    {
+                      label: "Entrada",
+                      value: `R$ ${Math.round(score.sbpeRecommendation.estimatedDownPayment).toLocaleString("pt-BR")}`,
+                    },
+                  ].map(({ label, value }) => (
+                    <View
+                      key={label}
+                      style={{
+                        flex: 1,
+                        backgroundColor: "#FFFFFF",
+                        borderRadius: 4,
+                        padding: "6 8",
+                        borderWidth: 1,
+                        borderColor: "#BFDBFE",
+                      }}
+                    >
+                      <Text style={{ fontFamily: "Helvetica", fontSize: 7, color: GRAY, textTransform: "uppercase", letterSpacing: 0.4, marginBottom: 2 }}>
+                        {label}
+                      </Text>
+                      <Text style={{ fontFamily: "Helvetica-Bold", fontSize: 9, color: BLUE }}>{value}</Text>
+                    </View>
+                  ))}
+                </View>
+                <Text style={{ fontFamily: "Helvetica", fontSize: 7, color: GRAY, marginBottom: 4, textTransform: "uppercase", letterSpacing: 0.4 }}>
+                  Bancos elegíveis ({score.sbpeRecommendation.banks.length})
+                </Text>
+                <View style={s.banksRow}>
+                  {score.sbpeRecommendation.banks.map((b) => (
+                    <View
+                      key={`${b.bankSlug}-${b.shortName}`}
+                      style={[
+                        s.bankChip,
+                        { backgroundColor: b.status === "eligible" ? BLUE : "#F59E0B" },
+                      ]}
+                    >
+                      <Text style={s.bankText}>
+                        {b.shortName} · {b.annualRate.toFixed(2)}%
+                      </Text>
+                    </View>
+                  ))}
+                </View>
               </View>
             </View>
           )}
