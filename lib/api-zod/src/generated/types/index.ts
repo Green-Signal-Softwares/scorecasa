@@ -69,6 +69,7 @@ export * from "./processHistoryEntryToStage";
 export * from "./processSummary";
 export * from "./processSummaryStage";
 export * from "./property";
+export * from "./propertyMini";
 export * from "./propertyStatus";
 export * from "./propertyType";
 export * from "./propertyTypeProperty";

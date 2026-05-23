@@ -7,6 +7,7 @@ import {
   processDocumentsTable,
   processStageHistoryTable,
   correspondentsTable,
+  propertiesTable,
 } from "@workspace/db";
 import { eq, and, or, isNotNull, desc, asc, inArray } from "drizzle-orm";
 import {
@@ -177,9 +178,18 @@ router.get("/", async (req, res) => {
     : [];
   const corrById = new Map(corrs.map((c) => [c.id, c.name]));
 
+  const propIds = leads
+    .map((l) => l.linkedPropertyId)
+    .filter((x): x is number => typeof x === "number");
+  const linkedProps = propIds.length
+    ? await db.select().from(propertiesTable).where(inArray(propertiesTable.id, propIds))
+    : [];
+  const propById = new Map(linkedProps.map((p) => [p.id, p]));
+
   const summaries = leads.map((lead) => {
     const stage = effectiveStage(lead);
     const myDocs = docs.filter((d) => d.leadId === lead.id);
+    const p = lead.linkedPropertyId ? propById.get(lead.linkedPropertyId) : null;
     return {
       leadId: lead.id,
       leadName: lead.name,
@@ -187,6 +197,13 @@ router.get("/", async (req, res) => {
       propertyValue: lead.propertyValue,
       propertyCity: lead.propertyCity ?? undefined,
       propertyState: lead.propertyState ?? undefined,
+      residentCity: lead.residentCity ?? undefined,
+      residentState: lead.residentState ?? undefined,
+      alreadyOwnsPropertyInPropertyCity: lead.alreadyOwnsPropertyInPropertyCity ?? undefined,
+      linkedPropertyId: lead.linkedPropertyId ?? undefined,
+      linkedProperty: p
+        ? { id: p.id, title: p.title, price: p.price, city: p.city, state: p.state, imageUrl: p.imageUrl ?? undefined }
+        : undefined,
       stage,
       brokerName: lead.brokerId ? brokerById.get(lead.brokerId) ?? undefined : undefined,
       correspondentName: lead.correspondentId ? corrById.get(lead.correspondentId) ?? undefined : undefined,
@@ -252,6 +269,26 @@ async function buildDetail(leadId: number) {
   }
 
   const stage = effectiveStage(lead);
+
+  let linkedProperty: any = undefined;
+  if (lead.linkedPropertyId) {
+    const [p] = await db
+      .select()
+      .from(propertiesTable)
+      .where(eq(propertiesTable.id, lead.linkedPropertyId))
+      .limit(1);
+    if (p) {
+      linkedProperty = {
+        id: p.id,
+        title: p.title,
+        price: p.price,
+        city: p.city,
+        state: p.state,
+        imageUrl: p.imageUrl ?? undefined,
+      };
+    }
+  }
+
   return {
     summary: {
       leadId: lead.id,
@@ -260,6 +297,11 @@ async function buildDetail(leadId: number) {
       propertyValue: lead.propertyValue,
       propertyCity: lead.propertyCity ?? undefined,
       propertyState: lead.propertyState ?? undefined,
+      residentCity: lead.residentCity ?? undefined,
+      residentState: lead.residentState ?? undefined,
+      alreadyOwnsPropertyInPropertyCity: lead.alreadyOwnsPropertyInPropertyCity ?? undefined,
+      linkedPropertyId: lead.linkedPropertyId ?? undefined,
+      linkedProperty,
       stage,
       brokerName,
       correspondentName,

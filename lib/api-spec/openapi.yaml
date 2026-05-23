@@ -2396,6 +2396,23 @@ components:
         propertyValue: { type: number }
         propertyCity: { type: string }
         propertyState: { type: string }
+        residentCity:
+          type: string
+          nullable: true
+        residentState:
+          type: string
+          nullable: true
+          description: UF de moradia (sigla 2 letras)
+        alreadyOwnsPropertyInPropertyCity:
+          type: boolean
+          nullable: true
+          description: Cliente já possui imóvel no município do imóvel pretendido (bloqueador MCMV)
+        linkedPropertyId:
+          type: integer
+          nullable: true
+        linkedProperty:
+          $ref: '#/components/schemas/PropertyMini'
+          nullable: true
         stage:
           type: string
           enum: [analise, aprovacao, engenharia, conformidade, assinatura, concluido]
@@ -2405,6 +2422,17 @@ components:
         documentsApproved: { type: integer }
         documentsPending: { type: integer }
         lastUpdate: { type: string, format: date-time }
+
+    PropertyMini:
+      type: object
+      required: [id, title, price, city, state]
+      properties:
+        id: { type: integer }
+        title: { type: string }
+        price: { type: number }
+        city: { type: string }
+        state: { type: string }
+        imageUrl: { type: string, nullable: true }
 
     ProcessDocument:
       type: object

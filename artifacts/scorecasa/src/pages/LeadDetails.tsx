@@ -3,12 +3,14 @@ import { useLocation } from "wouter";
 import {
   useGetLead,
   useGetLeadScore,
+  useGetProperty,
   useUpdateLead,
   useEnrichLead,
   useGetBrokers,
   getGetLeadQueryKey,
   getGetLeadScoreQueryKey,
   getGetLeadsQueryKey,
+  getGetPropertyQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
@@ -19,9 +21,10 @@ import {
   Building2, Phone, Mail, DollarSign, Pencil, X, Save, RefreshCw,
   FileDown, ShieldCheck, ShieldX, AlertTriangle, Landmark, Clock,
   BadgeCheck, ChevronDown, ChevronUp, BarChart3, SlidersHorizontal,
-  Navigation, Upload, Sparkles, FileImage,
+  Navigation, Upload, Sparkles, FileImage, Home, MapPin,
   XCircle, CheckCircle2,
 } from "lucide-react";
+import { Link } from "wouter";
 import { BankComparison } from "@/components/BankComparison";
 import { CreditGPS, computeGpsSteps } from "@/components/CreditGPS";
 import { Button } from "@/components/ui/button";
@@ -107,6 +110,10 @@ export function LeadDetails({ id }: { id: number }) {
     query: { enabled: !!id, queryKey: getGetLeadScoreQueryKey(id) },
   });
   const { data: brokers } = useGetBrokers({});
+  const linkedPropertyId = lead?.linkedPropertyId ?? 0;
+  const { data: linkedProperty } = useGetProperty(linkedPropertyId, {
+    query: { enabled: !!linkedPropertyId, queryKey: getGetPropertyQueryKey(linkedPropertyId) },
+  });
   const updateLead = useUpdateLead();
   const enrichLead = useEnrichLead();
   const [enrichOpen, setEnrichOpen] = useState(false);
@@ -278,7 +285,12 @@ export function LeadDetails({ id }: { id: number }) {
       ]);
       const gpsSteps = computeGpsSteps(lead).filter((s) => s.status !== "done");
       const blob = await pdf(
-        <LeadReport lead={lead} score={score ?? null} gpsSteps={gpsSteps} />
+        <LeadReport
+          lead={lead}
+          score={score ?? null}
+          gpsSteps={gpsSteps}
+          linkedProperty={linkedProperty ?? null}
+        />
       ).toBlob();
       const url = URL.createObjectURL(blob);
       const a = document.createElement("a");
@@ -597,6 +609,85 @@ export function LeadDetails({ id }: { id: number }) {
                         </div>
                       </div>
                     ))}
+
+                    {/* Localização (moradia × imóvel pretendido) */}
+                    {(lead.residentCity || lead.propertyCity) && (
+                      <div className="grid grid-cols-2 gap-3 pt-2 border-t border-border/50">
+                        <div className="flex items-start gap-2">
+                          <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "#EFF6FF" }}>
+                            <Home className="w-4 h-4" style={{ color: "#0D1B8C" }} />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-xs text-muted-foreground">Mora em</div>
+                            <div className="text-sm font-medium text-foreground truncate" data-testid="text-resident-city">
+                              {lead.residentCity ? `${lead.residentCity}/${lead.residentState ?? ""}` : <span className="italic text-muted-foreground">—</span>}
+                            </div>
+                          </div>
+                        </div>
+                        <div className="flex items-start gap-2">
+                          <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "#EFF6FF" }}>
+                            <MapPin className="w-4 h-4" style={{ color: "#0D1B8C" }} />
+                          </div>
+                          <div className="min-w-0">
+                            <div className="text-xs text-muted-foreground">Imóvel em</div>
+                            <div className="text-sm font-medium text-foreground truncate" data-testid="text-property-city">
+                              {lead.propertyCity ? `${lead.propertyCity}/${lead.propertyState ?? ""}` : <span className="italic text-muted-foreground">—</span>}
+                            </div>
+                          </div>
+                        </div>
+                      </div>
+                    )}
+
+                    {/* MCMV blocker */}
+                    {lead.alreadyOwnsPropertyInPropertyCity === true && (
+                      <div
+                        className="flex items-start gap-2 p-3 rounded-lg text-xs"
+                        style={{ background: "#FEF2F2", color: "#991B1B" }}
+                        data-testid="alert-mcmv-blocked"
+                      >
+                        <ShieldX className="w-4 h-4 mt-0.5 flex-shrink-0" />
+                        <div>
+                          <div className="font-bold">MCMV bloqueado</div>
+                          Cliente já possui imóvel no município{lead.propertyCity ? ` de ${lead.propertyCity}/${lead.propertyState ?? ""}` : ""}. Avaliar SBPE como alternativa.
+                        </div>
+                      </div>
+                    )}
+
+                    {/* Linked property (ScoreCasa Imóveis) */}
+                    {linkedProperty && (
+                      <div className="rounded-lg border border-border overflow-hidden" data-testid="card-linked-property">
+                        <div className="px-3 py-2 text-[10px] font-semibold uppercase tracking-wide" style={{ background: "#EEF2FF", color: "#0D1B8C" }}>
+                          Imóvel vinculado (ScoreCasa Imóveis)
+                        </div>
+                        <div className="flex items-center gap-3 p-3">
+                          {linkedProperty.imageUrl ? (
+                            <img
+                              src={linkedProperty.imageUrl}
+                              alt={linkedProperty.title}
+                              className="w-14 h-14 rounded object-cover flex-shrink-0"
+                            />
+                          ) : (
+                            <div className="w-14 h-14 rounded flex items-center justify-center flex-shrink-0" style={{ background: "#EFF6FF" }}>
+                              <Building2 className="w-5 h-5" style={{ color: "#0D1B8C" }} />
+                            </div>
+                          )}
+                          <div className="min-w-0 flex-1">
+                            <div className="text-sm font-semibold truncate" style={{ color: "#07113A" }}>
+                              {linkedProperty.title}
+                            </div>
+                            <div className="text-xs text-muted-foreground">
+                              {linkedProperty.city}/{linkedProperty.state} · <span className="font-semibold" style={{ color: "#10A65A" }}>{formatBRL(linkedProperty.price)}</span>
+                            </div>
+                          </div>
+                          <Link href={`/imoveis?highlight=${linkedProperty.id}`}>
+                            <Button variant="outline" size="sm" className="flex-shrink-0" data-testid="link-linked-property">
+                              Ver
+                            </Button>
+                          </Link>
+                        </div>
+                      </div>
+                    )}
+
                     <div>
                       <div className="text-xs text-muted-foreground mb-1">Corretor responsavel</div>
                       <div className="text-sm font-medium text-foreground">

@@ -3,6 +3,7 @@ import {
   Page,
   View,
   Text,
+  Image,
   StyleSheet,
 } from "@react-pdf/renderer";
 
@@ -224,6 +225,12 @@ export interface LeadReportProps {
     scoreMCMV: number;
     aiRecommendation?: string | null;
     brokerName?: string | null;
+    residentCity?: string | null;
+    residentState?: string | null;
+    propertyCity?: string | null;
+    propertyState?: string | null;
+    alreadyOwnsPropertyInPropertyCity?: boolean | null;
+    linkedPropertyId?: number | null;
     serasaScore?: number | null;
     hasNegativations?: boolean | null;
     negativationsValue?: number | null;
@@ -241,10 +248,18 @@ export interface LeadReportProps {
     eligibleBanks?: string[];
   } | null;
   gpsSteps?: Array<{ title: string; description: string; timeEstimate: string; impactPct: number; status: string }>;
+  linkedProperty?: {
+    id: number;
+    title: string;
+    price: number;
+    city: string;
+    state: string;
+    imageUrl?: string | null;
+  } | null;
   generatedAt?: string;
 }
 
-export function LeadReport({ lead, score, gpsSteps, generatedAt }: LeadReportProps) {
+export function LeadReport({ lead, score, gpsSteps, linkedProperty, generatedAt }: LeadReportProps) {
   const statusCfg = STATUS_CONFIG[lead.status] ?? { label: lead.status, color: "#374151", bg: "#F3F4F6" };
   const aColor = approvalColor(lead.approvalChance);
   const ratioRaw = lead.propertyValue / (lead.income * 12);
@@ -294,6 +309,14 @@ export function LeadReport({ lead, score, gpsSteps, generatedAt }: LeadReportPro
                 { label: "Telefone", value: lead.phone },
                 { label: "Renda mensal", value: formatBRL(lead.income) },
                 { label: "Valor do imovel", value: formatBRL(lead.propertyValue) },
+                {
+                  label: "Cidade de moradia",
+                  value: lead.residentCity ? `${lead.residentCity}/${lead.residentState ?? ""}` : "Nao informado",
+                },
+                {
+                  label: "Cidade do imovel",
+                  value: lead.propertyCity ? `${lead.propertyCity}/${lead.propertyState ?? ""}` : "Nao informado",
+                },
                 { label: "Corretor", value: lead.brokerName ?? "Nao atribuido" },
                 { label: "ID do lead", value: `#${lead.id}` },
               ].map(({ label, value }) => (
@@ -304,6 +327,71 @@ export function LeadReport({ lead, score, gpsSteps, generatedAt }: LeadReportPro
               ))}
             </View>
           </View>
+
+          {/* 1b. MCMV bloqueado */}
+          {lead.alreadyOwnsPropertyInPropertyCity === true && (
+            <View style={s.section}>
+              <View
+                style={{
+                  backgroundColor: "#FEF2F2",
+                  borderRadius: 6,
+                  padding: "10 12",
+                  borderLeftWidth: 3,
+                  borderLeftColor: "#EF4444",
+                }}
+              >
+                <Text style={{ fontFamily: "Helvetica-Bold", fontSize: 10, color: "#991B1B", marginBottom: 2 }}>
+                  MCMV bloqueado
+                </Text>
+                <Text style={{ fontFamily: "Helvetica", fontSize: 9, color: "#991B1B", lineHeight: 1.5 }}>
+                  Cliente declarou que ja possui imovel no municipio
+                  {lead.propertyCity ? ` de ${lead.propertyCity}/${lead.propertyState ?? ""}` : ""}.
+                  FAR/PMCMV exige que o titular nao tenha outro imovel urbano no municipio do imovel pretendido.
+                  Avaliar SBPE como alternativa de financiamento.
+                </Text>
+              </View>
+            </View>
+          )}
+
+          {/* 1c. Imovel vinculado */}
+          {linkedProperty && (
+            <View style={s.section}>
+              <Text style={s.sectionTitle}>Imovel Vinculado — ScoreCasa Imoveis</Text>
+              <View
+                style={{
+                  flexDirection: "row",
+                  backgroundColor: "#FFFFFF",
+                  borderRadius: 8,
+                  padding: 10,
+                  borderWidth: 1,
+                  borderColor: BORDER,
+                  gap: 12,
+                }}
+              >
+                {linkedProperty.imageUrl ? (
+                  <Image
+                    src={linkedProperty.imageUrl}
+                    style={{ width: 80, height: 60, borderRadius: 4, objectFit: "cover" }}
+                  />
+                ) : (
+                  <View style={{ width: 80, height: 60, borderRadius: 4, backgroundColor: "#EEF2FF", alignItems: "center", justifyContent: "center" }}>
+                    <Text style={{ fontFamily: "Helvetica-Bold", fontSize: 16, color: BLUE }}>SC</Text>
+                  </View>
+                )}
+                <View style={{ flex: 1, justifyContent: "center" }}>
+                  <Text style={{ fontFamily: "Helvetica-Bold", fontSize: 11, color: DARK, marginBottom: 2 }}>
+                    {linkedProperty.title}
+                  </Text>
+                  <Text style={{ fontFamily: "Helvetica", fontSize: 9, color: GRAY, marginBottom: 4 }}>
+                    {linkedProperty.city}/{linkedProperty.state} · ID #{linkedProperty.id}
+                  </Text>
+                  <Text style={{ fontFamily: "Helvetica-Bold", fontSize: 12, color: GREEN }}>
+                    {formatBRL(linkedProperty.price)}
+                  </Text>
+                </View>
+              </View>
+            </View>
+          )}
 
           {/* 2. Analise de credito */}
           <View style={s.section}>

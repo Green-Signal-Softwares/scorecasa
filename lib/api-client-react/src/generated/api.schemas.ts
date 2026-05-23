@@ -1020,6 +1020,15 @@ export const ProcessSummaryStage = {
   concluido: "concluido",
 } as const;
 
+export interface PropertyMini {
+  id: number;
+  title: string;
+  price: number;
+  city: string;
+  state: string;
+  imageUrl?: string | null;
+}
+
 export interface ProcessSummary {
   leadId: number;
   leadName: string;
@@ -1027,6 +1036,13 @@ export interface ProcessSummary {
   propertyValue: number;
   propertyCity?: string;
   propertyState?: string;
+  residentCity?: string | null;
+  /** UF de moradia (sigla 2 letras) */
+  residentState?: string | null;
+  /** Cliente já possui imóvel no município do imóvel pretendido (bloqueador MCMV) */
+  alreadyOwnsPropertyInPropertyCity?: boolean | null;
+  linkedPropertyId?: number | null;
+  linkedProperty?: PropertyMini | null;
   stage: ProcessSummaryStage;
   brokerName?: string;
   correspondentName?: string;

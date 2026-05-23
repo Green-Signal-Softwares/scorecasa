@@ -2435,6 +2435,28 @@ export const ListProcessesResponseItem = zod.object({
   propertyValue: zod.number(),
   propertyCity: zod.string().optional(),
   propertyState: zod.string().optional(),
+  residentCity: zod.string().nullish(),
+  residentState: zod
+    .string()
+    .nullish()
+    .describe("UF de moradia (sigla 2 letras)"),
+  alreadyOwnsPropertyInPropertyCity: zod
+    .boolean()
+    .nullish()
+    .describe(
+      "Cliente já possui imóvel no município do imóvel pretendido (bloqueador MCMV)",
+    ),
+  linkedPropertyId: zod.number().nullish(),
+  linkedProperty: zod
+    .object({
+      id: zod.number(),
+      title: zod.string(),
+      price: zod.number(),
+      city: zod.string(),
+      state: zod.string(),
+      imageUrl: zod.string().nullish(),
+    })
+    .nullish(),
   stage: zod.enum([
     "analise",
     "aprovacao",
@@ -2464,6 +2486,28 @@ export const GetProcessResponse = zod.object({
     propertyValue: zod.number(),
     propertyCity: zod.string().optional(),
     propertyState: zod.string().optional(),
+    residentCity: zod.string().nullish(),
+    residentState: zod
+      .string()
+      .nullish()
+      .describe("UF de moradia (sigla 2 letras)"),
+    alreadyOwnsPropertyInPropertyCity: zod
+      .boolean()
+      .nullish()
+      .describe(
+        "Cliente já possui imóvel no município do imóvel pretendido (bloqueador MCMV)",
+      ),
+    linkedPropertyId: zod.number().nullish(),
+    linkedProperty: zod
+      .object({
+        id: zod.number(),
+        title: zod.string(),
+        price: zod.number(),
+        city: zod.string(),
+        state: zod.string(),
+        imageUrl: zod.string().nullish(),
+      })
+      .nullish(),
     stage: zod.enum([
       "analise",
       "aprovacao",
@@ -2576,6 +2620,28 @@ export const ChangeProcessStageResponse = zod.object({
     propertyValue: zod.number(),
     propertyCity: zod.string().optional(),
     propertyState: zod.string().optional(),
+    residentCity: zod.string().nullish(),
+    residentState: zod
+      .string()
+      .nullish()
+      .describe("UF de moradia (sigla 2 letras)"),
+    alreadyOwnsPropertyInPropertyCity: zod
+      .boolean()
+      .nullish()
+      .describe(
+        "Cliente já possui imóvel no município do imóvel pretendido (bloqueador MCMV)",
+      ),
+    linkedPropertyId: zod.number().nullish(),
+    linkedProperty: zod
+      .object({
+        id: zod.number(),
+        title: zod.string(),
+        price: zod.number(),
+        city: zod.string(),
+        state: zod.string(),
+        imageUrl: zod.string().nullish(),
+      })
+      .nullish(),
     stage: zod.enum([
       "analise",
       "aprovacao",

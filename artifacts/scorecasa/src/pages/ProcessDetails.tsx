@@ -40,6 +40,7 @@ import { useToast } from "@/hooks/use-toast";
 import {
   ArrowLeft, FileText, Upload, Check, X, Trash2, Download,
   CheckCircle2, Clock, AlertCircle, History, ArrowRight,
+  ShieldX, Home, Building2, MapPin,
 } from "lucide-react";
 
 const STAGES = [
@@ -186,12 +187,22 @@ export function ProcessDetails({ leadId }: { leadId: number }) {
             <h1 className="text-xl font-bold" style={{ color: "#07113A" }}>
               {summary.leadName}
             </h1>
-            <div className="text-xs text-muted-foreground">
-              CPF {summary.leadCpf}
-              {summary.propertyCity ? ` · ${summary.propertyCity}/${summary.propertyState}` : ""}
-              {" · "}
-              <span className="font-semibold" style={{ color: "#10A65A" }}>
-                {fmtCurrency(Number(summary.propertyValue) || 0)}
+            <div className="text-xs text-muted-foreground flex items-center gap-1 flex-wrap">
+              <span>CPF {summary.leadCpf}</span>
+              {summary.residentCity && (
+                <span className="inline-flex items-center gap-1">
+                  · <Home className="w-3 h-3" /> Mora em {summary.residentCity}/{summary.residentState}
+                </span>
+              )}
+              {summary.propertyCity && (
+                <span className="inline-flex items-center gap-1">
+                  · <Building2 className="w-3 h-3" /> Imóvel em {summary.propertyCity}/{summary.propertyState}
+                </span>
+              )}
+              <span>
+                · <span className="font-semibold" style={{ color: "#10A65A" }}>
+                  {fmtCurrency(Number(summary.propertyValue) || 0)}
+                </span>
               </span>
             </div>
           </div>
@@ -209,6 +220,57 @@ export function ProcessDetails({ leadId }: { leadId: number }) {
           </Button>
         )}
       </div>
+
+      {/* MCMV blocker + linked property */}
+      {(summary.alreadyOwnsPropertyInPropertyCity || summary.linkedProperty) && (
+        <div className="grid grid-cols-1 md:grid-cols-2 gap-3">
+          {summary.alreadyOwnsPropertyInPropertyCity && (
+            <Card className="p-3 flex items-start gap-3" style={{ background: "#FEF2F2", borderColor: "#FCA5A5" }} data-testid="alert-mcmv-blocked">
+              <ShieldX className="w-5 h-5 mt-0.5 flex-shrink-0" style={{ color: "#991B1B" }} />
+              <div className="text-xs" style={{ color: "#991B1B" }}>
+                <div className="font-bold text-sm mb-0.5">MCMV bloqueado</div>
+                Cliente já possui imóvel no município{summary.propertyCity ? ` de ${summary.propertyCity}/${summary.propertyState}` : ""}. Avaliar SBPE como alternativa.
+              </div>
+            </Card>
+          )}
+          {summary.linkedProperty && (
+            <Card className="p-3 flex items-center gap-3" data-testid="card-linked-property">
+              {summary.linkedProperty.imageUrl ? (
+                // eslint-disable-next-line @next/next/no-img-element
+                <img
+                  src={summary.linkedProperty.imageUrl}
+                  alt={summary.linkedProperty.title}
+                  className="w-16 h-16 rounded object-cover flex-shrink-0"
+                />
+              ) : (
+                <div className="w-16 h-16 rounded flex items-center justify-center flex-shrink-0" style={{ background: "#EEF2FF" }}>
+                  <Building2 className="w-6 h-6" style={{ color: "#0D1B8C" }} />
+                </div>
+              )}
+              <div className="min-w-0 flex-1">
+                <div className="text-[10px] font-semibold uppercase tracking-wide" style={{ color: "#0D1B8C" }}>
+                  Imóvel vinculado (ScoreCasa Imóveis)
+                </div>
+                <div className="text-sm font-semibold truncate" style={{ color: "#07113A" }}>
+                  {summary.linkedProperty.title}
+                </div>
+                <div className="text-xs text-muted-foreground flex items-center gap-1">
+                  <MapPin className="w-3 h-3" /> {summary.linkedProperty.city}/{summary.linkedProperty.state}
+                  <span>· </span>
+                  <span className="font-semibold" style={{ color: "#10A65A" }}>
+                    {fmtCurrency(Number(summary.linkedProperty.price) || 0)}
+                  </span>
+                </div>
+              </div>
+              <Link href={`/imoveis?highlight=${summary.linkedProperty.id}`}>
+                <Button variant="outline" size="sm" className="flex-shrink-0" data-testid="link-linked-property">
+                  Ver imóvel
+                </Button>
+              </Link>
+            </Card>
+          )}
+        </div>
+      )}
 
       {/* Stage progress */}
       <Card className="p-4">

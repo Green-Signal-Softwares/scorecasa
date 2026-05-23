@@ -5,6 +5,7 @@
  * OpenAPI spec version: 1.0.0
  */
 import type { ProcessSummaryStage } from "./processSummaryStage";
+import type { PropertyMini } from "./propertyMini";
 
 export interface ProcessSummary {
   leadId: number;
@@ -13,6 +14,13 @@ export interface ProcessSummary {
   propertyValue: number;
   propertyCity?: string;
   propertyState?: string;
+  residentCity?: string | null;
+  /** UF de moradia (sigla 2 letras) */
+  residentState?: string | null;
+  /** Cliente já possui imóvel no município do imóvel pretendido (bloqueador MCMV) */
+  alreadyOwnsPropertyInPropertyCity?: boolean | null;
+  linkedPropertyId?: number | null;
+  linkedProperty?: PropertyMini | null;
   stage: ProcessSummaryStage;
   brokerName?: string;
   correspondentName?: string;
