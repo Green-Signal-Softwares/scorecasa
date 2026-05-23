@@ -1,7 +1,13 @@
-import { useState, useEffect } from "react";
+import { useState, useEffect, useMemo } from "react";
 import { useLocation } from "wouter";
-import { useGetMe, getGetMeQueryKey, useGetClientProfile, getGetClientProfileQueryKey, ApiError } from "@workspace/api-client-react";
+import {
+  useGetMe, getGetMeQueryKey,
+  useGetClientProfile, getGetClientProfileQueryKey,
+  useGetProperties,
+  ApiError,
+} from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
+import { UFS, UF_NAMES, citiesOf, normalizeCity, type UF } from "@workspace/cities-br";
 import { ClientLayout } from "@/components/layout/ClientLayout";
 import { ClientDocumentosTab } from "@/components/ClientDocumentosTab";
 import { FormField } from "@/components/FormField";
@@ -42,25 +48,29 @@ const MARITAL_OPTIONS = [
   { value: "viuvo",         label: "Viúvo(a)" },
 ];
 
-const BR_STATES = [
-  "AC","AL","AM","AP","BA","CE","DF","ES","GO","MA","MG","MS","MT","PA",
-  "PB","PE","PI","PR","RJ","RN","RO","RR","RS","SC","SE","SP","TO",
-];
+const UF_OPTIONS = UFS.map((s) => ({ value: s, label: `${s} — ${UF_NAMES[s]}` }));
+
+// Sentinel: cidade fora do dataset embarcado (cai em tier D no MCMV).
+const OUTRA_CIDADE = "__outra__";
 
 // ── Components ────────────────────────────────────────────────────────────────
 
 const Field = FormField;
 
 function SelectField({
-  label, value, onChange, options, placeholder, invalid,
+  label, value, onChange, options, placeholder, invalid, disabled,
 }: {
   label: string; value: string; onChange: (v: string) => void;
-  options: { value: string; label: string }[]; placeholder?: string; invalid?: boolean;
+  options: { value: string; label: string }[]; placeholder?: string;
+  invalid?: boolean; disabled?: boolean;
 }) {
   const labelCls = invalid ? "text-red-600" : "text-gray-700";
+  const baseCls = "w-full px-3 py-2.5 rounded-lg border text-sm outline-none";
   const selectCls = invalid
-    ? "w-full px-3 py-2.5 rounded-lg border border-red-500 bg-red-50 text-sm text-red-700 outline-none focus:ring-2 focus:ring-red-300 focus:border-red-500"
-    : "w-full px-3 py-2.5 rounded-lg border border-gray-200 bg-white text-sm outline-none focus:border-[#0D1B8C] focus:ring-1 focus:ring-[#0D1B8C]/20 text-gray-700";
+    ? `${baseCls} border-red-500 bg-red-50 text-red-700 focus:ring-2 focus:ring-red-300 focus:border-red-500`
+    : disabled
+    ? `${baseCls} border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed`
+    : `${baseCls} border-gray-200 bg-white focus:border-[#0D1B8C] focus:ring-1 focus:ring-[#0D1B8C]/20 text-gray-700`;
   return (
     <div>
       <label className={`block text-sm font-medium mb-1 ${labelCls}`}>{label}</label>
@@ -68,6 +78,7 @@ function SelectField({
         value={value}
         onChange={(e) => onChange(e.target.value)}
         aria-invalid={invalid || undefined}
+        disabled={disabled}
         className={selectCls}
       >
         <option value="">{placeholder ?? "Selecione..."}</option>
@@ -78,10 +89,10 @@ function SelectField({
 }
 
 function RadioGroup({
-  label, value, onChange, options, invalid,
+  label, value, onChange, options, invalid, hint,
 }: {
   label: string; value: string; onChange: (v: string) => void;
-  options: { value: string; label: string }[]; invalid?: boolean;
+  options: { value: string; label: string }[]; invalid?: boolean; hint?: string;
 }) {
   const labelCls = invalid ? "text-red-600" : "text-gray-700";
   const wrapperCls = invalid
@@ -104,6 +115,73 @@ function RadioGroup({
           </label>
         ))}
       </div>
+      {hint && <p className="text-xs text-gray-500 mt-1">{hint}</p>}
+    </div>
+  );
+}
+
+/** Combobox UF + Cidade lado a lado, com lista filtrada por UF do dataset
+ *  `@workspace/cities-br`. Quando o cliente escolhe "Outro município" mostramos
+ *  input livre — a cidade ainda é salva, mas cai automaticamente na
+ *  classificação D do MCMV (teto mais restrito). */
+function CityStateRow({
+  cityLabel, uf, city, freeCity, onUf, onCity, onFreeCity, ufInvalid, cityInvalid,
+}: {
+  cityLabel: string;
+  uf: string;
+  city: string;
+  /** Texto livre quando city === OUTRA_CIDADE. */
+  freeCity: string;
+  onUf: (v: string) => void;
+  onCity: (v: string) => void;
+  onFreeCity: (v: string) => void;
+  ufInvalid?: boolean;
+  cityInvalid?: boolean;
+}) {
+  const cityList = useMemo(
+    () => (uf ? citiesOf(uf as UF).map((c) => ({ value: c.name, label: c.name })) : []),
+    [uf],
+  );
+  const options = [...cityList, { value: OUTRA_CIDADE, label: "Outro município..." }];
+  const showFree = city === OUTRA_CIDADE;
+  return (
+    <div className="grid sm:grid-cols-3 gap-4">
+      <div className="sm:col-span-1">
+        <SelectField
+          label="Estado"
+          value={uf}
+          onChange={onUf}
+          options={UF_OPTIONS}
+          placeholder="UF"
+          invalid={ufInvalid}
+        />
+      </div>
+      <div className="sm:col-span-2">
+        <SelectField
+          label={cityLabel}
+          value={city}
+          onChange={onCity}
+          options={options}
+          placeholder={uf ? "Selecione a cidade..." : "Escolha primeiro a UF"}
+          invalid={cityInvalid}
+          disabled={!uf}
+        />
+        {showFree && (
+          <input
+            type="text"
+            value={freeCity}
+            onChange={(e) => onFreeCity(e.target.value)}
+            placeholder="Digite o nome do município"
+            className="mt-2 w-full px-3 py-2.5 rounded-lg border border-gray-200 bg-white text-sm outline-none focus:border-[#0D1B8C] focus:ring-1 focus:ring-[#0D1B8C]/20 text-gray-700"
+          />
+        )}
+        {showFree && (
+          <p className="text-xs text-amber-600 mt-1">
+            Município fora da nossa base curada — o MCMV usará o teto mais
+            restrito (R$ 230.000 nas faixas 1 e 2).
+          </p>
+        )}
+      </div>
     </div>
   );
 }
@@ -125,7 +203,6 @@ export function ClientMeusDados() {
 
   // ── Form state ─────────────────────────────────────────────────────────────
 
-  // Aceita ?tab=documentos vindo do balão do portal.
   const initialTab =
     typeof window !== "undefined" && new URLSearchParams(window.location.search).get("tab") === "documentos"
       ? "documentos"
@@ -135,7 +212,6 @@ export function ClientMeusDados() {
   const [errors, setErrors] = useState<Record<string, string>>({});
   const [errFields, setErrFields] = useState<Set<string>>(new Set());
 
-  // Mapeia campos do payload do backend para nomes de inputs do form local.
   const FIELD_TO_FORM: Record<string, keyof typeof form> = {
     name: "name",
     birthDate: "birthDate",
@@ -146,7 +222,11 @@ export function ClientMeusDados() {
     maritalStatus: "maritalStatus",
     propertyValue: "propertyValue",
     propertyCity: "cidadeImovel",
-    propertyState: "propertyState",
+    propertyState: "ufImovel",
+    residentCity: "cidadeMoradia",
+    residentState: "ufMoradia",
+    alreadyOwnsPropertyInPropertyCity: "alreadyOwnsProperty",
+    linkedPropertyId: "linkedPropertyId",
     spouseName: "spouseName",
     spouseCpf: "spouseCpf",
     spouseBirthDate: "spouseBirthDate",
@@ -176,10 +256,20 @@ export function ClientMeusDados() {
 
   const [form, setForm] = useState({
     name: "", cpf: "",
-    birthDate: "", cidade: "", cidadeImovel: "", profissao: "",
+    birthDate: "", profissao: "",
+    // moradia
+    ufMoradia: "", cidadeMoradia: "", cidadeMoradiaFree: "",
+    // imóvel pretendido
+    ufImovel: "", cidadeImovel: "", cidadeImovelFree: "",
     carteiraAssinada: "", income: "", informalIncome: "", maritalStatus: "",
-    propertyValue: "", propertyState: "",
-    spouseCpf: "", spouseName: "", spouseBirthDate: "", spouseCidade: "",
+    propertyValue: "",
+    // perguntas novas
+    alreadyOwnsProperty: "" as "" | "sim" | "nao",
+    propertyInScorecasa: "" as "" | "sim" | "nao",
+    linkedPropertyId: "" as "" | string,
+    // cônjuge
+    spouseCpf: "", spouseName: "", spouseBirthDate: "",
+    spouseUfMoradia: "", spouseCidadeMoradia: "", spouseCidadeMoradiaFree: "",
     spouseProfissao: "", spouseIncome: "", spouseInformalIncome: "",
   });
 
@@ -201,26 +291,56 @@ export function ClientMeusDados() {
     if (!me && !meError) setLocation("/login");
   }, [loadingMe, me, meError, meUnauthorized, profileUnauthorized, setLocation, guard, form]);
 
+  // Reconcilia cidade salva vs dataset: se a cidade existir no dataset, é
+  // selecionada como opção da lista; senão vira "Outro município..." com
+  // texto livre preenchido.
+  function resolveCity(uf: string | null | undefined, city: string | null | undefined) {
+    if (!uf || !city) return { dropdown: "", free: "" };
+    const list = citiesOf(uf as UF);
+    const match = list.find((c) => normalizeCity(c.name) === normalizeCity(city));
+    if (match) return { dropdown: match.name, free: "" };
+    return { dropdown: OUTRA_CIDADE, free: city };
+  }
+
   useEffect(() => {
     if (!profile) return;
     const l = profile.lead as any;
+    const moradia = resolveCity(l.residentState, l.residentCity);
+    const imovel = resolveCity(l.propertyState, l.propertyCity);
     const fromProfile = {
       name: profile.user.name ?? "",
       cpf: l.cpf ? maskCPF(l.cpf) : "",
       birthDate: l.birthDate ?? "",
-      cidade: l.propertyCity ?? "",
-      cidadeImovel: l.propertyCity ?? "",
       profissao: l.profession ?? "",
-      carteiraAssinada: l.employmentType === "clt" || l.employmentType === "servidor_publico" ? "sim" : l.employmentType ? "nao" : "",
+      ufMoradia: l.residentState ?? "",
+      cidadeMoradia: moradia.dropdown,
+      cidadeMoradiaFree: moradia.free,
+      ufImovel: l.propertyState ?? "",
+      cidadeImovel: imovel.dropdown,
+      cidadeImovelFree: imovel.free,
+      carteiraAssinada:
+        l.employmentType === "clt" || l.employmentType === "servidor_publico"
+          ? "sim"
+          : l.employmentType
+          ? "nao"
+          : "",
       income: brlFromNumber(l.income),
       informalIncome: brlFromNumber(l.informalIncome),
       maritalStatus: l.maritalStatus ?? "",
       propertyValue: brlFromNumber(l.propertyValue),
-      propertyState: l.propertyState ?? "",
+      alreadyOwnsProperty: (l.alreadyOwnsPropertyInPropertyCity === true
+        ? "sim"
+        : l.alreadyOwnsPropertyInPropertyCity === false
+        ? "nao"
+        : "") as "" | "sim" | "nao",
+      propertyInScorecasa: (l.linkedPropertyId != null ? "sim" : "") as "" | "sim" | "nao",
+      linkedPropertyId: l.linkedPropertyId != null ? String(l.linkedPropertyId) : "",
       spouseCpf: l.spouseCpf ? maskCPF(l.spouseCpf) : "",
       spouseName: l.spouseName ?? "",
       spouseBirthDate: l.spouseBirthDate ?? "",
-      spouseCidade: "",
+      spouseUfMoradia: "",
+      spouseCidadeMoradia: "",
+      spouseCidadeMoradiaFree: "",
       spouseProfissao: l.spouseProfession ?? "",
       spouseIncome: brlFromNumber(l.spouseIncome),
       spouseInformalIncome: "",
@@ -246,9 +366,73 @@ export function ClientMeusDados() {
 
   const needsSpouse = form.maritalStatus === "casado" || form.maritalStatus === "uniao_estavel";
 
+  // Resolve cidade efetiva (dropdown | livre) para o cônjuge/moradia/imóvel.
+  function effectiveCity(dropdown: string, free: string): string {
+    if (dropdown === OUTRA_CIDADE) return free.trim();
+    return dropdown.trim();
+  }
+
+  // ── Seletor de imóvel ScoreCasa (filtrado por UF/cidade) ──────────────────
+  // Mostra apenas imóveis disponíveis na mesma UF do imóvel pretendido.
+  // Filtramos a cidade no client porque GetPropertiesParams suporta `city`
+  // (uma string só) — manter aqui evita acoplar a busca a uma normalização
+  // específica do server.
+  const propertiesQueryEnabled =
+    form.propertyInScorecasa === "sim" && !!form.ufImovel;
+  const { data: properties } = useGetProperties(
+    undefined,
+    {
+      query: {
+        enabled: propertiesQueryEnabled,
+        staleTime: 60_000,
+      },
+    },
+  );
+  const propertyOptions = useMemo(() => {
+    if (!properties) return [];
+    const ufFilter = form.ufImovel;
+    const cidadeAlvo = effectiveCity(form.cidadeImovel, form.cidadeImovelFree);
+    return properties
+      .filter((p: any) => p.status === "available" || p.status == null)
+      .filter((p: any) => !ufFilter || p.state === ufFilter)
+      .filter((p: any) => !cidadeAlvo || normalizeCity(p.city ?? "") === normalizeCity(cidadeAlvo))
+      .map((p: any) => ({
+        value: String(p.id),
+        label: `${p.title} — ${p.city}/${p.state} (R$ ${Number(p.price).toLocaleString("pt-BR")})`,
+        price: p.price,
+        city: p.city,
+        state: p.state,
+      }));
+  }, [properties, form.ufImovel, form.cidadeImovel, form.cidadeImovelFree]);
+
+  // Quando o cliente marca "Sim, está no ScoreCasa" e escolhe um imóvel,
+  // sincroniza propertyValue/cidade/uf a partir do imóvel.
+  useEffect(() => {
+    if (form.propertyInScorecasa !== "sim" || !form.linkedPropertyId) return;
+    const sel = propertyOptions.find((o) => o.value === form.linkedPropertyId);
+    if (!sel) return;
+    setForm((f) => ({
+      ...f,
+      propertyValue: brlFromNumber(sel.price),
+      ufImovel: sel.state,
+      cidadeImovel: sel.city,
+      cidadeImovelFree: "",
+    }));
+    // eslint-disable-next-line react-hooks/exhaustive-deps
+  }, [form.linkedPropertyId, form.propertyInScorecasa]);
+
   const validate = () => {
     const e: Record<string, string> = {};
     if (!form.name.trim() || form.name.trim().length < 2) e.name = "Nome obrigatório";
+    if (form.cidadeImovel === OUTRA_CIDADE && !form.cidadeImovelFree.trim()) {
+      e.cidadeImovel = "Digite o nome do município do imóvel";
+    }
+    if (form.cidadeMoradia === OUTRA_CIDADE && !form.cidadeMoradiaFree.trim()) {
+      e.cidadeMoradia = "Digite o nome do município de moradia";
+    }
+    if (form.propertyInScorecasa === "sim" && !form.linkedPropertyId) {
+      e.linkedPropertyId = "Escolha o imóvel do ScoreCasa Imóveis";
+    }
     return e;
   };
 
@@ -261,6 +445,9 @@ export function ClientMeusDados() {
     setSaving(true);
     try {
       const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const cidadeImovelFinal = effectiveCity(form.cidadeImovel, form.cidadeImovelFree);
+      const cidadeMoradiaFinal = effectiveCity(form.cidadeMoradia, form.cidadeMoradiaFree);
+
       const body: Record<string, any> = {
         name: form.name.trim(),
         birthDate: form.birthDate || null,
@@ -270,8 +457,20 @@ export function ClientMeusDados() {
         informalIncome: parseBRL(form.informalIncome) || null,
         maritalStatus: form.maritalStatus || null,
         propertyValue: parseBRL(form.propertyValue) || undefined,
-        propertyCity: form.cidadeImovel.trim() || null,
-        propertyState: form.propertyState || null,
+        propertyCity: cidadeImovelFinal || null,
+        propertyState: form.ufImovel || null,
+        residentCity: cidadeMoradiaFinal || null,
+        residentState: form.ufMoradia || null,
+        alreadyOwnsPropertyInPropertyCity:
+          form.alreadyOwnsProperty === "sim"
+            ? true
+            : form.alreadyOwnsProperty === "nao"
+            ? false
+            : null,
+        linkedPropertyId:
+          form.propertyInScorecasa === "sim" && form.linkedPropertyId
+            ? parseInt(form.linkedPropertyId, 10)
+            : null,
       };
 
       if (needsSpouse) {
@@ -399,11 +598,7 @@ export function ClientMeusDados() {
         <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5">
           {/* Row 1: CPF + Nome Receita Federal */}
           <div className="grid sm:grid-cols-2 gap-4">
-            <Field
-              label="CPF / CNPJ"
-              value={form.cpf}
-              readOnly
-            />
+            <Field label="CPF / CNPJ" value={form.cpf} readOnly />
             <div>
               <label className="block text-sm font-medium text-gray-700 mb-1">Nome (Receita Federal)</label>
               <input
@@ -436,22 +631,21 @@ export function ClientMeusDados() {
             />
           </div>
 
-          {/* Row 3: Cidade de moradia + Cidade do imóvel */}
-          <div className="grid sm:grid-cols-2 gap-4">
-            <Field
-              label="Cidade de moradia"
-              value={form.cidade}
-              onChange={setField("cidade")}
-              placeholder="Selecione..."
-            />
-            <Field
-              label="Cidade do imóvel"
-              value={form.cidadeImovel}
-              onChange={setField("cidadeImovel")}
-              placeholder="Selecione..."
-              invalid={isInvalid("cidadeImovel")}
-            />
-          </div>
+          {/* Row 3: Estado + Cidade de moradia */}
+          <CityStateRow
+            cityLabel="Cidade de moradia"
+            uf={form.ufMoradia}
+            city={form.cidadeMoradia}
+            freeCity={form.cidadeMoradiaFree}
+            onUf={(v) => {
+              setForm((f) => ({ ...f, ufMoradia: v, cidadeMoradia: "", cidadeMoradiaFree: "" }));
+              clearFieldError("ufMoradia");
+            }}
+            onCity={(v) => setForm((f) => ({ ...f, cidadeMoradia: v, cidadeMoradiaFree: "" }))}
+            onFreeCity={(v) => setForm((f) => ({ ...f, cidadeMoradiaFree: v }))}
+            ufInvalid={isInvalid("ufMoradia")}
+            cityInvalid={isInvalid("cidadeMoradia") || !!errors.cidadeMoradia}
+          />
 
           {/* Row 4: Profissão + Carteira assinada */}
           <div className="grid sm:grid-cols-2 gap-4">
@@ -498,14 +692,97 @@ export function ClientMeusDados() {
               options={MARITAL_OPTIONS}
               invalid={isInvalid("maritalStatus")}
             />
-            <SelectField
-              label="UF do imóvel"
-              value={form.propertyState}
-              onChange={setField("propertyState")}
-              options={BR_STATES.map((s) => ({ value: s, label: s }))}
-              placeholder="UF"
-              invalid={isInvalid("propertyState")}
+            <Field
+              label="Valor do imóvel pretendido (R$)"
+              value={form.propertyValue}
+              onChange={setBRL("propertyValue")}
+              placeholder="0,00"
+              invalid={isInvalid("propertyValue")}
             />
+          </div>
+
+          {/* ── Imóvel pretendido ──────────────────────────────────── */}
+          <div className="rounded-xl border border-gray-200 bg-[#F7F8FF] p-5 space-y-4">
+            <p className="text-sm font-semibold text-[#0D1B8C]">Imóvel pretendido</p>
+
+            <CityStateRow
+              cityLabel="Cidade do imóvel"
+              uf={form.ufImovel}
+              city={form.cidadeImovel}
+              freeCity={form.cidadeImovelFree}
+              onUf={(v) => {
+                setForm((f) => ({
+                  ...f, ufImovel: v, cidadeImovel: "", cidadeImovelFree: "",
+                  // Trocar UF invalida o imóvel vinculado.
+                  linkedPropertyId: "",
+                }));
+                clearFieldError("ufImovel");
+              }}
+              onCity={(v) => setForm((f) => ({ ...f, cidadeImovel: v, cidadeImovelFree: "", linkedPropertyId: "" }))}
+              onFreeCity={(v) => setForm((f) => ({ ...f, cidadeImovelFree: v }))}
+              ufInvalid={isInvalid("ufImovel")}
+              cityInvalid={isInvalid("cidadeImovel") || !!errors.cidadeImovel}
+            />
+
+            <RadioGroup
+              label="Você já tem outro imóvel neste município?"
+              value={form.alreadyOwnsProperty}
+              onChange={(v) => setForm((f) => ({ ...f, alreadyOwnsProperty: v as any }))}
+              options={[{ value: "nao", label: "Não" }, { value: "sim", label: "Sim" }]}
+              invalid={isInvalid("alreadyOwnsProperty")}
+              hint="Pelo regulamento do MCMV (FAR/PMCMV), titulares que já possuem imóvel no mesmo município ficam impedidos de participar."
+            />
+
+            {form.alreadyOwnsProperty === "sim" && (
+              <div className="rounded-lg border border-amber-300 bg-amber-50 p-3">
+                <p className="text-xs text-amber-800">
+                  <strong>Atenção:</strong> Você não atende a um dos requisitos do
+                  MCMV. Vamos analisar o seu financiamento como SBPE / Caixa
+                  tradicional — sem o subsídio.
+                </p>
+              </div>
+            )}
+
+            <RadioGroup
+              label="O imóvel está no ScoreCasa Imóveis?"
+              value={form.propertyInScorecasa}
+              onChange={(v) => setForm((f) => ({
+                ...f,
+                propertyInScorecasa: v as any,
+                linkedPropertyId: v === "nao" ? "" : f.linkedPropertyId,
+              }))}
+              options={[{ value: "nao", label: "Não" }, { value: "sim", label: "Sim" }]}
+              hint="Vincular ao catálogo agiliza a análise e abre acesso a fotos, condições e contato com o corretor."
+            />
+
+            {form.propertyInScorecasa === "sim" && (
+              <div>
+                <SelectField
+                  label="Selecione o imóvel"
+                  value={form.linkedPropertyId}
+                  onChange={(v) => setForm((f) => ({ ...f, linkedPropertyId: v }))}
+                  options={propertyOptions}
+                  placeholder={
+                    !form.ufImovel
+                      ? "Escolha a UF do imóvel acima"
+                      : propertyOptions.length === 0
+                      ? "Nenhum imóvel disponível para essa cidade/UF"
+                      : "Selecione o imóvel..."
+                  }
+                  disabled={!form.ufImovel || propertyOptions.length === 0}
+                  invalid={!!errors.linkedPropertyId || isInvalid("linkedPropertyId")}
+                />
+                {errors.linkedPropertyId && (
+                  <p className="text-xs text-red-600 mt-1">{errors.linkedPropertyId}</p>
+                )}
+                {form.linkedPropertyId && (
+                  <p className="text-xs text-gray-500 mt-1">
+                    O valor e a localização do imóvel foram preenchidos a partir
+                    do anúncio selecionado.
+                  </p>
+                )}
+              </div>
+            )}
           </div>
 
           {/* ── Dados do cônjuge ─────────────────────────────────────── */}
@@ -542,20 +819,13 @@ export function ClientMeusDados() {
                   invalid={isInvalid("spouseBirthDate")}
                 />
                 <Field
-                  label="Cidade de moradia *"
-                  value={form.spouseCidade}
-                  onChange={setField("spouseCidade")}
-                  placeholder="Selecione..."
+                  label="Profissão *"
+                  value={form.spouseProfissao}
+                  onChange={setField("spouseProfissao")}
+                  placeholder="Profissão do cônjuge"
+                  invalid={isInvalid("spouseProfissao")}
                 />
               </div>
-
-              <Field
-                label="Profissão *"
-                value={form.spouseProfissao}
-                onChange={setField("spouseProfissao")}
-                placeholder="Profissão do cônjuge"
-                invalid={isInvalid("spouseProfissao")}
-              />
 
               <div className="grid sm:grid-cols-2 gap-4">
                 <Field

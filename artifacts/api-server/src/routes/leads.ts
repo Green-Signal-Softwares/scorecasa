@@ -19,6 +19,7 @@ async function requireAuth(req: any, res: any, next: any) {
   req.sessionUser = user;
   next();
 }
+import { cityTier, evaluateMcmv2026, FAIXA_LIMITS } from "@workspace/cities-br";
 import {
   CreateLeadBody,
   UpdateLeadBody,
@@ -103,6 +104,7 @@ interface ScoreInput {
   bcbMonthlyCommitment?: number | null;
   propertyCity?: string | null;
   propertyState?: string | null;
+  alreadyOwnsPropertyInPropertyCity?: boolean | null;
   openFinanceConnected?: boolean | null;
   openFinanceAvgBalance?: number | null;
   openFinanceRecurringIncome?: number | null;
@@ -168,6 +170,7 @@ function computeScore(input: ScoreInput): ScoreBreakdown {
     propertyType,
     propertyCity,
     propertyState,
+    alreadyOwnsPropertyInPropertyCity,
   } = input;
 
   const {
@@ -244,9 +247,24 @@ function computeScore(input: ScoreInput): ScoreBreakdown {
   else rendaScore = 0;
 
   // ── 5. Imóvel elegível (até 10 pts) ────────────────────────────────────
-  let imovelScore = 0;
-  const isMcmv = rendaComprovada <= 8000 && propertyValue <= 350_000;
+  //
+  // Elegibilidade MCMV 2026 agora considera classificação A/B/C/D do
+  // município (lib `@workspace/cities-br`) e a faixa de renda familiar.
+  // Tetos:  A 275k · B 264k · C 245k · D 230k (F1/F2)
+  //         F3 400k  · F4 600k (independente de tier)
+  // Quando `alreadyOwnsPropertyInPropertyCity` = true, MCMV (FAR/PMCMV)
+  // está bloqueado por regra do programa: titular não pode possuir outro
+  // imóvel urbano no mesmo município. Nesse caso o scoreMCMV é zerado.
+  const tier = cityTier(propertyState, propertyCity);
+  const mcmvEval = evaluateMcmv2026({
+    monthlyHouseholdIncome: rendaComprovada,
+    propertyValue,
+    tier,
+  });
+  const ownsBlocker = alreadyOwnsPropertyInPropertyCity === true;
+  const isMcmv = mcmvEval.eligible && !ownsBlocker;
   const valorDentroTeto = propertyValue <= 1_500_000 || isMcmv;
+  let imovelScore = 0;
   if (propertyType) imovelScore += 4; // tipo definido = regularizado
   if (valorDentroTeto) imovelScore += 3;
   if (propertyCity && propertyState) imovelScore += 2;
@@ -286,9 +304,22 @@ function computeScore(input: ScoreInput): ScoreBreakdown {
       ? Math.min(1000, Math.max(0, caixaScoreReal))
       : Math.min(1000, Math.round(300 + (approvalChance / 100) * 600));
 
-  const scoreMCMV = isMcmv
-    ? Math.min(1000, 550 + Math.round(approvalChance * 3))
-    : Math.min(500, 250 + Math.round(approvalChance * 1.5));
+  // scoreMCMV: 1000 quando elegível pelas regras 2026 (faixa+teto+tier) e
+  // sem bloqueio de "já possui imóvel no município". Caso contrário, o
+  // score cai conforme o motivo: bloqueio explícito → 0; só fora da faixa
+  // → ≤300; só fora do teto do tier → ≤500.
+  let scoreMCMV: number;
+  if (ownsBlocker) {
+    scoreMCMV = 0;
+  } else if (mcmvEval.eligible) {
+    scoreMCMV = Math.min(1000, 550 + Math.round(approvalChance * 3));
+  } else if (!mcmvEval.fitsFaixa) {
+    // Renda fora das 4 faixas → não atende MCMV de jeito nenhum.
+    scoreMCMV = Math.min(300, 100 + Math.round(approvalChance * 1.2));
+  } else {
+    // Renda OK mas valor do imóvel acima do teto do município.
+    scoreMCMV = Math.min(500, 250 + Math.round(approvalChance * 1.5));
+  }
 
   // ── Recomendação ─────────────────────────────────────────────────────
   let classificacao = "";
@@ -563,6 +594,7 @@ router.put("/:id", async (req, res) => {
       propertyType: existing.propertyType,
       propertyCity: existing.propertyCity,
       propertyState: existing.propertyState,
+      alreadyOwnsPropertyInPropertyCity: existing.alreadyOwnsPropertyInPropertyCity,
       birthDate: existing.birthDate,
       serasaScore: existing.serasaScore,
       hasNegativations: existing.hasNegativations,
@@ -688,6 +720,7 @@ router.put("/:id/enrich", async (req, res) => {
     propertyType: existing.propertyType,
     propertyCity: existing.propertyCity,
     propertyState: existing.propertyState,
+    alreadyOwnsPropertyInPropertyCity: existing.alreadyOwnsPropertyInPropertyCity,
     birthDate: existing.birthDate,
     serasaScore: enrichData.serasaScore ?? existing.serasaScore,
     hasNegativations: enrichData.hasNegativations ?? existing.hasNegativations,
@@ -776,6 +809,7 @@ router.get("/:id/score", async (req, res) => {
     siricStatus: lead.siricStatus,
     fgtsMonths: lead.fgtsMonths,
     caixaScoreReal: lead.caixaScoreReal,
+    alreadyOwnsPropertyInPropertyCity: lead.alreadyOwnsPropertyInPropertyCity,
     vehicleLoanMonthly: lead.vehicleLoanMonthly,
     creditCardUsage: lead.creditCardUsage,
     otherLoansMonthly: lead.otherLoansMonthly,

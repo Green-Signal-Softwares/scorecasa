@@ -1107,6 +1107,28 @@ components:
           type: string
         name:
           type: string
+        residentCity:
+          type: string
+          nullable: true
+        residentState:
+          type: string
+          nullable: true
+          description: UF de moradia (sigla 2 letras)
+        propertyCity:
+          type: string
+          nullable: true
+        propertyState:
+          type: string
+          nullable: true
+          description: UF do imóvel pretendido (sigla 2 letras)
+        alreadyOwnsPropertyInPropertyCity:
+          type: boolean
+          nullable: true
+          description: Cliente já possui imóvel no município do imóvel pretendido (bloqueador MCMV)
+        linkedPropertyId:
+          type: integer
+          nullable: true
+          description: ID em properties quando o imóvel está cadastrado no ScoreCasa Imóveis
 
     ClientProfile:
       type: object
@@ -1268,6 +1290,21 @@ components:
           type: string
           nullable: true
           description: Brazilian state abbreviation e.g. SP
+        residentCity:
+          type: string
+          nullable: true
+        residentState:
+          type: string
+          nullable: true
+          description: UF de moradia (sigla 2 letras)
+        alreadyOwnsPropertyInPropertyCity:
+          type: boolean
+          nullable: true
+          description: Cliente já possui imóvel no município do imóvel pretendido
+        linkedPropertyId:
+          type: integer
+          nullable: true
+          description: ID em properties quando o imóvel pretendido está no catálogo ScoreCasa Imóveis
         spouseName:
           type: string
           nullable: true

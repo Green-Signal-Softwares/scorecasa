@@ -175,6 +175,9 @@ importers:
       '@workspace/bank-offers':
         specifier: workspace:*
         version: link:../../lib/bank-offers
+      '@workspace/cities-br':
+        specifier: workspace:*
+        version: link:../../lib/cities-br
       '@workspace/db':
         specifier: workspace:*
         version: link:../../lib/db
@@ -549,6 +552,9 @@ importers:
       '@workspace/bank-offers':
         specifier: workspace:*
         version: link:../../lib/bank-offers
+      '@workspace/cities-br':
+        specifier: workspace:*
+        version: link:../../lib/cities-br
       class-variance-authority:
         specifier: 'catalog:'
         version: 0.7.1
@@ -644,6 +650,8 @@ importers:
         version: 3.25.76
 
   lib/bank-offers: {}
+
+  lib/cities-br: {}
 
   lib/db:
     dependencies:

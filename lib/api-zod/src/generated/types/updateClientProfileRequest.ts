@@ -10,4 +10,14 @@ export interface UpdateClientProfileRequest {
   propertyValue?: number;
   phone?: string;
   name?: string;
+  residentCity?: string | null;
+  /** UF de moradia (sigla 2 letras) */
+  residentState?: string | null;
+  propertyCity?: string | null;
+  /** UF do imóvel pretendido (sigla 2 letras) */
+  propertyState?: string | null;
+  /** Cliente já possui imóvel no município do imóvel pretendido (bloqueador MCMV) */
+  alreadyOwnsPropertyInPropertyCity?: boolean | null;
+  /** ID em properties quando o imóvel está cadastrado no ScoreCasa Imóveis */
+  linkedPropertyId?: number | null;
 }

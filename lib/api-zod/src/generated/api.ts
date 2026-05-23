@@ -150,6 +150,21 @@ export const GetClientProfileResponse = zod.object({
       .string()
       .nullish()
       .describe("Brazilian state abbreviation e.g. SP"),
+    residentCity: zod.string().nullish(),
+    residentState: zod
+      .string()
+      .nullish()
+      .describe("UF de moradia (sigla 2 letras)"),
+    alreadyOwnsPropertyInPropertyCity: zod
+      .boolean()
+      .nullish()
+      .describe("Cliente já possui imóvel no município do imóvel pretendido"),
+    linkedPropertyId: zod
+      .number()
+      .nullish()
+      .describe(
+        "ID em properties quando o imóvel pretendido está no catálogo ScoreCasa Imóveis",
+      ),
     spouseName: zod.string().nullish(),
     spouseCpf: zod.string().nullish(),
     spouseBirthDate: zod.string().nullish(),
@@ -290,6 +305,28 @@ export const UpdateClientProfileBody = zod.object({
   propertyValue: zod.number().optional(),
   phone: zod.string().optional(),
   name: zod.string().optional(),
+  residentCity: zod.string().nullish(),
+  residentState: zod
+    .string()
+    .nullish()
+    .describe("UF de moradia (sigla 2 letras)"),
+  propertyCity: zod.string().nullish(),
+  propertyState: zod
+    .string()
+    .nullish()
+    .describe("UF do imóvel pretendido (sigla 2 letras)"),
+  alreadyOwnsPropertyInPropertyCity: zod
+    .boolean()
+    .nullish()
+    .describe(
+      "Cliente já possui imóvel no município do imóvel pretendido (bloqueador MCMV)",
+    ),
+  linkedPropertyId: zod
+    .number()
+    .nullish()
+    .describe(
+      "ID em properties quando o imóvel está cadastrado no ScoreCasa Imóveis",
+    ),
 });
 
 export const UpdateClientProfileResponse = zod.object({
@@ -343,6 +380,21 @@ export const UpdateClientProfileResponse = zod.object({
       .string()
       .nullish()
       .describe("Brazilian state abbreviation e.g. SP"),
+    residentCity: zod.string().nullish(),
+    residentState: zod
+      .string()
+      .nullish()
+      .describe("UF de moradia (sigla 2 letras)"),
+    alreadyOwnsPropertyInPropertyCity: zod
+      .boolean()
+      .nullish()
+      .describe("Cliente já possui imóvel no município do imóvel pretendido"),
+    linkedPropertyId: zod
+      .number()
+      .nullish()
+      .describe(
+        "ID em properties quando o imóvel pretendido está no catálogo ScoreCasa Imóveis",
+      ),
     spouseName: zod.string().nullish(),
     spouseCpf: zod.string().nullish(),
     spouseBirthDate: zod.string().nullish(),
@@ -1471,6 +1523,21 @@ export const GetLeadsResponse = zod.object({
         .string()
         .nullish()
         .describe("Brazilian state abbreviation e.g. SP"),
+      residentCity: zod.string().nullish(),
+      residentState: zod
+        .string()
+        .nullish()
+        .describe("UF de moradia (sigla 2 letras)"),
+      alreadyOwnsPropertyInPropertyCity: zod
+        .boolean()
+        .nullish()
+        .describe("Cliente já possui imóvel no município do imóvel pretendido"),
+      linkedPropertyId: zod
+        .number()
+        .nullish()
+        .describe(
+          "ID em properties quando o imóvel pretendido está no catálogo ScoreCasa Imóveis",
+        ),
       spouseName: zod.string().nullish(),
       spouseCpf: zod.string().nullish(),
       spouseBirthDate: zod.string().nullish(),
@@ -1676,6 +1743,21 @@ export const GetLeadResponse = zod.object({
     .string()
     .nullish()
     .describe("Brazilian state abbreviation e.g. SP"),
+  residentCity: zod.string().nullish(),
+  residentState: zod
+    .string()
+    .nullish()
+    .describe("UF de moradia (sigla 2 letras)"),
+  alreadyOwnsPropertyInPropertyCity: zod
+    .boolean()
+    .nullish()
+    .describe("Cliente já possui imóvel no município do imóvel pretendido"),
+  linkedPropertyId: zod
+    .number()
+    .nullish()
+    .describe(
+      "ID em properties quando o imóvel pretendido está no catálogo ScoreCasa Imóveis",
+    ),
   spouseName: zod.string().nullish(),
   spouseCpf: zod.string().nullish(),
   spouseBirthDate: zod.string().nullish(),
@@ -1834,6 +1916,21 @@ export const UpdateLeadResponse = zod.object({
     .string()
     .nullish()
     .describe("Brazilian state abbreviation e.g. SP"),
+  residentCity: zod.string().nullish(),
+  residentState: zod
+    .string()
+    .nullish()
+    .describe("UF de moradia (sigla 2 letras)"),
+  alreadyOwnsPropertyInPropertyCity: zod
+    .boolean()
+    .nullish()
+    .describe("Cliente já possui imóvel no município do imóvel pretendido"),
+  linkedPropertyId: zod
+    .number()
+    .nullish()
+    .describe(
+      "ID em properties quando o imóvel pretendido está no catálogo ScoreCasa Imóveis",
+    ),
   spouseName: zod.string().nullish(),
   spouseCpf: zod.string().nullish(),
   spouseBirthDate: zod.string().nullish(),
@@ -2111,6 +2208,21 @@ export const EnrichLeadResponse = zod.object({
     .string()
     .nullish()
     .describe("Brazilian state abbreviation e.g. SP"),
+  residentCity: zod.string().nullish(),
+  residentState: zod
+    .string()
+    .nullish()
+    .describe("UF de moradia (sigla 2 letras)"),
+  alreadyOwnsPropertyInPropertyCity: zod
+    .boolean()
+    .nullish()
+    .describe("Cliente já possui imóvel no município do imóvel pretendido"),
+  linkedPropertyId: zod
+    .number()
+    .nullish()
+    .describe(
+      "ID em properties quando o imóvel pretendido está no catálogo ScoreCasa Imóveis",
+    ),
   spouseName: zod.string().nullish(),
   spouseCpf: zod.string().nullish(),
   spouseBirthDate: zod.string().nullish(),

@@ -38,6 +38,22 @@ export const leadsTable = pgTable("leads", {
   propertyCity: text("property_city"),
   propertyState: text("property_state"),
 
+  // ── Cidade/UF de moradia (separado do imóvel) ────────────────
+  residentCity: text("resident_city"),
+  residentState: text("resident_state"),
+
+  // ── Já possui imóvel no município do imóvel pretendido? ──────
+  // Bloqueador MCMV (FAR/PMCMV): titular não pode ter outro imóvel
+  // urbano no município. Quando true, scoreMCMV é zerado e o lead
+  // recebe alerta para considerar SBPE.
+  alreadyOwnsPropertyInPropertyCity: boolean("already_owns_property_in_property_city"),
+
+  // ── Imóvel cadastrado no ScoreCasa Imóveis? ──────────────────
+  // FK opcional para properties.id quando o cliente seleciona um
+  // imóvel do catálogo. Quando preenchido, propertyCity/State/Value
+  // são preenchidos a partir do imóvel selecionado.
+  linkedPropertyId: integer("linked_property_id"),
+
   // ── Cônjuge / composição familiar ────────────────────────────
   spouseName: text("spouse_name"),
   spouseCpf: text("spouse_cpf"),

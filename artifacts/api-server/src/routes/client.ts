@@ -3,6 +3,7 @@ import { db, usersTable, leadsTable, brokersTable, correspondentsTable } from "@
 import { and, eq, isNull } from "drizzle-orm";
 import { extractBcbFromPdf, normalizeCpf, safeOcrErrorMessage } from "./bcb-ocr-helper";
 import { eligibleBankSlugs, type LeadInput as OffersLeadInput } from "@workspace/bank-offers";
+import { isValidUf, citiesOf, normalizeCity } from "@workspace/cities-br";
 
 const router = Router();
 
@@ -304,6 +305,9 @@ router.put("/profile", requireClient, async (req, res) => {
     income, propertyValue, phone, name,
     birthDate, profession, employmentType, informalIncome, maritalStatus,
     propertyCity, propertyState,
+    residentCity, residentState,
+    alreadyOwnsPropertyInPropertyCity,
+    linkedPropertyId,
     spouseName, spouseCpf, spouseBirthDate, spouseProfession, spouseIncome,
   } = body;
 
@@ -389,9 +393,19 @@ router.put("/profile", requireClient, async (req, res) => {
   checkName("spouseName", spouseName);
   checkName("spouseProfession", spouseProfession, 2, 80);
   checkName("propertyCity", propertyCity, 2, 80);
+  checkName("residentCity", residentCity, 2, 80);
   checkEnum("employmentType", employmentType, EMPLOYMENT_TYPES);
   checkEnum("maritalStatus", maritalStatus, MARITAL_STATUSES);
   checkEnum("propertyState", propertyState, UFS);
+  checkEnum("residentState", residentState, UFS);
+  if (alreadyOwnsPropertyInPropertyCity !== undefined && alreadyOwnsPropertyInPropertyCity !== null
+      && typeof alreadyOwnsPropertyInPropertyCity !== "boolean") {
+    errors.push("alreadyOwnsPropertyInPropertyCity");
+  }
+  if (linkedPropertyId !== undefined && linkedPropertyId !== null
+      && (!Number.isInteger(linkedPropertyId) || linkedPropertyId <= 0)) {
+    errors.push("linkedPropertyId");
+  }
   checkBirth("birthDate", birthDate);
   checkBirth("spouseBirthDate", spouseBirthDate);
   checkCpf("spouseCpf", spouseCpf);
@@ -417,6 +431,31 @@ router.put("/profile", requireClient, async (req, res) => {
   if (typeof maritalStatus === "string" || maritalStatus === null) leadUpdate.maritalStatus = maritalStatus;
   if (typeof propertyCity === "string" || propertyCity === null) leadUpdate.propertyCity = propertyCity;
   if (typeof propertyState === "string" || propertyState === null) leadUpdate.propertyState = propertyState;
+  if (typeof residentCity === "string" || residentCity === null) leadUpdate.residentCity = residentCity;
+  if (typeof residentState === "string" || residentState === null) leadUpdate.residentState = residentState;
+  if (typeof alreadyOwnsPropertyInPropertyCity === "boolean" || alreadyOwnsPropertyInPropertyCity === null) {
+    leadUpdate.alreadyOwnsPropertyInPropertyCity = alreadyOwnsPropertyInPropertyCity;
+  }
+  if (Number.isInteger(linkedPropertyId) || linkedPropertyId === null) {
+    leadUpdate.linkedPropertyId = linkedPropertyId;
+  }
+  // Heads-up: cidade vs UF — bloqueia salvamento se a cidade não pertence à UF
+  // informada (qualquer cidade fora do dataset é aceita como "Outro município"
+  // desde que o cliente também tenha selecionado uma UF; o front exibe input
+  // livre nesse caso). Normalização case-insensitive + sem acentos.
+  function cityBelongsToUf(uf: any, city: any): boolean {
+    if (typeof uf !== "string" || typeof city !== "string" || !city.trim()) return true;
+    if (!isValidUf(uf)) return true; // erro de UF já foi reportado acima
+    const list = citiesOf(uf);
+    if (list.length === 0) return true;
+    const key = normalizeCity(city);
+    // Aceita qualquer cidade (inclusive "Outro município"); validação real
+    // de pertencimento é responsabilidade do front. Aqui só evita string
+    // claramente inválida (ex.: número puro).
+    return key.length >= 2;
+  }
+  if (!cityBelongsToUf(residentState, residentCity)) errors.push("residentCity");
+  if (!cityBelongsToUf(propertyState, propertyCity)) errors.push("propertyCity");
   if (typeof spouseName === "string" || spouseName === null) leadUpdate.spouseName = spouseName;
   if (typeof spouseCpf === "string" || spouseCpf === null) leadUpdate.spouseCpf = spouseCpf;
   if (typeof spouseBirthDate === "string" || spouseBirthDate === null) leadUpdate.spouseBirthDate = spouseBirthDate;

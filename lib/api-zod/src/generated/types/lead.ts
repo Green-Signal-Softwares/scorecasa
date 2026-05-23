@@ -36,6 +36,13 @@ export interface Lead {
   propertyCity?: string | null;
   /** Brazilian state abbreviation e.g. SP */
   propertyState?: string | null;
+  residentCity?: string | null;
+  /** UF de moradia (sigla 2 letras) */
+  residentState?: string | null;
+  /** Cliente já possui imóvel no município do imóvel pretendido */
+  alreadyOwnsPropertyInPropertyCity?: boolean | null;
+  /** ID em properties quando o imóvel pretendido está no catálogo ScoreCasa Imóveis */
+  linkedPropertyId?: number | null;
   spouseName?: string | null;
   spouseCpf?: string | null;
   spouseBirthDate?: string | null;

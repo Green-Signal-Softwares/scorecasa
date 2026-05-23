@@ -14,6 +14,9 @@
     },
     {
       "path": "./lib/bank-offers"
+    },
+    {
+      "path": "./lib/cities-br"
     }
   ]
 }

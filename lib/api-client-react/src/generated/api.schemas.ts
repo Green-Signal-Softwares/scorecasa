@@ -99,6 +99,16 @@ export interface UpdateClientProfileRequest {
   propertyValue?: number;
   phone?: string;
   name?: string;
+  residentCity?: string | null;
+  /** UF de moradia (sigla 2 letras) */
+  residentState?: string | null;
+  propertyCity?: string | null;
+  /** UF do imóvel pretendido (sigla 2 letras) */
+  propertyState?: string | null;
+  /** Cliente já possui imóvel no município do imóvel pretendido (bloqueador MCMV) */
+  alreadyOwnsPropertyInPropertyCity?: boolean | null;
+  /** ID em properties quando o imóvel está cadastrado no ScoreCasa Imóveis */
+  linkedPropertyId?: number | null;
 }
 
 export type MaritalStatus = (typeof MaritalStatus)[keyof typeof MaritalStatus];
@@ -182,6 +192,13 @@ export interface Lead {
   propertyCity?: string | null;
   /** Brazilian state abbreviation e.g. SP */
   propertyState?: string | null;
+  residentCity?: string | null;
+  /** UF de moradia (sigla 2 letras) */
+  residentState?: string | null;
+  /** Cliente já possui imóvel no município do imóvel pretendido */
+  alreadyOwnsPropertyInPropertyCity?: boolean | null;
+  /** ID em properties quando o imóvel pretendido está no catálogo ScoreCasa Imóveis */
+  linkedPropertyId?: number | null;
   spouseName?: string | null;
   spouseCpf?: string | null;
   spouseBirthDate?: string | null;
