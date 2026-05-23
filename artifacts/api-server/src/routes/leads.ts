@@ -330,6 +330,22 @@ function computeScore(input: ScoreInput): ScoreBreakdown {
   else classificacao = "Baixa chance no momento";
 
   const fraquezas: string[] = [];
+  // ── Bloqueadores explícitos do MCMV ──────────────────────────────────
+  // Aparecem PRIMEIRO porque mudam a estratégia de produto (sair de MCMV
+  // para SBPE), não só o valor do score.
+  if (ownsBlocker) {
+    fraquezas.push(
+      "MCMV bloqueado: cliente já possui imóvel no município do imóvel pretendido (regra FAR/PMCMV). Analisar como SBPE / Caixa tradicional",
+    );
+  } else if (mcmvEval.fitsFaixa && !mcmvEval.fitsCap) {
+    fraquezas.push(
+      `MCMV indisponível: valor do imóvel (R$ ${propertyValue.toLocaleString("pt-BR")}) acima do teto de R$ ${mcmvEval.cap.toLocaleString("pt-BR")} para tier ${tier} na faixa ${mcmvEval.faixa}`,
+    );
+  } else if (!mcmvEval.fitsFaixa) {
+    fraquezas.push(
+      `MCMV indisponível: renda familiar (R$ ${Math.round(rendaComprovada).toLocaleString("pt-BR")}) acima do teto da Faixa 4 (R$ ${FAIXA_LIMITS.F4.toLocaleString("pt-BR")})`,
+    );
+  }
   if (comprometimentoScore < 18) fraquezas.push("reduzir parcelas ativas ou o valor financiado");
   if (entradaScore < 10) fraquezas.push("aumentar a entrada (incluindo FGTS)");
   if (creditoScore < 8) fraquezas.push("subir o score Serasa antes de pedir o crédito");
@@ -376,16 +392,24 @@ function computeScore(input: ScoreInput): ScoreBreakdown {
       score: rendaScore,
       detail: `Renda comprovada R$ ${Math.round(rendaComprovada).toLocaleString("pt-BR")} vs necessária R$ ${Math.round(rendaNecessaria).toLocaleString("pt-BR")}`,
     },
+    // O bloco "imovel" recebe um detalhe mais rico explicando o motivo
+    // exato de o MCMV estar ou não disponível (tier, faixa, teto, blocker).
     {
       key: "imovel",
       label: "Imóvel dentro das regras",
       weight: 10,
       score: imovelScore,
-      detail: isMcmv
-        ? "Elegível ao Minha Casa Minha Vida"
-        : valorDentroTeto
-          ? "Imóvel dentro do teto SBPE"
-          : "Valor do imóvel acima do teto SBPE",
+      detail: ownsBlocker
+        ? "MCMV bloqueado: já possui imóvel no município"
+        : isMcmv
+          ? `Elegível MCMV ${mcmvEval.faixa} · tier ${tier} · teto R$ ${mcmvEval.cap.toLocaleString("pt-BR")}`
+          : mcmvEval.fitsFaixa && !mcmvEval.fitsCap
+            ? `Acima do teto MCMV ${mcmvEval.faixa} para tier ${tier} (R$ ${mcmvEval.cap.toLocaleString("pt-BR")})`
+            : !mcmvEval.fitsFaixa
+              ? "Renda fora da Faixa 4 do MCMV"
+              : valorDentroTeto
+                ? "Imóvel dentro do teto SBPE"
+                : "Valor do imóvel acima do teto SBPE",
     },
     {
       key: "historico",

@@ -3,7 +3,36 @@ import { db, usersTable, leadsTable, brokersTable, correspondentsTable } from "@
 import { and, eq, isNull } from "drizzle-orm";
 import { extractBcbFromPdf, normalizeCpf, safeOcrErrorMessage } from "./bcb-ocr-helper";
 import { eligibleBankSlugs, type LeadInput as OffersLeadInput } from "@workspace/bank-offers";
-import { isValidUf, citiesOf, normalizeCity } from "@workspace/cities-br";
+import { isValidUf, citiesOf, normalizeCity, UFS as CITIES_UFS, type UF as CitiesUF } from "@workspace/cities-br";
+
+// Index global: cidade normalizada → conjunto de UFs onde o município existe
+// no dataset embarcado. Usado para impedir combinações inconsistentes (ex.:
+// cidade "São Paulo" com state "RJ"). Cidades fora do dataset passam (free
+// text), porque o dataset é parcial (~85% da população urbana).
+const CITY_TO_UFS: Map<string, Set<CitiesUF>> = (() => {
+  const m = new Map<string, Set<CitiesUF>>();
+  for (const uf of CITIES_UFS) {
+    for (const c of citiesOf(uf)) {
+      const k = normalizeCity(c.name);
+      const set = m.get(k) ?? new Set<CitiesUF>();
+      set.add(uf);
+      m.set(k, set);
+    }
+  }
+  return m;
+})();
+
+/** true se city está vazia, ou pertence à uf no dataset, ou é desconhecida
+ *  ao dataset (free text). false só quando a cidade está no dataset mas
+ *  associada a UFs diferentes da informada. */
+function cityConsistentWithUf(uf: unknown, city: unknown): boolean {
+  if (typeof city !== "string" || !city.trim()) return true;
+  if (typeof uf !== "string" || !isValidUf(uf)) return true; // erro de UF já é reportado
+  const key = normalizeCity(city);
+  const ufs = CITY_TO_UFS.get(key);
+  if (!ufs) return true; // município fora do dataset curado → aceita
+  return ufs.has(uf as CitiesUF);
+}
 
 const router = Router();
 
@@ -411,6 +440,21 @@ router.put("/profile", requireClient, async (req, res) => {
   checkCpf("spouseCpf", spouseCpf);
   checkPhone("phone", phone);
 
+  // Consistência cidade ↔ UF (ambos os pares: moradia + imóvel).
+  if (!cityConsistentWithUf(residentState, residentCity)) errors.push("residentCity");
+  if (!cityConsistentWithUf(propertyState, propertyCity)) errors.push("propertyCity");
+
+  // Existência do imóvel vinculado: precisa existir em properties.id.
+  if (Number.isInteger(linkedPropertyId) && linkedPropertyId > 0) {
+    const { propertiesTable } = await import("@workspace/db");
+    const [prop] = await db
+      .select({ id: propertiesTable.id })
+      .from(propertiesTable)
+      .where(eq(propertiesTable.id, linkedPropertyId as number))
+      .limit(1);
+    if (!prop) errors.push("linkedPropertyId");
+  }
+
   if (errors.length > 0) {
     res.status(400).json({
       error: `Verifique os campos destacados: ${errors.join(", ")}. Use apenas valores válidos (renda não pode ser negativa, CPF deve ter 11 dígitos, idade mínima 18 anos).`,
@@ -439,23 +483,6 @@ router.put("/profile", requireClient, async (req, res) => {
   if (Number.isInteger(linkedPropertyId) || linkedPropertyId === null) {
     leadUpdate.linkedPropertyId = linkedPropertyId;
   }
-  // Heads-up: cidade vs UF — bloqueia salvamento se a cidade não pertence à UF
-  // informada (qualquer cidade fora do dataset é aceita como "Outro município"
-  // desde que o cliente também tenha selecionado uma UF; o front exibe input
-  // livre nesse caso). Normalização case-insensitive + sem acentos.
-  function cityBelongsToUf(uf: any, city: any): boolean {
-    if (typeof uf !== "string" || typeof city !== "string" || !city.trim()) return true;
-    if (!isValidUf(uf)) return true; // erro de UF já foi reportado acima
-    const list = citiesOf(uf);
-    if (list.length === 0) return true;
-    const key = normalizeCity(city);
-    // Aceita qualquer cidade (inclusive "Outro município"); validação real
-    // de pertencimento é responsabilidade do front. Aqui só evita string
-    // claramente inválida (ex.: número puro).
-    return key.length >= 2;
-  }
-  if (!cityBelongsToUf(residentState, residentCity)) errors.push("residentCity");
-  if (!cityBelongsToUf(propertyState, propertyCity)) errors.push("propertyCity");
   if (typeof spouseName === "string" || spouseName === null) leadUpdate.spouseName = spouseName;
   if (typeof spouseCpf === "string" || spouseCpf === null) leadUpdate.spouseCpf = spouseCpf;
   if (typeof spouseBirthDate === "string" || spouseBirthDate === null) leadUpdate.spouseBirthDate = spouseBirthDate;

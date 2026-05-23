@@ -399,9 +399,11 @@ export function ClientMeusDados() {
       .map((p: any) => ({
         value: String(p.id),
         label: `${p.title} — ${p.city}/${p.state} (R$ ${Number(p.price).toLocaleString("pt-BR")})`,
+        title: p.title,
         price: p.price,
         city: p.city,
         state: p.state,
+        imageUrl: p.imageUrl ?? null,
       }));
   }, [properties, form.ufImovel, form.cidadeImovel, form.cidadeImovelFree]);
 
@@ -755,34 +757,111 @@ export function ClientMeusDados() {
               hint="Vincular ao catálogo agiliza a análise e abre acesso a fotos, condições e contato com o corretor."
             />
 
-            {form.propertyInScorecasa === "sim" && (
-              <div>
-                <SelectField
-                  label="Selecione o imóvel"
-                  value={form.linkedPropertyId}
-                  onChange={(v) => setForm((f) => ({ ...f, linkedPropertyId: v }))}
-                  options={propertyOptions}
-                  placeholder={
-                    !form.ufImovel
-                      ? "Escolha a UF do imóvel acima"
-                      : propertyOptions.length === 0
-                      ? "Nenhum imóvel disponível para essa cidade/UF"
-                      : "Selecione o imóvel..."
-                  }
-                  disabled={!form.ufImovel || propertyOptions.length === 0}
-                  invalid={!!errors.linkedPropertyId || isInvalid("linkedPropertyId")}
-                />
-                {errors.linkedPropertyId && (
-                  <p className="text-xs text-red-600 mt-1">{errors.linkedPropertyId}</p>
-                )}
-                {form.linkedPropertyId && (
-                  <p className="text-xs text-gray-500 mt-1">
-                    O valor e a localização do imóvel foram preenchidos a partir
-                    do anúncio selecionado.
-                  </p>
-                )}
-              </div>
-            )}
+            {form.propertyInScorecasa === "sim" && (() => {
+              const selected = propertyOptions.find((o) => o.value === form.linkedPropertyId);
+              // Imóvel já escolhido → card resumido com Trocar/Remover.
+              if (selected) {
+                return (
+                  <div
+                    className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 flex gap-3 items-center"
+                    data-testid="selected-property-card"
+                  >
+                    {selected.imageUrl ? (
+                      <img
+                        src={selected.imageUrl}
+                        alt={selected.title}
+                        className="w-20 h-20 rounded-lg object-cover flex-shrink-0"
+                      />
+                    ) : (
+                      <div className="w-20 h-20 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-600 text-xs flex-shrink-0">
+                        Sem foto
+                      </div>
+                    )}
+                    <div className="flex-1 min-w-0">
+                      <p className="text-sm font-semibold text-gray-900 truncate">{selected.title}</p>
+                      <p className="text-xs text-gray-600">{selected.city}/{selected.state}</p>
+                      <p className="text-sm font-semibold text-emerald-700 mt-0.5">
+                        R$ {Number(selected.price).toLocaleString("pt-BR")}
+                      </p>
+                    </div>
+                    <div className="flex flex-col gap-1.5 flex-shrink-0">
+                      <button
+                        type="button"
+                        onClick={() => setForm((f) => ({ ...f, linkedPropertyId: "" }))}
+                        className="text-xs px-2.5 py-1 rounded border border-emerald-300 bg-white text-emerald-700 hover:bg-emerald-100"
+                        data-testid="button-trocar-imovel"
+                      >
+                        Trocar
+                      </button>
+                      <button
+                        type="button"
+                        onClick={() => setForm((f) => ({
+                          ...f,
+                          linkedPropertyId: "",
+                          propertyInScorecasa: "nao",
+                        }))}
+                        className="text-xs px-2.5 py-1 rounded border border-red-200 bg-white text-red-600 hover:bg-red-50"
+                        data-testid="button-remover-imovel"
+                      >
+                        Remover
+                      </button>
+                    </div>
+                  </div>
+                );
+              }
+              // Nenhum escolhido ainda → grid de cards selecionáveis (catálogo).
+              return (
+                <div>
+                  <p className="text-sm font-medium text-gray-700 mb-2">Escolha o imóvel</p>
+                  {!form.ufImovel ? (
+                    <p className="text-sm text-gray-500 italic">
+                      Escolha a UF do imóvel acima para listar os disponíveis.
+                    </p>
+                  ) : propertyOptions.length === 0 ? (
+                    <p className="text-sm text-gray-500 italic">
+                      Nenhum imóvel disponível para essa cidade/UF no momento.
+                    </p>
+                  ) : (
+                    <div
+                      className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-96 overflow-y-auto pr-1"
+                      data-testid="property-catalog"
+                    >
+                      {propertyOptions.map((opt) => (
+                        <button
+                          key={opt.value}
+                          type="button"
+                          onClick={() => setForm((f) => ({ ...f, linkedPropertyId: opt.value }))}
+                          className="text-left rounded-lg border border-gray-200 bg-white hover:border-emerald-400 hover:shadow-sm transition p-2 flex gap-3 items-center"
+                          data-testid={`property-option-${opt.value}`}
+                        >
+                          {opt.imageUrl ? (
+                            <img
+                              src={opt.imageUrl}
+                              alt={opt.title}
+                              className="w-16 h-16 rounded object-cover flex-shrink-0"
+                            />
+                          ) : (
+                            <div className="w-16 h-16 rounded bg-gray-100 flex items-center justify-center text-gray-400 text-[10px] flex-shrink-0">
+                              Sem foto
+                            </div>
+                          )}
+                          <div className="flex-1 min-w-0">
+                            <p className="text-sm font-semibold text-gray-900 truncate">{opt.title}</p>
+                            <p className="text-xs text-gray-600 truncate">{opt.city}/{opt.state}</p>
+                            <p className="text-sm font-semibold text-emerald-700">
+                              R$ {Number(opt.price).toLocaleString("pt-BR")}
+                            </p>
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                  {errors.linkedPropertyId && (
+                    <p className="text-xs text-red-600 mt-1">{errors.linkedPropertyId}</p>
+                  )}
+                </div>
+              );
+            })()}
           </div>
 
           {/* ── Dados do cônjuge ─────────────────────────────────────── */}
