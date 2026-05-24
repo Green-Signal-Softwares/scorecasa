@@ -109,7 +109,9 @@ export function AdminTaxas() {
     for (const h of history as any[]) {
       const key = `${h.bankSlug}|${h.product}`;
       if (!seriesKeys.includes(key)) continue;
-      const row = byDay.get(h.observedOn) ?? { observedOn: h.observedOn };
+      const row =
+        byDay.get(h.observedOn) ??
+        ({ observedOn: h.observedOn } as Record<string, string | number>);
       row[key] = Number(h.rateAA);
       byDay.set(h.observedOn, row);
     }
