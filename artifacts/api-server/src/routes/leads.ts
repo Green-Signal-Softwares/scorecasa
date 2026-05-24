@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, leadsTable, brokersTable, notificationsTable, usersTable } from "@workspace/db";
+import { db, leadsTable, brokersTable, notificationsTable, usersTable, propertiesTable } from "@workspace/db";
 import { eq, sql, ilike, or, and, desc } from "drizzle-orm";
 
 async function getSessionUser(req: any) {
@@ -597,6 +597,20 @@ router.post("/", async (req, res) => {
   }
 
   const { blocks: _initBlocks, sbpeRecommendation: _initSbpe, ...scores } = computeScore(parsed.data);
+
+  // Validar imóvel vinculado quando informado: precisa existir em properties.id
+  // para garantir consistência referencial (FK) e evitar 500 do banco.
+  if (parsed.data.linkedPropertyId != null) {
+    const [prop] = await db
+      .select({ id: propertiesTable.id })
+      .from(propertiesTable)
+      .where(eq(propertiesTable.id, parsed.data.linkedPropertyId))
+      .limit(1);
+    if (!prop) {
+      res.status(400).json({ error: "Imóvel vinculado não encontrado.", fields: ["linkedPropertyId"] });
+      return;
+    }
+  }
 
   const [lead] = await db
     .insert(leadsTable)

@@ -247,6 +247,7 @@ function CreateLeadForm({ brokers, onCreated, onCancel, prefilledProperty }: Cre
       propertyCity: fields.propertyCity.trim() || null,
       propertyState: fields.propertyState || null,
       brokerId: fields.brokerId ? Number(fields.brokerId) : null,
+      linkedPropertyId: prefilledProperty?.id ?? null,
       spouseName: needsSpouse ? (fields.spouseName.trim() || null) : null,
       spouseCpf: needsSpouse && fields.spouseCpf ? fields.spouseCpf.replace(/\D/g, "") : null,
       spouseBirthDate: needsSpouse ? (fields.spouseBirthDate || null) : null,

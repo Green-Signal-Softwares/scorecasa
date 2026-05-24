@@ -1750,6 +1750,10 @@ components:
         brokerId:
           type: integer
           nullable: true
+        linkedPropertyId:
+          type: integer
+          nullable: true
+          description: ID do imóvel usado para originar a simulação (vincula o lead a esse imóvel)
 
     UpdateLeadRequest:
       type: object

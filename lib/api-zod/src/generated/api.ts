@@ -1848,6 +1848,12 @@ export const CreateLeadBody = zod.object({
   spouseProfession: zod.string().nullish(),
   spouseIncome: zod.number().nullish(),
   brokerId: zod.number().nullish(),
+  linkedPropertyId: zod
+    .number()
+    .nullish()
+    .describe(
+      "ID do imóvel usado para originar a simulação (vincula o lead a esse imóvel)",
+    ),
 });
 
 /**

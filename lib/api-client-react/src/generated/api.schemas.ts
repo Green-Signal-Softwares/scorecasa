@@ -458,6 +458,8 @@ export interface CreateLeadRequest {
   spouseProfession?: string | null;
   spouseIncome?: number | null;
   brokerId?: number | null;
+  /** ID do imóvel usado para originar a simulação (vincula o lead a esse imóvel) */
+  linkedPropertyId?: number | null;
 }
 
 export type UpdateLeadRequestStatus =
