@@ -13,7 +13,18 @@ import {
   AlertCircle,
 } from "lucide-react";
 import { useToast } from "@/hooks/use-toast";
-import { getGetClientProfileQueryKey } from "@workspace/api-client-react";
+import {
+  getGetClientProfileQueryKey,
+  useGetMe,
+  getGetMeQueryKey,
+} from "@workspace/api-client-react";
+
+function useIsClient() {
+  const { data: user } = useGetMe({
+    query: { queryKey: getGetMeQueryKey(), retry: false, staleTime: 60_000 },
+  });
+  return { user, isClient: user?.role === "client", knownRole: !!user };
+}
 
 const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
 
@@ -74,10 +85,15 @@ export function useBanksAndCorrespondents() {
   const qc = useQueryClient();
   const { toast } = useToast();
 
+  // O picker é exclusivo do cliente: só consulta quando o usuário logado é
+  // de fato um cliente. Staff (admin/analyst/broker/correspondent) visualiza
+  // o lead sem disparar /api/client/banks-and-correspondents (que retorna 403).
+  const { isClient } = useIsClient();
   const query = useQuery({
     queryKey: BANKS_AND_CORRESPONDENTS_QK,
     queryFn: fetchBanksAndCorrespondents,
     staleTime: 15_000,
+    enabled: isClient,
   });
 
   const mutation = useMutation({
@@ -362,8 +378,15 @@ export function BankAndCorrespondentPicker({
   initialBank?: string | null;
   onOpened?: () => void;
 }) {
+  const { knownRole, isClient } = useIsClient();
   const { query, mutation } = useBanksAndCorrespondents();
   const [openBank, setOpenBank] = useState<string | null>(initialBank ?? null);
+
+  // Staff abrindo a página de detalhes de um lead não deve renderizar o picker
+  // (a escolha de banco/correspondente é exclusiva do cliente).
+  if (knownRole && !isClient) {
+    return null;
+  }
 
   if (query.isLoading) {
     return (
