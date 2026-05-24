@@ -28,9 +28,11 @@ function hashPassword(password: string): string {
   return crypto.createHash("sha256").update(password + "scorecasa_salt").digest("hex");
 }
 
-declare module "express-serve-static-core" {
-  interface Request {
-    session?: { userId?: number };
+declare global {
+  namespace Express {
+    interface Request {
+      session?: { userId?: number };
+    }
   }
 }
 
