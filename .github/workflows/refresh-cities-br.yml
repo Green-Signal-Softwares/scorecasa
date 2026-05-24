@@ -1,0 +1,65 @@
+name: Refresh cities-br from IBGE
+
+# Atualiza automaticamente o dataset de municípios brasileiros (`lib/cities-br/`)
+# baixando os JSONs oficiais do IBGE e regenerando `cities-data.generated.ts`.
+# Quando houver diferenças, abre um PR para revisão.
+#
+# Cadência: anual, alinhada à publicação da estimativa populacional do IBGE
+# (geralmente em agosto). Também pode ser disparado manualmente.
+
+on:
+  schedule:
+    # 03:00 UTC do dia 1º de setembro de cada ano.
+    - cron: "0 3 1 9 *"
+  workflow_dispatch: {}
+
+jobs:
+  refresh:
+    runs-on: ubuntu-latest
+    permissions:
+      contents: write
+      pull-requests: write
+    steps:
+      - uses: actions/checkout@v4
+
+      - uses: pnpm/action-setup@v4
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 24
+          cache: pnpm
+
+      - run: pnpm install --frozen-lockfile
+
+      - id: refresh
+        run: |
+          set +e
+          pnpm --filter @workspace/cities-br run refresh:ibge
+          status=$?
+          set -e
+          if [ "$status" -eq 0 ]; then
+            echo "changed=false" >> "$GITHUB_OUTPUT"
+          elif [ "$status" -eq 10 ]; then
+            echo "changed=true" >> "$GITHUB_OUTPUT"
+          else
+            exit "$status"
+          fi
+
+      - if: steps.refresh.outputs.changed == 'true'
+        run: pnpm --filter @workspace/cities-br exec tsc --noEmit -p tsconfig.json || true
+
+      - if: steps.refresh.outputs.changed == 'true'
+        uses: peter-evans/create-pull-request@v6
+        with:
+          branch: chore/cities-br-ibge-refresh
+          title: "chore(cities-br): atualizar dataset com dados mais recentes do IBGE"
+          commit-message: "chore(cities-br): refresh IBGE dataset"
+          body: |
+            Atualização automática do dataset de municípios a partir dos JSONs
+            oficiais do IBGE (`/localidades/municipios`, Censo 2022 variável 93
+            e `/localidades/regioes-metropolitanas`).
+
+            Gerado por `.github/workflows/refresh-cities-br.yml`.
+          add-paths: |
+            lib/cities-br/data/**
+            lib/cities-br/src/cities-data.generated.ts

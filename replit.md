@@ -40,6 +40,21 @@ _Populate as you build — explicit user instructions worth remembering across s
 
 _Populate as you build — sharp edges, "always run X before Y" rules._
 
+### Dataset de municípios (`lib/cities-br/`)
+
+A classificação MCMV depende de três snapshots oficiais do IBGE versionados em
+`lib/cities-br/data/` (lista de municípios, Censo 2022 e regiões metropolitanas).
+A atualização é automática:
+
+- Workflow agendado: `.github/workflows/refresh-cities-br.yml` roda anualmente
+  (1º de setembro, alinhado à publicação da estimativa populacional do IBGE) e
+  também pode ser disparado manualmente via `workflow_dispatch`.
+- O job executa `pnpm --filter @workspace/cities-br run refresh:ibge`, que
+  baixa os JSONs, regenera `cities-data.generated.ts` e abre um PR
+  (`chore/cities-br-ibge-refresh`) quando há diferenças.
+- Para rodar localmente: `pnpm --filter @workspace/cities-br run refresh:ibge`
+  (exit 0 = sem mudanças, exit 10 = dataset atualizado, exit 1 = erro).
+
 ## Pointers
 
 - See the `pnpm-workspace` skill for workspace structure, TypeScript setup, and package details

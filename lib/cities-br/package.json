@@ -7,6 +7,7 @@
     ".": "./src/index.ts"
   },
   "scripts": {
-    "build:dataset": "node --experimental-strip-types scripts/build-dataset.ts"
+    "build:dataset": "node --experimental-strip-types scripts/build-dataset.ts",
+    "refresh:ibge": "node --experimental-strip-types scripts/refresh-from-ibge.ts"
   }
 }
