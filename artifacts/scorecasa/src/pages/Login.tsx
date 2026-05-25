@@ -823,14 +823,8 @@ export function Login() {
             </div>
           </div>
 
-          {/* Footer links + demo */}
+          {/* Footer links */}
           <div className="text-center mt-5 space-y-2">
-            <p className="text-[10px]" style={{ color: "#94A3B8" }}>
-              Acesso demo:{" "}
-              <span className="font-mono" style={{ color: "#64748B" }}>admin@scorecasa.com.br</span>
-              {" / "}
-              <span className="font-mono" style={{ color: "#64748B" }}>admin123</span>
-            </p>
             <div className="flex items-center justify-center gap-3">
               <a href="/termos" className="text-[10px] hover:underline" style={{ color: "#94A3B8" }}>Termos de Uso</a>
               <span style={{ color: "#CBD5E1" }}>·</span>
