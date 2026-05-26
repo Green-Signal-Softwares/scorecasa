@@ -46,7 +46,7 @@ const SOURCES: Source[] = [
   },
 ];
 
-async function download(source: Source): Promise<void> {
+async function download(source: Source): Promise<unknown> {
   const res = await fetch(source.url, {
     headers: { Accept: "application/json" },
   });
@@ -54,14 +54,109 @@ async function download(source: Source): Promise<void> {
     throw new Error(`GET ${source.url} → HTTP ${res.status} ${res.statusText}`);
   }
   const raw = await res.text();
-  let pretty: string;
+  let parsed: unknown;
   try {
-    pretty = JSON.stringify(JSON.parse(raw)) + "\n";
+    parsed = JSON.parse(raw);
   } catch (err) {
     throw new Error(`Resposta inválida (não-JSON) de ${source.url}: ${String(err)}`);
   }
-  writeFileSync(source.file, pretty);
+  writeFileSync(source.file, JSON.stringify(parsed) + "\n");
+  return parsed;
 }
+
+// Número mínimo de municípios esperado. O Brasil tem 5.570 municípios; usamos
+// 5.500 como piso defensivo para tolerar pequenas variações sem deixar passar
+// um payload claramente quebrado/parcial.
+const MIN_MUNICIPIOS = 5500;
+// Número mínimo de regiões metropolitanas oficialmente reconhecidas pelo IBGE
+// (atualmente são ~70). Usamos um piso conservador.
+const MIN_REGIOES_METROPOLITANAS = 50;
+
+function isObject(value: unknown): value is Record<string, unknown> {
+  return typeof value === "object" && value !== null && !Array.isArray(value);
+}
+
+// Sanity-checks defensivos: se o IBGE renomear campos, descontinuar o agregado
+// 4709 ou trocar o formato dos endpoints, o script falha alto e cedo em vez de
+// gerar um dataset silenciosamente quebrado. Falhas aqui também disparam a
+// notificação configurada em `.github/workflows/refresh-cities-br.yml`.
+function validateMunicipios(data: unknown): void {
+  if (!Array.isArray(data)) {
+    throw new Error("ibge-municipios: payload não é um array (formato mudou?)");
+  }
+  if (data.length < MIN_MUNICIPIOS) {
+    throw new Error(
+      `ibge-municipios: apenas ${data.length} municípios (esperado ≥ ${MIN_MUNICIPIOS}); fonte do IBGE pode ter mudado.`,
+    );
+  }
+  const sample = data[0];
+  if (!isObject(sample) || typeof sample.id !== "number" || typeof sample.nome !== "string") {
+    throw new Error("ibge-municipios: campos esperados ausentes (id:number, nome:string).");
+  }
+  const microrregiao = sample.microrregiao;
+  if (!isObject(microrregiao) || !isObject(microrregiao.mesorregiao)) {
+    throw new Error("ibge-municipios: hierarquia microrregiao/mesorregiao ausente.");
+  }
+}
+
+function validatePopulacao(data: unknown): void {
+  if (!Array.isArray(data) || data.length === 0) {
+    throw new Error("ibge-populacao-2022: payload vazio (agregado 4709 descontinuado?).");
+  }
+  const head = data[0];
+  if (!isObject(head) || head.id !== "93") {
+    throw new Error(
+      "ibge-populacao-2022: variável 93 (População residente) ausente; agregado pode ter mudado.",
+    );
+  }
+  const resultados = head.resultados;
+  if (!Array.isArray(resultados) || resultados.length === 0) {
+    throw new Error("ibge-populacao-2022: bloco `resultados` ausente.");
+  }
+  const first = resultados[0];
+  if (!isObject(first) || !Array.isArray(first.series)) {
+    throw new Error("ibge-populacao-2022: bloco `series` ausente.");
+  }
+  if (first.series.length < MIN_MUNICIPIOS) {
+    throw new Error(
+      `ibge-populacao-2022: apenas ${first.series.length} séries (esperado ≥ ${MIN_MUNICIPIOS}).`,
+    );
+  }
+  const serie = first.series[0];
+  if (
+    !isObject(serie) ||
+    !isObject(serie.localidade) ||
+    !isObject(serie.serie) ||
+    typeof (serie.serie as Record<string, unknown>)["2022"] !== "string"
+  ) {
+    throw new Error(
+      "ibge-populacao-2022: shape de `series[].serie['2022']` mudou (campo renomeado?).",
+    );
+  }
+}
+
+function validateRegioesMetropolitanas(data: unknown): void {
+  if (!Array.isArray(data)) {
+    throw new Error("ibge-regioes-metropolitanas: payload não é um array.");
+  }
+  if (data.length < MIN_REGIOES_METROPOLITANAS) {
+    throw new Error(
+      `ibge-regioes-metropolitanas: apenas ${data.length} regiões (esperado ≥ ${MIN_REGIOES_METROPOLITANAS}).`,
+    );
+  }
+  const sample = data[0];
+  if (!isObject(sample) || typeof sample.nome !== "string" || !Array.isArray(sample.municipios)) {
+    throw new Error(
+      "ibge-regioes-metropolitanas: campos esperados ausentes (nome:string, municipios:array).",
+    );
+  }
+}
+
+const VALIDATORS: Record<string, (data: unknown) => void> = {
+  "ibge-municipios.json": validateMunicipios,
+  "ibge-populacao-2022.json": validatePopulacao,
+  "ibge-regioes-metropolitanas.json": validateRegioesMetropolitanas,
+};
 
 function snapshot(file: string): string {
   try {
@@ -79,7 +174,13 @@ async function main(): Promise<void> {
   console.log(`[refresh-ibge] baixando ${SOURCES.length} arquivos do IBGE…`);
   for (const s of SOURCES) {
     process.stdout.write(`  · ${s.url}\n`);
-    await download(s);
+    const parsed = await download(s);
+    const fileName = s.file.split("/").pop() ?? "";
+    const validator = VALIDATORS[fileName];
+    if (!validator) {
+      throw new Error(`[refresh-ibge] sem validador para ${fileName} (bug interno).`);
+    }
+    validator(parsed);
   }
 
   console.log("[refresh-ibge] regenerando dataset…");
