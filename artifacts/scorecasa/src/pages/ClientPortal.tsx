@@ -9,6 +9,7 @@ import { SessionExpiredBanner } from "@/components/SessionExpiredBanner";
 import { useSessionGuard } from "@/hooks/use-session-guard";
 import { BankComparison } from "@/components/BankComparison";
 import { CreditGPS } from "@/components/CreditGPS";
+import { SbpeAlternativeCard } from "@/components/portal/SbpeAlternativeCard";
 import { useLocation } from "wouter";
 import { useEffect, useState } from "react";
 import {
@@ -365,6 +366,15 @@ export function ClientPortal() {
               <ScoreGauge value={lead.scoreMCMV} max={1000} label="Score MCMV" />
             </div>
           </div>
+
+          {/* Alternativa SBPE — quando o MCMV está bloqueado por já possuir
+              imóvel no município, mostramos ao cliente o caminho alternativo
+              (parcela, entrada, LTV e bancos elegíveis) sem dados internos
+              de aprovação. */}
+          {lead.alreadyOwnsPropertyInPropertyCity === true &&
+            score?.sbpeRecommendation && (
+              <SbpeAlternativeCard rec={score.sbpeRecommendation} />
+            )}
 
           {/* AI Recommendation */}
           {lead.aiRecommendation && (
