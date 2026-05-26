@@ -13,6 +13,7 @@ import { Button } from "@/components/ui/button";
 import {
   Building2, MapPin, Ruler, BedDouble, Bath, Car, Heart, ArrowLeft,
   Calculator, Phone, User as UserIcon, CheckCircle2, ChevronLeft, ChevronRight,
+  Link2, Check,
 } from "lucide-react";
 
 const TYPE_LABELS: Record<string, string> = {
@@ -40,6 +41,7 @@ export function PropertyDetails({ id }: { id: number }) {
   const { toast } = useToast();
   const [, setLocation] = useLocation();
   const [activeImage, setActiveImage] = useState(0);
+  const [copied, setCopied] = useState(false);
 
   const { data: property, isLoading, error } = useGetProperty(id, {
     query: {
@@ -98,6 +100,23 @@ export function PropertyDetails({ id }: { id: number }) {
 
   const handleSimulate = () => {
     setLocation(`/leads?prefillProperty=${prop.id}`);
+  };
+
+  const handleCopyPublicLink = async () => {
+    const base = import.meta.env.BASE_URL;
+    const url = `${window.location.origin}${base}p/${prop.id}`;
+    try {
+      await navigator.clipboard.writeText(url);
+      setCopied(true);
+      toast({ title: "Link público copiado!", description: "Cole no WhatsApp para enviar ao cliente." });
+      setTimeout(() => setCopied(false), 2500);
+    } catch {
+      toast({
+        title: "Não foi possível copiar",
+        description: url,
+        variant: "destructive",
+      });
+    }
   };
 
   return (
@@ -357,8 +376,22 @@ export function PropertyDetails({ id }: { id: number }) {
               <Heart className={`w-4 h-4 ${isInterested ? "fill-red-400" : ""}`} />
               {isInterested ? "Remover interesse" : "Tenho interesse"}
             </button>
+            <button
+              onClick={handleCopyPublicLink}
+              className="w-full flex items-center justify-center gap-2 py-2 px-4 rounded-md text-sm font-semibold transition-all border"
+              style={{
+                background: copied ? "#F0FDF4" : "#FFFFFF",
+                color: copied ? "#10A65A" : "#0D1B8C",
+                borderColor: copied ? "#86EFAC" : "#C7D2FE",
+              }}
+              data-testid="button-copy-public-link"
+            >
+              {copied ? <Check className="w-4 h-4" /> : <Link2 className="w-4 h-4" />}
+              {copied ? "Link copiado" : "Copiar link público"}
+            </button>
             <p className="text-[11px] text-gray-400 text-center leading-relaxed">
               A simulação será iniciada com os dados deste imóvel pré-preenchidos no cadastro do lead.
+              O link público pode ser enviado ao cliente por WhatsApp.
             </p>
           </div>
 

@@ -13,6 +13,7 @@ import { Brokers } from "@/pages/Brokers";
 import { Ranking } from "@/pages/Ranking";
 import { Imoveis } from "@/pages/Imoveis";
 import { PropertyDetails } from "@/pages/PropertyDetails";
+import { PropertyPublic } from "@/pages/PropertyPublic";
 import { Financeiro } from "@/pages/Financeiro";
 import { Historico } from "@/pages/Historico";
 import { Avaliacoes } from "@/pages/Avaliacoes";
@@ -93,6 +94,10 @@ function Router() {
       <Route path="/portal/pagamentos" component={ClientPagamentos} />
       <Route path="/portal/dividas" component={ClientDividas} />
       <Route path="/portal" component={ClientPortal} />
+
+      <Route path="/p/:id">
+        {(params) => <PropertyPublic id={Number(params?.id)} />}
+      </Route>
 
       <Route path="/leads/:id">
         {(params) => (
