@@ -2034,6 +2034,12 @@ export const UpdateLeadBody = zod.object({
     .enum(["pending", "analyzing", "approved", "rejected", "in_progress"])
     .optional(),
   brokerId: zod.number().nullish(),
+  chosenBank: zod
+    .string()
+    .nullish()
+    .describe(
+      "Banco escolhido (slug) — broker\/admin definindo a partir do pivot SBPE",
+    ),
 });
 
 export const UpdateLeadResponse = zod.object({

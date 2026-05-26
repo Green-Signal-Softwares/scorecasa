@@ -1,5 +1,5 @@
 import { useState, useRef } from "react";
-import { Link } from "wouter";
+import { Link, useLocation } from "wouter";
 import {
   useGetProcess,
   useChangeProcessStage,
@@ -60,6 +60,7 @@ const fmtDate = (iso: string) =>
 export function ProcessDetails({ leadId }: { leadId: number }) {
   const { toast } = useToast();
   const qc = useQueryClient();
+  const [, setLocation] = useLocation();
   const { data, isLoading } = useGetProcess(leadId);
   const changeStage = useChangeProcessStage();
   const registerDoc = useRegisterProcessDocument();
@@ -239,7 +240,15 @@ export function ProcessDetails({ leadId }: { leadId: number }) {
               indicativa sem precisar abrir o detalhe do lead. */}
           {summary.alreadyOwnsPropertyInPropertyCity && summary.sbpeRecommendation && (
             <div className="md:col-span-2">
-              <SbpeRecommendationBlock rec={summary.sbpeRecommendation} />
+              <SbpeRecommendationBlock
+                rec={summary.sbpeRecommendation}
+                // O comparativo de bancos vive na página do lead. Clicar em um
+                // chip aqui leva o broker pra LeadDetails já com a aba "Bancos"
+                // ativa e foco no banco escolhido via query string.
+                onSelectBank={(bankSlug) => {
+                  setLocation(`/leads/${leadId}?tab=comparativo&bank=${bankSlug}`);
+                }}
+              />
             </div>
           )}
           {summary.linkedProperty && (

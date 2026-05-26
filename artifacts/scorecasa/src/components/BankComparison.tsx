@@ -1,5 +1,5 @@
-import { useMemo, useState } from "react";
-import { CheckCircle, XCircle, AlertCircle, Star, Info } from "lucide-react";
+import { useEffect, useMemo, useRef, useState } from "react";
+import { CheckCircle, XCircle, AlertCircle, Star, Info, ArrowRightLeft } from "lucide-react";
 import {
   BankAndCorrespondentPicker,
   useBanksAndCorrespondents,
@@ -281,10 +281,43 @@ function MetricCell({
 
 // ─── Main component ────────────────────────────────────────────────────────────
 
-export function BankComparison({ lead }: { lead: LeadInput }) {
+export type SbpePivotFocus = {
+  termYears: number;
+  maxFinancedPct: number;
+  bestMonthlyInstallment: number;
+  rateRange: { min: number; max: number };
+};
+
+export function BankComparison({
+  lead,
+  focusBankSlug,
+  sbpePivot,
+  onFocusConsumed,
+}: {
+  lead: LeadInput;
+  // Slug do banco vindo do pivot SBPE — quando presente, a comparação faz
+  // scroll automático até a linha desse banco e destaca os parâmetros SBPE
+  // pré-aplicados (prazo, LTV, parcela). `onFocusConsumed` é disparado depois
+  // do scroll para o pai poder limpar o foco e evitar re-aplicar a cada render.
+  focusBankSlug?: string | null;
+  sbpePivot?: SbpePivotFocus | null;
+  onFocusConsumed?: () => void;
+}) {
   const [pickerBank, setPickerBank] = useState<string | null>(null);
   const { query: banksQuery, mutation } = useBanksAndCorrespondents();
   const chosenBank = banksQuery.data?.chosenBank ?? null;
+  const focusRowRef = useRef<HTMLDivElement | null>(null);
+
+  useEffect(() => {
+    if (!focusBankSlug) return;
+    const el = focusRowRef.current;
+    if (el) {
+      el.scrollIntoView({ behavior: "smooth", block: "center" });
+    }
+    // Mantém o foco visual por alguns segundos; depois libera o estado no pai.
+    const t = window.setTimeout(() => onFocusConsumed?.(), 4000);
+    return () => window.clearTimeout(t);
+  }, [focusBankSlug, onFocusConsumed]);
 
   const offers = useMemo(() => computeOffers(lead), [
     lead.income,
@@ -345,25 +378,61 @@ export function BankComparison({ lead }: { lead: LeadInput }) {
       {/* Resumo do vínculo atual (banco + correspondente) */}
       <BankAndCorrespondentPicker variant="summary" />
 
+      {/* Banner do pivot SBPE — só aparece quando o broker abriu a comparação
+          a partir de um chip do bloco "Pivot SBPE". Mostra os parâmetros já
+          aplicados para o broker conferir antes de fechar com o cliente. */}
+      {focusBankSlug && sbpePivot && (
+        <div
+          className="rounded-xl border p-3 flex items-start gap-3"
+          style={{ background: "#EFF6FF", borderColor: "#BFDBFE" }}
+          data-testid="sbpe-focus-banner"
+        >
+          <ArrowRightLeft className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: "#0D1B8C" }} />
+          <div className="flex-1 text-xs" style={{ color: "#1E3A8A" }}>
+            <div className="font-bold mb-0.5">
+              Parâmetros SBPE pré-aplicados ao simulador
+            </div>
+            Prazo <strong>{sbpePivot.termYears} anos</strong> · LTV máx.{" "}
+            <strong>{Math.round(sbpePivot.maxFinancedPct * 100)}%</strong> · parcela
+            indicativa <strong>{fmtBRL(sbpePivot.bestMonthlyInstallment)}</strong> ·
+            taxa{" "}
+            <strong>
+              {sbpePivot.rateRange.min === sbpePivot.rateRange.max
+                ? `${sbpePivot.rateRange.min.toFixed(2)}%`
+                : `${sbpePivot.rateRange.min.toFixed(2)}–${sbpePivot.rateRange.max.toFixed(2)}%`}{" "}
+              a.a.
+            </strong>
+          </div>
+        </div>
+      )}
+
       {/* Offers — cards clicáveis abrem o picker já no banco escolhido */}
       <div className="space-y-3">
         {offers.map((offer, i) => {
           const slug = offerToBankSlug(offer.bank);
           const isSelected = !!slug && chosenBank === slug;
+          const isFocused = !!slug && slug === focusBankSlug;
           return (
-            <BankRow
+            <div
               key={`${offer.bank}-${offer.program}-${i}`}
-              offer={offer}
-              selected={isSelected}
-              disabled={mutation.isPending}
-              onSelect={() => {
-                if (!slug) return;
-                // Se já é o escolhido E já tem correspondente, abre o modal direto.
-                // Se ainda não tem correspondente, persiste a escolha de banco
-                // e abre o modal (picker faz isso internamente).
-                setPickerBank(slug);
-              }}
-            />
+              ref={isFocused ? focusRowRef : undefined}
+              className={isFocused ? "rounded-xl ring-2 ring-offset-2" : undefined}
+              style={isFocused ? { boxShadow: "0 0 0 2px #0D1B8C" } : undefined}
+              data-testid={isFocused ? `bankrow-focus-${slug}` : undefined}
+            >
+              <BankRow
+                offer={offer}
+                selected={isSelected}
+                disabled={mutation.isPending}
+                onSelect={() => {
+                  if (!slug) return;
+                  // Se já é o escolhido E já tem correspondente, abre o modal direto.
+                  // Se ainda não tem correspondente, persiste a escolha de banco
+                  // e abre o modal (picker faz isso internamente).
+                  setPickerBank(slug);
+                }}
+              />
+            </div>
           );
         })}
       </div>

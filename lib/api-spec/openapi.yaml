@@ -1774,6 +1774,10 @@ components:
         brokerId:
           type: integer
           nullable: true
+        chosenBank:
+          type: string
+          nullable: true
+          description: Banco escolhido (slug) — broker/admin definindo a partir do pivot SBPE
 
     LeadList:
       type: object

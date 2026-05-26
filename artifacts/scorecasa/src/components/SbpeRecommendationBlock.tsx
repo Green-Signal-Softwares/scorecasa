@@ -1,4 +1,4 @@
-import { Landmark, ArrowRightLeft } from "lucide-react";
+import { Landmark, ArrowRightLeft, ArrowRight, CheckCircle2 } from "lucide-react";
 import type { SbpeRecommendation } from "@workspace/api-client-react";
 
 function formatBRL(v: number) {
@@ -13,7 +13,25 @@ function formatBRL(v: number) {
 // já possui imóvel no município. Resume bancos elegíveis, faixa de taxa,
 // LTV máximo e parcela indicativa para o broker conduzir a conversa sem ter
 // que recalcular manualmente.
-export function SbpeRecommendationBlock({ rec }: { rec: SbpeRecommendation }) {
+//
+// Quando `onSelectBank` é passado, cada chip vira clicável e dispara o callback
+// (broker abre a aba de comparação focada naquele banco com os parâmetros SBPE
+// pré-aplicados). Quando `onChooseBank` é passado, uma CTA "Selecionar" aparece
+// em cada chip e persiste a escolha no `lead.chosenBank`. `chosenBank` marca
+// visualmente o banco já escolhido.
+export function SbpeRecommendationBlock({
+  rec,
+  onSelectBank,
+  onChooseBank,
+  chosenBank,
+  chooseBankPending,
+}: {
+  rec: SbpeRecommendation;
+  onSelectBank?: (bankSlug: string) => void;
+  onChooseBank?: (bankSlug: string) => void;
+  chosenBank?: string | null;
+  chooseBankPending?: boolean;
+}) {
   const { min, max } = rec.rateRange;
   const rateLabel =
     min === max
@@ -73,23 +91,64 @@ export function SbpeRecommendationBlock({ rec }: { rec: SbpeRecommendation }) {
             Bancos elegíveis ({rec.banks.length})
           </div>
           <div className="flex flex-wrap gap-1.5">
-            {rec.banks.map((b) => (
-              <div
-                key={`${b.bankSlug}-${b.shortName}`}
-                className="flex items-center gap-1.5 px-2 py-1 rounded-full text-[11px] font-medium"
-                style={{
-                  background: b.status === "eligible" ? "#0D1B8C" : "#F59E0B",
-                  color: "white",
-                }}
-                data-testid={`sbpe-bank-${b.bankSlug}`}
-                title={`${b.bank} — ${b.annualRate.toFixed(2)}% a.a. · ${Math.round(
-                  b.maxLTV * 100,
-                )}% LTV · ${formatBRL(b.monthlyInstallment)}/mês · ${b.approvalPct}% aprovação`}
-              >
-                <Landmark className="w-3 h-3" />
-                {b.shortName} · {b.annualRate.toFixed(2)}%
-              </div>
-            ))}
+            {rec.banks.map((b) => {
+              const isChosen = chosenBank === b.bankSlug;
+              const clickable = !!onSelectBank;
+              const title = `${b.bank} — ${b.annualRate.toFixed(2)}% a.a. · ${Math.round(
+                b.maxLTV * 100,
+              )}% LTV · ${formatBRL(b.monthlyInstallment)}/mês · ${b.approvalPct}% aprovação${
+                clickable ? " · clique para abrir a comparação" : ""
+              }`;
+              return (
+                <div
+                  key={`${b.bankSlug}-${b.shortName}`}
+                  className="flex items-center gap-1 rounded-full overflow-hidden text-[11px] font-medium"
+                  style={{
+                    background: b.status === "eligible" ? "#0D1B8C" : "#F59E0B",
+                    color: "white",
+                  }}
+                  data-testid={`sbpe-bank-${b.bankSlug}`}
+                >
+                  <button
+                    type="button"
+                    onClick={clickable ? () => onSelectBank!(b.bankSlug) : undefined}
+                    disabled={!clickable}
+                    title={title}
+                    className={`flex items-center gap-1.5 px-2 py-1 ${
+                      clickable ? "hover:brightness-110 cursor-pointer" : "cursor-default"
+                    }`}
+                    data-testid={`sbpe-bank-open-${b.bankSlug}`}
+                  >
+                    <Landmark className="w-3 h-3" />
+                    {b.shortName} · {b.annualRate.toFixed(2)}%
+                    {clickable && <ArrowRight className="w-3 h-3 ml-0.5 opacity-80" />}
+                  </button>
+                  {onChooseBank && (
+                    <button
+                      type="button"
+                      onClick={() => onChooseBank(b.bankSlug)}
+                      disabled={chooseBankPending || isChosen}
+                      title={
+                        isChosen
+                          ? "Banco já selecionado para este lead"
+                          : "Selecionar este banco para o lead"
+                      }
+                      className="flex items-center gap-1 px-2 py-1 border-l border-white/30 disabled:opacity-70"
+                      style={{ background: isChosen ? "#10A65A" : "transparent" }}
+                      data-testid={`sbpe-bank-choose-${b.bankSlug}`}
+                    >
+                      {isChosen ? (
+                        <>
+                          <CheckCircle2 className="w-3 h-3" /> Escolhido
+                        </>
+                      ) : (
+                        <>Selecionar</>
+                      )}
+                    </button>
+                  )}
+                </div>
+              );
+            })}
           </div>
         </div>
       </div>

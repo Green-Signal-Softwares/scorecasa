@@ -481,6 +481,8 @@ export interface UpdateLeadRequest {
   propertyValue?: number;
   status?: UpdateLeadRequestStatus;
   brokerId?: number | null;
+  /** Banco escolhido (slug) — broker/admin definindo a partir do pivot SBPE */
+  chosenBank?: string | null;
 }
 
 export interface LeadList {

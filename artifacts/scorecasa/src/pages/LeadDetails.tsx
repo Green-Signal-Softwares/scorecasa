@@ -25,7 +25,7 @@ import {
   XCircle, CheckCircle2,
 } from "lucide-react";
 import { Link } from "wouter";
-import { BankComparison } from "@/components/BankComparison";
+import { BankComparison, type SbpePivotFocus } from "@/components/BankComparison";
 import { SbpeRecommendationBlock } from "@/components/SbpeRecommendationBlock";
 import { CreditGPS, computeGpsSteps } from "@/components/CreditGPS";
 import { Button } from "@/components/ui/button";
@@ -103,6 +103,13 @@ export function LeadDetails({ id }: { id: number }) {
   const [editing, setEditing] = useState(false);
   const [exporting, setExporting] = useState(false);
   const [rightTab, setRightTab] = useState<"analise" | "comparativo" | "gps">("analise");
+  // Estado de foco vindo do bloco "Pivot SBPE" — quando o broker clica em um
+  // chip de banco, abrimos a aba de comparação rolando até esse banco e
+  // exibindo um banner com os parâmetros SBPE pré-aplicados.
+  const [comparisonFocus, setComparisonFocus] = useState<{
+    bankSlug: string;
+    sbpe: SbpePivotFocus;
+  } | null>(null);
 
   const { data: lead, isLoading } = useGetLead(id, {
     query: { enabled: !!id, queryKey: getGetLeadQueryKey(id) },
@@ -136,6 +143,29 @@ export function LeadDetails({ id }: { id: number }) {
     caixaScoreReal: "",
     enrichedBy: "",
   });
+
+  // Quando o broker chega via "?tab=comparativo&bank=<slug>" (link vindo do
+  // bloco SBPE em ProcessDetails), abre a aba de comparação já focada no
+  // banco. O foco visual e o banner SBPE só ganham os parâmetros completos
+  // quando o score chega — por isso reagimos também ao score chegar.
+  useEffect(() => {
+    if (typeof window === "undefined") return;
+    const params = new URLSearchParams(window.location.search);
+    const tab = params.get("tab");
+    const bank = params.get("bank");
+    if (tab === "comparativo") setRightTab("comparativo");
+    if (bank && score?.sbpeRecommendation) {
+      setComparisonFocus({
+        bankSlug: bank,
+        sbpe: {
+          termYears: score.sbpeRecommendation.termYears,
+          maxFinancedPct: score.sbpeRecommendation.maxFinancedPct,
+          bestMonthlyInstallment: score.sbpeRecommendation.bestMonthlyInstallment,
+          rateRange: score.sbpeRecommendation.rateRange,
+        },
+      });
+    }
+  }, [score?.sbpeRecommendation]);
 
   useEffect(() => {
     if (lead && lead.enrichedAt) {
@@ -659,7 +689,51 @@ export function LeadDetails({ id }: { id: number }) {
                         broker já enxergar bancos elegíveis, faixa de taxa,
                         LTV máximo e parcela indicativa. */}
                     {lead.alreadyOwnsPropertyInPropertyCity === true && score?.sbpeRecommendation && (
-                      <SbpeRecommendationBlock rec={score.sbpeRecommendation} />
+                      <SbpeRecommendationBlock
+                        rec={score.sbpeRecommendation}
+                        chosenBank={lead.chosenBank ?? null}
+                        chooseBankPending={updateLead.isPending}
+                        onSelectBank={(bankSlug) => {
+                          // Abre a aba de comparação focada no banco escolhido
+                          // do pivot, com os parâmetros SBPE pré-aplicados.
+                          setComparisonFocus({
+                            bankSlug,
+                            sbpe: {
+                              termYears: score.sbpeRecommendation!.termYears,
+                              maxFinancedPct: score.sbpeRecommendation!.maxFinancedPct,
+                              bestMonthlyInstallment:
+                                score.sbpeRecommendation!.bestMonthlyInstallment,
+                              rateRange: score.sbpeRecommendation!.rateRange,
+                            },
+                          });
+                          setRightTab("comparativo");
+                        }}
+                        onChooseBank={(bankSlug) => {
+                          // Persiste a escolha do banco no lead via endpoint
+                          // de update. Não toca em correspondente — isso fica
+                          // a cargo do cliente no portal.
+                          updateLead.mutate(
+                            { id, data: { chosenBank: bankSlug } },
+                            {
+                              onSuccess: () => {
+                                queryClient.invalidateQueries({
+                                  queryKey: getGetLeadQueryKey(id),
+                                });
+                                toast({
+                                  title: "Banco selecionado",
+                                  description: `Banco do pivot SBPE atribuído ao lead.`,
+                                });
+                              },
+                              onError: () => {
+                                toast({
+                                  title: "Erro ao selecionar banco",
+                                  description: "Tente novamente.",
+                                });
+                              },
+                            },
+                          );
+                        }}
+                      />
                     )}
 
                     {/* Linked property (ScoreCasa Imóveis) */}
@@ -768,7 +842,12 @@ export function LeadDetails({ id }: { id: number }) {
           </div>
 
           {rightTab === "comparativo" ? (
-            <BankComparison lead={lead} />
+            <BankComparison
+              lead={lead}
+              focusBankSlug={comparisonFocus?.bankSlug ?? null}
+              sbpePivot={comparisonFocus?.sbpe ?? null}
+              onFocusConsumed={() => setComparisonFocus(null)}
+            />
           ) : rightTab === "gps" ? (
             <CreditGPS lead={lead} />
           ) : (
