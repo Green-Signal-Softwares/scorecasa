@@ -26,6 +26,7 @@ import {
 } from "lucide-react";
 import { Link } from "wouter";
 import { BankComparison, type SbpePivotFocus } from "@/components/BankComparison";
+import { CityTierChip } from "@/components/CityTierChip";
 import { SbpeRecommendationBlock } from "@/components/SbpeRecommendationBlock";
 import { CreditGPS, computeGpsSteps } from "@/components/CreditGPS";
 import { Button } from "@/components/ui/button";
@@ -643,29 +644,34 @@ export function LeadDetails({ id }: { id: number }) {
 
                     {/* Localização (moradia × imóvel pretendido) */}
                     {(lead.residentCity || lead.propertyCity) && (
-                      <div className="grid grid-cols-2 gap-3 pt-2 border-t border-border/50">
-                        <div className="flex items-start gap-2">
-                          <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "#EFF6FF" }}>
-                            <Home className="w-4 h-4" style={{ color: "#0D1B8C" }} />
+                      <div className="pt-2 border-t border-border/50 space-y-2">
+                        <div className="grid grid-cols-2 gap-3">
+                          <div className="flex items-start gap-2">
+                            <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "#EFF6FF" }}>
+                              <Home className="w-4 h-4" style={{ color: "#0D1B8C" }} />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="text-xs text-muted-foreground">Mora em</div>
+                              <div className="text-sm font-medium text-foreground truncate" data-testid="text-resident-city">
+                                {lead.residentCity ? `${lead.residentCity}/${lead.residentState ?? ""}` : <span className="italic text-muted-foreground">—</span>}
+                              </div>
+                            </div>
                           </div>
-                          <div className="min-w-0">
-                            <div className="text-xs text-muted-foreground">Mora em</div>
-                            <div className="text-sm font-medium text-foreground truncate" data-testid="text-resident-city">
-                              {lead.residentCity ? `${lead.residentCity}/${lead.residentState ?? ""}` : <span className="italic text-muted-foreground">—</span>}
+                          <div className="flex items-start gap-2">
+                            <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "#EFF6FF" }}>
+                              <MapPin className="w-4 h-4" style={{ color: "#0D1B8C" }} />
+                            </div>
+                            <div className="min-w-0">
+                              <div className="text-xs text-muted-foreground">Imóvel em</div>
+                              <div className="text-sm font-medium text-foreground truncate" data-testid="text-property-city">
+                                {lead.propertyCity ? `${lead.propertyCity}/${lead.propertyState ?? ""}` : <span className="italic text-muted-foreground">—</span>}
+                              </div>
                             </div>
                           </div>
                         </div>
-                        <div className="flex items-start gap-2">
-                          <div className="w-8 h-8 rounded-lg flex items-center justify-center flex-shrink-0" style={{ background: "#EFF6FF" }}>
-                            <MapPin className="w-4 h-4" style={{ color: "#0D1B8C" }} />
-                          </div>
-                          <div className="min-w-0">
-                            <div className="text-xs text-muted-foreground">Imóvel em</div>
-                            <div className="text-sm font-medium text-foreground truncate" data-testid="text-property-city">
-                              {lead.propertyCity ? `${lead.propertyCity}/${lead.propertyState ?? ""}` : <span className="italic text-muted-foreground">—</span>}
-                            </div>
-                          </div>
-                        </div>
+                        {lead.propertyCity && lead.propertyState && (
+                          <CityTierChip uf={lead.propertyState} city={lead.propertyCity} />
+                        )}
                       </div>
                     )}
 
