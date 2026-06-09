@@ -3,10 +3,11 @@
   "version": "0.0.0",
   "license": "MIT",
   "scripts": {
-    "preinstall": "sh -c 'rm -f package-lock.json yarn.lock; case \"$npm_config_user_agent\" in pnpm/*) ;; *) echo \"Use pnpm instead\" >&2; exit 1 ;; esac'",
+    "preinstall": "sh -c 'rm -f package-lock.json yarn.lock; ua=\"${npm_config_user_agent:-}\"; execpath=\"${npm_execpath:-}\"; ok=0; case \"$ua\" in pnpm/*|pnpm) ok=1 ;; esac; case \"$execpath\" in *pnpm*) ok=1 ;; esac; if [ \"$ok\" -ne 1 ]; then echo \"Use pnpm instead\" >&2; exit 1; fi'",
     "build": "pnpm run typecheck && pnpm -r --if-present run build",
     "typecheck:libs": "tsc --build",
-    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck"
+    "typecheck": "pnpm run typecheck:libs && pnpm -r --filter \"./artifacts/**\" --filter \"./scripts\" --if-present run typecheck",
+    "db:seed-admin": "pnpm --filter @workspace/db seed:admin"
   },
   "private": true,
   "devDependencies": {
