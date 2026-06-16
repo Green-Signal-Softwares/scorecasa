@@ -41,35 +41,32 @@ function formatDate(d?: string | null) { if (!d) return null; return new Date(d)
 function StagePipeline({ sale }: { sale: any }) {
   const currentIdx = STAGE_ORDER[sale.stage as StageId] ?? 0;
   return (
-    <div className="flex items-center gap-1 mt-3">
+    <div className="relative flex items-center justify-between w-full mt-4 bg-gray-50/70 border border-gray-100/50 rounded-xl p-3">
+      {/* Background connecting bar */}
+      <div className="absolute left-[15%] right-[15%] top-[25px] h-0.5 bg-gray-200" />
+      <div
+        className="absolute left-[15%] top-[25px] h-0.5 bg-[#0D1B8C] transition-all duration-500"
+        style={{ width: `${(currentIdx / (STAGES.length - 1)) * 70}%` }}
+      />
+
       {STAGES.map((s, i) => {
         const done = i <= currentIdx;
         const Icon = s.icon;
         return (
-          <div key={s.id} className="flex items-center">
+          <div key={s.id} className="flex-1 flex flex-col items-center relative z-10">
             <div
-              className="flex flex-col items-center gap-1"
+              className="w-7 h-7 rounded-full flex items-center justify-center border transition-all duration-300 shadow-sm"
+              style={{
+                background: done ? s.color : "white",
+                borderColor: done ? s.color : "#E2E8F0",
+              }}
               title={`${s.label}${formatDate(sale[s.dateField]) ? ` — ${formatDate(sale[s.dateField])}` : ""}`}
             >
-              <div
-                className="w-7 h-7 rounded-full flex items-center justify-center border-2 transition-all"
-                style={{
-                  background: done ? s.color : "white",
-                  borderColor: done ? s.color : "#E5E7EB",
-                }}
-              >
-                <Icon className="w-3.5 h-3.5" style={{ color: done ? "white" : "#D1D5DB" }} />
-              </div>
-              <span className="text-[9px] font-medium" style={{ color: done ? s.color : "#9CA3AF" }}>
-                {s.label}
-              </span>
+              <Icon className="w-3.5 h-3.5" style={{ color: done ? "white" : "#94A3B8" }} />
             </div>
-            {i < STAGES.length - 1 && (
-              <div
-                className="h-0.5 w-5 mx-0.5 mb-4 rounded-full"
-                style={{ background: i < currentIdx ? STAGES[i].color : "#E5E7EB" }}
-              />
-            )}
+            <span className="text-[8px] font-black mt-1.5 uppercase tracking-wider" style={{ color: done ? s.color : "#94A3B8" }}>
+              {s.label}
+            </span>
           </div>
         );
       })}
@@ -84,48 +81,52 @@ function SaleCard({ sale, canAdvance, onAdvance }: { sale: any; canAdvance: bool
   const isComplete = sale.stage === "keys_delivered";
 
   return (
-    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5">
-      <div className="flex items-start justify-between gap-3 mb-1">
-        <div className="flex items-start gap-3 min-w-0">
-          <div className="w-9 h-9 rounded-xl bg-[#EEF2FF] flex items-center justify-center flex-shrink-0">
-            <Home className="w-4 h-4 text-[#0D1B8C]" />
+    <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 hover:shadow-md transition-shadow duration-300 flex flex-col justify-between">
+      <div>
+        <div className="flex items-start justify-between gap-3 mb-3">
+          <div className="flex items-start gap-3 min-w-0">
+            <div className="w-9 h-9 rounded-xl bg-blue-50 flex items-center justify-center flex-shrink-0 border border-blue-100/30">
+              <Home className="w-4.5 h-4.5 text-[#0D1B8C]" />
+            </div>
+            <div className="min-w-0">
+              <div className="font-bold text-gray-700 text-sm truncate">{sale.propertyTitle}</div>
+              <div className="text-[10px] text-gray-400 font-semibold mt-0.5">{sale.clientName} · {sale.propertyCity ?? ""}</div>
+            </div>
           </div>
-          <div className="min-w-0">
-            <div className="font-semibold text-[#07113A] text-sm truncate">{sale.propertyTitle}</div>
-            <div className="text-xs text-gray-400">{sale.clientName} · {sale.propertyCity ?? ""}</div>
+          <div className="text-right flex-shrink-0">
+            <div className="font-black text-gray-700 text-sm">{formatBRL(sale.propertyValue)}</div>
+            {sale.bankName && <div className="text-[10px] font-bold text-gray-400 mt-0.5">{sale.bankName}</div>}
           </div>
         </div>
-        <div className="text-right flex-shrink-0">
-          <div className="font-bold text-[#07113A] text-sm">{formatBRL(sale.propertyValue)}</div>
-          {sale.bankName && <div className="text-xs text-gray-400">{sale.bankName}</div>}
-        </div>
+
+        {sale.financedValue && (
+          <div className="text-xs font-semibold text-gray-400 mb-3 bg-gray-50 border border-gray-100 px-2.5 py-1 rounded-lg inline-block">
+            Financiado: <span className="font-extrabold text-[#0D1B8C]">{formatBRL(sale.financedValue)}</span>
+          </div>
+        )}
+
+        <StagePipeline sale={sale} />
       </div>
 
-      {sale.financedValue && (
-        <div className="text-xs text-gray-500 mb-1">
-          Financiado: <span className="font-semibold">{formatBRL(sale.financedValue)}</span>
-        </div>
-      )}
+      <div className="mt-4 pt-3 border-t border-gray-50">
+        {canAdvance && !isComplete && nextStage && (
+          <button
+            onClick={() => onAdvance(sale.id, nextStage.id)}
+            className="w-full flex items-center justify-center gap-1.5 text-[11px] font-bold px-3 py-2 rounded-xl border transition-all hover:-translate-y-0.5 active:translate-y-0 shadow-sm"
+            style={{ borderColor: `${nextStage.color}30`, color: nextStage.color, background: `${nextStage.color}08` }}
+          >
+            <ChevronRight className="w-3.5 h-3.5" />
+            Avançar para {nextStage.label}
+          </button>
+        )}
 
-      <StagePipeline sale={sale} />
-
-      {canAdvance && !isComplete && nextStage && (
-        <button
-          onClick={() => onAdvance(sale.id, nextStage.id)}
-          className="mt-3 flex items-center gap-2 text-xs font-semibold px-3 py-1.5 rounded-lg border transition-all hover:opacity-80"
-          style={{ borderColor: nextStage.color, color: nextStage.color }}
-        >
-          <ChevronRight className="w-3.5 h-3.5" />
-          Avançar para {nextStage.label}
-        </button>
-      )}
-
-      {isComplete && (
-        <div className="mt-3 flex items-center gap-2 text-xs font-semibold text-[#10A65A]">
-          <Key className="w-3.5 h-3.5" />
-          Chaves entregues em {formatDate(sale.keysDeliveredAt)}
-        </div>
-      )}
+        {isComplete && (
+          <div className="flex items-center gap-1.5 text-[11px] font-extrabold text-[#10A65A] bg-[#10A65A]/05 px-3 py-2 rounded-xl justify-center border border-[#10A65A]/15">
+            <Key className="w-3.5 h-3.5" />
+            Chaves entregues em {formatDate(sale.keysDeliveredAt)}
+          </div>
+        )}
+      </div>
     </div>
   );
 }
@@ -155,48 +156,48 @@ function NewSaleModal({ open, onClose, onSave }: { open: boolean; onClose: () =>
   }
 
   return (
-    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50">
-      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6">
+    <div className="fixed inset-0 z-50 flex items-center justify-center bg-black/50 backdrop-blur-sm">
+      <div className="bg-white rounded-2xl shadow-2xl w-full max-w-md mx-4 p-6 border border-gray-100">
         <div className="flex items-center justify-between mb-5">
-          <div className="font-bold text-lg text-[#07113A]">Registrar venda efetiva</div>
-          <button onClick={onClose} className="text-gray-400 hover:text-gray-700"><X className="w-5 h-5" /></button>
+          <div className="font-black text-lg text-gray-800 tracking-tight">Registrar venda efetiva</div>
+          <button onClick={onClose} className="text-gray-400 hover:text-gray-700 p-1 rounded-lg hover:bg-gray-50"><X className="w-5 h-5" /></button>
         </div>
-        <form onSubmit={handleSubmit} className="space-y-3">
+        <form onSubmit={handleSubmit} className="space-y-4">
           <div>
-            <label className="text-xs font-semibold text-gray-500 mb-1 block">Nome do cliente *</label>
-            <Input value={form.clientName} onChange={(e) => setForm({ ...form, clientName: e.target.value })} placeholder="Ex.: João Silva" required />
+            <label className="text-xs font-bold text-gray-500 mb-1.5 block">Nome do cliente *</label>
+            <Input className="rounded-xl border-gray-200 focus:border-[#0D1B8C]" value={form.clientName} onChange={(e) => setForm({ ...form, clientName: e.target.value })} placeholder="Ex.: João Silva" required />
           </div>
           <div>
-            <label className="text-xs font-semibold text-gray-500 mb-1 block">Imóvel *</label>
-            <Input value={form.propertyTitle} onChange={(e) => setForm({ ...form, propertyTitle: e.target.value })} placeholder="Ex.: Apt 3q Jardins" required />
+            <label className="text-xs font-bold text-gray-500 mb-1.5 block">Imóvel *</label>
+            <Input className="rounded-xl border-gray-200 focus:border-[#0D1B8C]" value={form.propertyTitle} onChange={(e) => setForm({ ...form, propertyTitle: e.target.value })} placeholder="Ex.: Apt 3q Jardins" required />
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-semibold text-gray-500 mb-1 block">Valor do imóvel (R$) *</label>
-              <Input type="number" value={form.propertyValue} onChange={(e) => setForm({ ...form, propertyValue: e.target.value })} placeholder="850000" required />
+              <label className="text-xs font-bold text-gray-500 mb-1.5 block">Valor do imóvel (R$) *</label>
+              <Input className="rounded-xl border-gray-200 focus:border-[#0D1B8C]" type="number" value={form.propertyValue} onChange={(e) => setForm({ ...form, propertyValue: e.target.value })} placeholder="850000" required />
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-500 mb-1 block">Valor financiado (R$)</label>
-              <Input type="number" value={form.financedValue} onChange={(e) => setForm({ ...form, financedValue: e.target.value })} placeholder="680000" />
+              <label className="text-xs font-bold text-gray-500 mb-1.5 block">Valor financiado (R$)</label>
+              <Input className="rounded-xl border-gray-200 focus:border-[#0D1B8C]" type="number" value={form.financedValue} onChange={(e) => setForm({ ...form, financedValue: e.target.value })} placeholder="680000" />
             </div>
           </div>
           <div className="grid grid-cols-2 gap-3">
             <div>
-              <label className="text-xs font-semibold text-gray-500 mb-1 block">Cidade</label>
-              <Input value={form.propertyCity} onChange={(e) => setForm({ ...form, propertyCity: e.target.value })} placeholder="São Paulo" />
+              <label className="text-xs font-bold text-gray-500 mb-1.5 block">Cidade</label>
+              <Input className="rounded-xl border-gray-200 focus:border-[#0D1B8C]" value={form.propertyCity} onChange={(e) => setForm({ ...form, propertyCity: e.target.value })} placeholder="São Paulo" />
             </div>
             <div>
-              <label className="text-xs font-semibold text-gray-500 mb-1 block">Banco</label>
-              <Input value={form.bankName} onChange={(e) => setForm({ ...form, bankName: e.target.value })} placeholder="Caixa, Itaú..." />
+              <label className="text-xs font-bold text-gray-500 mb-1.5 block">Banco</label>
+              <Input className="rounded-xl border-gray-200 focus:border-[#0D1B8C]" value={form.bankName} onChange={(e) => setForm({ ...form, bankName: e.target.value })} placeholder="Caixa, Itaú..." />
             </div>
           </div>
           <div>
-            <label className="text-xs font-semibold text-gray-500 mb-1 block">Observações</label>
-            <Input value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Opcional" />
+            <label className="text-xs font-bold text-gray-500 mb-1.5 block">Observações</label>
+            <Input className="rounded-xl border-gray-200 focus:border-[#0D1B8C]" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} placeholder="Opcional" />
           </div>
           <div className="flex gap-3 pt-2">
-            <Button type="button" variant="outline" className="flex-1" onClick={onClose}>Cancelar</Button>
-            <Button type="submit" className="flex-1 text-white" style={{ background: "#10A65A" }}>Registrar</Button>
+            <Button type="button" variant="outline" className="flex-1 rounded-xl h-10 text-xs font-bold" onClick={onClose}>Cancelar</Button>
+            <Button type="submit" className="flex-1 text-white rounded-xl h-10 text-xs font-bold shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 transition-all" style={{ background: "linear-gradient(135deg, #10A65A 0%, #086635 100%)" }}>Registrar</Button>
           </div>
         </form>
       </div>
@@ -240,12 +241,12 @@ function MyHistoryView({ role }: { role: string }) {
 
   return (
     <div className="space-y-6">
-      <div className="flex items-start justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-2xl font-bold" style={{ color: "#07113A" }}>
+          <h1 className="text-2xl font-black text-gray-800 tracking-tight">
             Histórico de {entityLabel}
           </h1>
-          <p className="text-sm text-muted-foreground mt-0.5">
+          <p className="text-xs font-semibold text-gray-400 mt-1">
             {role === "correspondent"
               ? "Operações de financiamento habitacional — da aprovação à entrega das chaves"
               : "Vendas efetivas concluídas e em andamento"}
@@ -253,30 +254,31 @@ function MyHistoryView({ role }: { role: string }) {
         </div>
         <Button
           onClick={() => setModalOpen(true)}
-          className="text-white flex items-center gap-2"
-          style={{ background: "#10A65A" }}
+          className="text-white flex items-center gap-2 h-10 px-4 rounded-xl text-xs font-bold transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0"
+          style={{ background: "linear-gradient(135deg, #10A65A 0%, #086635 100%)" }}
         >
           <Plus className="w-4 h-4" /> Registrar {role === "correspondent" ? "contrato" : "venda"}
         </Button>
       </div>
 
       {/* KPIs */}
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {[
           { label: `Total de ${entityLabel.toLowerCase()}`, value: String(list.length), icon: TrendingUp, color: "#0D1B8C", bg: "#EEF2FF" },
           { label: "Concluídas (chaves entregues)", value: String(completed), icon: Key, color: "#10A65A", bg: "#F0FDF4" },
-          { label: "Volume total (R$)", value: formatBRL(totalValue), icon: DollarSign, color: "#7C3AED", bg: "#F5F3FF" },
+          { label: "Volume total", value: formatBRL(totalValue), icon: DollarSign, color: "#7C3AED", bg: "#F5F3FF" },
         ].map((kpi) => {
           const Icon = kpi.icon;
           return (
-            <div key={kpi.label} className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+            <div key={kpi.label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
+              <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl" style={{ backgroundColor: kpi.color }} />
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs text-gray-400">{kpi.label}</span>
+                <span className="text-xs font-bold text-gray-400">{kpi.label}</span>
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: kpi.bg }}>
                   <Icon className="w-4 h-4" style={{ color: kpi.color }} />
                 </div>
               </div>
-              <div className="text-xl font-bold" style={{ color: "#07113A" }}>{kpi.value}</div>
+              <div className="text-2xl font-black text-gray-800 tracking-tight">{kpi.value}</div>
             </div>
           );
         })}
@@ -288,8 +290,8 @@ function MyHistoryView({ role }: { role: string }) {
       ) : list.length === 0 ? (
         <div className="text-center py-16 bg-white rounded-2xl border border-gray-100">
           <Award className="w-12 h-12 text-gray-200 mx-auto mb-3" />
-          <div className="font-semibold text-gray-400">Nenhuma {role === "correspondent" ? "operação" : "venda"} registrada ainda</div>
-          <div className="text-xs text-gray-300 mt-1">Clique em "Registrar" para adicionar sua primeira {role === "correspondent" ? "operação" : "venda"}</div>
+          <div className="font-bold text-gray-700">Nenhuma {role === "correspondent" ? "operação" : "venda"} registrada ainda</div>
+          <div className="text-xs text-gray-400 mt-1">Clique em "Registrar" para adicionar sua primeira {role === "correspondent" ? "operação" : "venda"}</div>
         </div>
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
@@ -320,11 +322,11 @@ function AdminHistoryView() {
   return (
     <div className="space-y-6">
       <div>
-        <h1 className="text-2xl font-bold" style={{ color: "#07113A" }}>Histórico de Vendas & Contratos</h1>
-        <p className="text-sm text-muted-foreground mt-0.5">Todas as operações registradas na plataforma</p>
+        <h1 className="text-2xl font-black text-gray-800 tracking-tight">Histórico de Vendas & Contratos</h1>
+        <p className="text-xs font-semibold text-gray-400 mt-1">Todas as operações registradas na plataforma</p>
       </div>
 
-      <div className="grid grid-cols-3 gap-4">
+      <div className="grid grid-cols-1 md:grid-cols-3 gap-4">
         {[
           { label: "Total de operações", value: String((sales as any[]).length), icon: TrendingUp, color: "#0D1B8C", bg: "#EEF2FF" },
           { label: "Chaves entregues",   value: String((sales as any[]).filter((s) => s.stage === "keys_delivered").length), icon: Key, color: "#10A65A", bg: "#F0FDF4" },
@@ -332,32 +334,33 @@ function AdminHistoryView() {
         ].map((kpi) => {
           const Icon = kpi.icon;
           return (
-            <div key={kpi.label} className="bg-white rounded-xl border border-gray-100 shadow-sm p-5">
+            <div key={kpi.label} className="bg-white rounded-2xl border border-gray-100 shadow-sm p-5 relative overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:shadow-md">
+              <div className="absolute left-0 top-0 bottom-0 w-1 rounded-l-2xl" style={{ backgroundColor: kpi.color }} />
               <div className="flex items-center justify-between mb-2">
-                <span className="text-xs text-gray-400">{kpi.label}</span>
+                <span className="text-xs font-bold text-gray-400">{kpi.label}</span>
                 <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: kpi.bg }}>
                   <Icon className="w-4 h-4" style={{ color: kpi.color }} />
                 </div>
               </div>
-              <div className="text-xl font-bold" style={{ color: "#07113A" }}>{kpi.value}</div>
+              <div className="text-2xl font-black text-gray-800 tracking-tight">{kpi.value}</div>
             </div>
           );
         })}
       </div>
 
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4">
         <input
           placeholder="Buscar por cliente, corretor ou imóvel..."
           value={search}
           onChange={(e) => setSearch(e.target.value)}
-          className="w-full pl-4 pr-4 h-10 rounded-lg border border-input text-sm"
+          className="w-full pl-4 pr-4 h-10 rounded-xl border border-gray-200/80 text-xs font-semibold text-gray-700 bg-white focus:border-[#0D1B8C] focus:ring-2 focus:ring-[#0D1B8C]/10 outline-none transition-all"
         />
       </div>
 
       {isLoading ? (
         <div className="flex justify-center py-16"><div className="w-8 h-8 border-2 border-[#0D1B8C] border-t-transparent rounded-full animate-spin" /></div>
       ) : list.length === 0 ? (
-        <div className="text-center py-12 text-gray-400">Nenhuma operação encontrada</div>
+        <div className="text-center py-12 text-gray-400 font-semibold text-sm">Nenhuma operação encontrada</div>
       ) : (
         <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
           {list.map((sale: any) => (
@@ -378,7 +381,8 @@ export function Historico() {
   return (
     <div className="flex flex-col items-center justify-center h-64 text-gray-400">
       <Clock className="w-10 h-10 mb-2 text-gray-200" />
-      <div>Histórico disponível apenas para corretores e correspondentes.</div>
+      <div className="font-semibold text-sm">Histórico disponível apenas para corretores e correspondentes.</div>
     </div>
   );
 }
+

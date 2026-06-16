@@ -10,20 +10,21 @@ import {
   getGetPropertyQueryKey,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
-import { Search, Plus, Trash2, ChevronRight, Filter, Users, CheckCircle2, TrendingUp, ArrowRight, RotateCcw } from "lucide-react";
+import { Search, Plus, Trash2, ChevronRight, Filter, Users, CheckCircle2, TrendingUp, ArrowRight, RotateCcw, Link2 } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import { useToast } from "@/hooks/use-toast";
+import { useRequireBrokerAuth } from "@/hooks/use-auth";
 
-const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string }> = {
-  pending:     { label: "Pendente",     color: "#92400E", bg: "#FEF3C7" },
-  analyzing:   { label: "Em Análise",  color: "#1E40AF", bg: "#DBEAFE" },
-  approved:    { label: "Aprovado",    color: "#065F46", bg: "#D1FAE5" },
-  rejected:    { label: "Reprovado",   color: "#991B1B", bg: "#FEE2E2" },
-  in_progress: { label: "Em Andamento",color: "#7C3AED", bg: "#EDE9FE" },
+const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; border: string }> = {
+  pending: { label: "Pendente", color: "#92400E", bg: "#FEF3C7", border: "#F59E0B" },
+  analyzing: { label: "Em Análise", color: "#1E40AF", bg: "#DBEAFE", border: "#3B82F6" },
+  approved: { label: "Aprovado", color: "#065F46", bg: "#D1FAE5", border: "#10B981" },
+  rejected: { label: "Reprovado", color: "#991B1B", bg: "#FEE2E2", border: "#EF4444" },
+  in_progress: { label: "Em Andamento", color: "#7C3AED", bg: "#EDE9FE", border: "#8B5CF6" },
 };
 
 // ─── Masking helpers ────────────────────────────────────────────────────────
@@ -66,9 +67,9 @@ function formatBRL(v: number) {
 // ─── Sub-components ─────────────────────────────────────────────────────────
 
 function StatusBadge({ status }: { status: string }) {
-  const cfg = STATUS_CONFIG[status] ?? { label: status, color: "#374151", bg: "#F3F4F6" };
+  const cfg = STATUS_CONFIG[status] ?? { label: status, color: "#374151", bg: "#F3F4F6", border: "#E5E7EB" };
   return (
-    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-medium" style={{ color: cfg.color, background: cfg.bg }}>
+    <span className="inline-flex items-center px-2.5 py-0.5 rounded-full text-xs font-semibold border" style={{ color: cfg.color, background: cfg.bg, borderColor: `${cfg.border}25` }}>
       {cfg.label}
     </span>
   );
@@ -116,33 +117,33 @@ interface CreateLeadFormProps {
 }
 
 const MARITAL_OPTIONS = [
-  { value: "solteiro",      label: "Solteiro(a)" },
-  { value: "casado",        label: "Casado(a)" },
+  { value: "solteiro", label: "Solteiro(a)" },
+  { value: "casado", label: "Casado(a)" },
   { value: "uniao_estavel", label: "União Estável" },
-  { value: "divorciado",    label: "Divorciado(a)" },
-  { value: "viuvo",         label: "Viúvo(a)" },
+  { value: "divorciado", label: "Divorciado(a)" },
+  { value: "viuvo", label: "Viúvo(a)" },
 ];
 
 const EMPLOYMENT_OPTIONS = [
-  { value: "clt",             label: "CLT / Empregado" },
-  { value: "servidor_publico",label: "Servidor Público" },
-  { value: "autonomo",        label: "Autônomo" },
-  { value: "liberal",         label: "Profissional Liberal" },
-  { value: "empresario",      label: "Empresário / MEI" },
-  { value: "aposentado",      label: "Aposentado / Pensionista" },
-  { value: "desempregado",    label: "Desempregado" },
+  { value: "clt", label: "CLT / Empregado" },
+  { value: "servidor_publico", label: "Servidor Público" },
+  { value: "autonomo", label: "Autônomo" },
+  { value: "liberal", label: "Profissional Liberal" },
+  { value: "empresario", label: "Empresário / MEI" },
+  { value: "aposentado", label: "Aposentado / Pensionista" },
+  { value: "desempregado", label: "Desempregado" },
 ];
 
 const PROPERTY_TYPE_OPTIONS = [
-  { value: "novo",      label: "Imóvel Novo" },
-  { value: "usado",     label: "Imóvel Usado" },
-  { value: "construcao",label: "Construção / Planta" },
-  { value: "terreno",   label: "Terreno" },
+  { value: "novo", label: "Imóvel Novo" },
+  { value: "usado", label: "Imóvel Usado" },
+  { value: "construcao", label: "Construção / Planta" },
+  { value: "terreno", label: "Terreno" },
 ];
 
 const BR_STATES = [
-  "AC","AL","AM","AP","BA","CE","DF","ES","GO","MA","MG","MS","MT","PA",
-  "PB","PE","PI","PR","RJ","RN","RO","RR","RS","SC","SE","SP","TO",
+  "AC", "AL", "AM", "AP", "BA", "CE", "DF", "ES", "GO", "MA", "MG", "MS", "MT", "PA",
+  "PB", "PE", "PI", "PR", "RJ", "RN", "RO", "RR", "RS", "SC", "SE", "SP", "TO",
 ];
 
 type FieldKey =
@@ -157,6 +158,7 @@ const STEPS = ["Identificação", "Profissão & Renda", "Imóvel", "Cônjuge"];
 function CreateLeadForm({ brokers, onCreated, onCancel, prefilledProperty }: CreateLeadFormProps) {
   const createLead = useCreateLead();
   const { toast } = useToast();
+  const { user } = useRequireBrokerAuth();
 
   const [step, setStep] = useState(0);
   const [errors, setErrors] = useState<Partial<Record<FieldKey, string>>>({});
@@ -176,6 +178,15 @@ function CreateLeadForm({ brokers, onCreated, onCancel, prefilledProperty }: Cre
       spouseName: "", spouseCpf: "", spouseBirthDate: "", spouseProfession: "", spouseIncome: "",
     };
   });
+
+  useEffect(() => {
+    if (user?.role === "broker" && brokers.length > 0 && !fields.brokerId) {
+      const matched = brokers.find((b: any) => b.email?.toLowerCase() === user?.email?.toLowerCase());
+      if (matched) {
+        setFields((f) => ({ ...f, brokerId: String(matched.id) }));
+      }
+    }
+  }, [user, brokers, fields.brokerId]);
 
   const needsSpouse = fields.maritalStatus === "casado" || fields.maritalStatus === "uniao_estavel";
   const totalSteps = needsSpouse ? 4 : 3;
@@ -269,45 +280,49 @@ function CreateLeadForm({ brokers, onCreated, onCancel, prefilledProperty }: Cre
   const TextField = ({
     label, fkey, placeholder, type = "text", hint,
   }: { label: string; fkey: FieldKey; placeholder?: string; type?: string; hint?: string }) => (
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+    <div className="space-y-1.5 text-left">
+      <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">{label}</label>
       <input
         type={type}
         value={fields[fkey]}
         onChange={handleTextChange(fkey,
           fkey === "cpf" ? maskCPF :
-          fkey === "phone" || fkey === "spouseCpf" ? (fkey === "spouseCpf" ? maskCPF : maskPhone) :
-          fkey === "income" || fkey === "informalIncome" || fkey === "fgtsBalance" || fkey === "propertyValue" || fkey === "spouseIncome" ? maskBRL :
-          undefined
+            fkey === "phone" || fkey === "spouseCpf" ? (fkey === "spouseCpf" ? maskCPF : maskPhone) :
+              fkey === "income" || fkey === "informalIncome" || fkey === "fgtsBalance" || fkey === "propertyValue" || fkey === "spouseIncome" ? maskBRL :
+                undefined
         )}
         placeholder={placeholder}
         data-testid={`input-lead-${fkey}`}
-        className={`w-full px-3 py-2.5 rounded-lg border text-sm outline-none transition-colors ${
-          errors[fkey] ? "border-red-400 bg-red-50" : "border-gray-200 bg-white focus:border-[#0D1B8C] focus:ring-1 focus:ring-[#0D1B8C]/20"
+        className={`w-full px-4 py-3 rounded-2xl border text-sm outline-none transition-all font-medium ${
+          errors[fkey]
+            ? "border-red-400 bg-red-50/50 text-red-900 focus:ring-4 focus:ring-red-500/10"
+            : "border-gray-200 bg-gray-50/50 text-gray-800 focus:border-[#0D1B8C] focus:bg-white focus:ring-4 focus:ring-[#0D1B8C]/10"
         }`}
       />
-      {hint && !errors[fkey] && <p className="text-gray-400 text-xs mt-1">{hint}</p>}
-      {errors[fkey] && <p className="text-red-500 text-xs mt-1">{errors[fkey]}</p>}
+      {hint && !errors[fkey] && <p className="text-gray-400 text-[10px] font-semibold mt-1 pl-1">{hint}</p>}
+      {errors[fkey] && <p className="text-red-500 text-[10px] font-semibold mt-1 pl-1">{errors[fkey]}</p>}
     </div>
   );
 
   const SelectField = ({
     label, fkey, options, placeholder,
   }: { label: string; fkey: FieldKey; options: { value: string; label: string }[]; placeholder?: string }) => (
-    <div>
-      <label className="block text-sm font-medium text-gray-700 mb-1">{label}</label>
+    <div className="space-y-1.5 text-left">
+      <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">{label}</label>
       <select
         value={fields[fkey]}
         onChange={(e) => setField(fkey, e.target.value)}
         data-testid={`select-lead-${fkey}`}
-        className={`w-full px-3 py-2.5 rounded-lg border text-sm outline-none transition-colors bg-white ${
-          errors[fkey] ? "border-red-400 bg-red-50" : "border-gray-200 focus:border-[#0D1B8C] focus:ring-1 focus:ring-[#0D1B8C]/20"
-        } text-gray-700`}
+        className={`w-full px-4 py-3 rounded-2xl border text-sm outline-none transition-all font-medium bg-gray-50/50 ${
+          errors[fkey]
+            ? "border-red-400 bg-red-50/50 text-red-950 focus:ring-4 focus:ring-red-500/10"
+            : "border-gray-200 text-gray-800 focus:border-[#0D1B8C] focus:bg-white focus:ring-4 focus:ring-[#0D1B8C]/10"
+        }`}
       >
         <option value="">{placeholder ?? "Selecione..."}</option>
         {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
-      {errors[fkey] && <p className="text-red-500 text-xs mt-1">{errors[fkey]}</p>}
+      {errors[fkey] && <p className="text-red-500 text-[10px] font-semibold mt-1 pl-1">{errors[fkey]}</p>}
     </div>
   );
 
@@ -344,18 +359,18 @@ function CreateLeadForm({ brokers, onCreated, onCancel, prefilledProperty }: Cre
         </div>
 
         {/* FGTS */}
-        <div className="p-3 rounded-xl border border-gray-100 bg-gray-50 space-y-3">
-          <p className="text-sm font-semibold text-gray-700">FGTS</p>
+        <div className="p-4 rounded-2xl border border-gray-100 bg-gray-50/50 space-y-3 text-left">
+          <p className="text-xs font-bold text-gray-500 uppercase tracking-wider">Possui saldo FGTS?</p>
           <div className="flex gap-3">
-            {[{ v: "true", l: "Sim, possuo FGTS" }, { v: "false", l: "Não possuo FGTS" }].map(({ v, l }) => (
+            {[{ v: "true", l: "Sim, possuo FGTS" }, { v: "false", l: "Não possuo" }].map(({ v, l }) => (
               <button
                 key={v}
                 type="button"
                 onClick={() => setField("hasFgts", v)}
-                className={`flex-1 py-2 rounded-lg text-sm font-medium border transition-colors ${
+                className={`flex-1 py-3 rounded-2xl text-xs font-bold border transition-all ${
                   fields.hasFgts === v
-                    ? "border-[#0D1B8C] bg-[#0D1B8C] text-white"
-                    : "border-gray-200 bg-white text-gray-700 hover:border-[#0D1B8C]/40"
+                    ? "border-[#0D1B8C] bg-[#0D1B8C] text-white shadow-md shadow-blue-900/10 scale-[1.02]"
+                    : "border-gray-200 bg-white text-gray-700 hover:border-gray-300 hover:bg-gray-50"
                 }`}
               >
                 {l}
@@ -391,25 +406,27 @@ function CreateLeadForm({ brokers, onCreated, onCancel, prefilledProperty }: Cre
           {TextField({ label: "Cidade do imóvel *", fkey: "propertyCity", placeholder: "São Paulo" })}
           {SelectField({ label: "UF *", fkey: "propertyState", options: BR_STATES.map((s) => ({ value: s, label: s })), placeholder: "UF" })}
         </div>
-        <div>
-          <label className="block text-sm font-medium text-gray-700 mb-1">Corretor responsável</label>
-          <select
-            value={fields.brokerId}
-            onChange={(e) => setField("brokerId", e.target.value)}
-            data-testid="select-lead-broker"
-            className="w-full px-3 py-2.5 rounded-lg border border-gray-200 bg-white text-sm outline-none focus:border-[#0D1B8C] focus:ring-1 focus:ring-[#0D1B8C]/20 text-gray-700"
-          >
-            <option value="">Sem corretor</option>
-            {brokers.map((b) => <option key={b.id} value={String(b.id)}>{b.name}</option>)}
-          </select>
-        </div>
+        {user?.role !== "broker" && (
+          <div className="space-y-1.5 text-left">
+            <label className="block text-[11px] font-bold text-gray-500 uppercase tracking-wider">Corretor responsável</label>
+            <select
+              value={fields.brokerId}
+              onChange={(e) => setField("brokerId", e.target.value)}
+              data-testid="select-lead-broker"
+              className="w-full px-4 py-3 rounded-2xl border border-gray-200 bg-gray-50/50 text-sm outline-none transition-all font-medium text-gray-800 focus:border-[#0D1B8C] focus:bg-white focus:ring-4 focus:ring-[#0D1B8C]/10"
+            >
+              <option value="">Sem corretor</option>
+              {brokers.map((b) => <option key={b.id} value={String(b.id)}>{b.name}</option>)}
+            </select>
+          </div>
+        )}
       </div>
     );
 
     if (step === 3 && needsSpouse) return (
       <div className="space-y-3">
-        <div className="flex items-center gap-2 p-3 rounded-xl bg-blue-50 border border-blue-100">
-          <span className="text-xs text-blue-700">A Caixa exige dados do cônjuge para composição de renda no financiamento.</span>
+        <div className="flex items-center gap-2 p-3.5 rounded-2xl bg-blue-50/50 border border-blue-100 text-left">
+          <span className="text-[11px] font-semibold text-blue-700">A Caixa exige dados do cônjuge para composição de renda no financiamento.</span>
         </div>
         {TextField({ label: "Nome completo do cônjuge *", fkey: "spouseName", placeholder: "Maria da Silva" })}
         <div className="grid grid-cols-2 gap-3">
@@ -427,15 +444,15 @@ function CreateLeadForm({ brokers, onCreated, onCancel, prefilledProperty }: Cre
   const isLastStep = step === totalSteps - 1;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {prefilledProperty && (
         <div
-          className="flex items-start gap-2 p-3 rounded-xl border"
+          className="flex items-start gap-2.5 p-3.5 rounded-2xl border text-left"
           style={{ background: "#EEF2FF", borderColor: "#C7D2FE" }}
           data-testid="banner-prefill-property"
         >
           <CheckCircle2 className="w-4 h-4 mt-0.5 flex-shrink-0" style={{ color: "#0D1B8C" }} />
-          <div className="text-xs" style={{ color: "#0D1B8C" }}>
+          <div className="text-xs font-semibold" style={{ color: "#0D1B8C" }}>
             Simulando para o imóvel <strong>{prefilledProperty.title}</strong>
             {prefilledProperty.city ? ` em ${prefilledProperty.city}/${prefilledProperty.state ?? ""}` : ""}
             . Valor, cidade e UF foram pré-preenchidos.
@@ -444,30 +461,40 @@ function CreateLeadForm({ brokers, onCreated, onCancel, prefilledProperty }: Cre
       )}
 
       {/* Step indicator */}
-      <div className="flex items-center gap-1.5">
-        {Array.from({ length: totalSteps }).map((_, i) => (
-          <div key={i} className="flex-1 flex items-center gap-1.5">
+      <div className="space-y-2.5">
+        <div className="flex items-center justify-between">
+          <span className="text-[10px] font-extrabold uppercase tracking-widest text-[#0D1B8C]">
+            Etapa {step + 1} de {totalSteps}
+          </span>
+          <span className="text-xs font-bold text-gray-800">
+            {STEPS[step]}
+          </span>
+        </div>
+        <div className="flex items-center gap-2">
+          {Array.from({ length: totalSteps }).map((_, i) => (
             <div
-              className={`h-1.5 flex-1 rounded-full transition-all duration-300 ${
-                i <= step ? "bg-[#0D1B8C]" : "bg-gray-200"
+              key={i}
+              className={`h-1.5 flex-1 rounded-full transition-all duration-500 ${
+                i === step
+                  ? "bg-[#0D1B8C] shadow-sm shadow-blue-900/20 w-3/5"
+                  : i < step
+                  ? "bg-[#0D1B8C]/60"
+                  : "bg-gray-200/80"
               }`}
             />
-          </div>
-        ))}
+          ))}
+        </div>
       </div>
-      <p className="text-xs text-gray-500">
-        Etapa {step + 1} de {totalSteps} — <span className="font-medium text-gray-700">{STEPS[step]}</span>
-      </p>
 
       {/* Step content */}
       {renderStep()}
 
       {/* Navigation */}
-      <div className="flex gap-3 pt-2 border-t border-gray-100">
+      <div className="flex gap-3 pt-4 border-t border-gray-100">
         <button
           type="button"
           onClick={step === 0 ? onCancel : prev}
-          className="flex-1 py-2.5 rounded-xl text-sm font-medium border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
+          className="flex-1 py-3 rounded-2xl text-xs font-bold border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors"
         >
           {step === 0 ? "Cancelar" : "← Voltar"}
         </button>
@@ -476,8 +503,8 @@ function CreateLeadForm({ brokers, onCreated, onCancel, prefilledProperty }: Cre
           onClick={isLastStep ? handleSubmit : next}
           disabled={createLead.isPending}
           data-testid={isLastStep ? "button-save-lead" : `button-step-${step}-next`}
-          className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-colors disabled:opacity-60"
-          style={{ background: "#0D1B8C" }}
+          className="flex-1 py-3 rounded-2xl text-xs font-bold text-white transition-all disabled:opacity-60 shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 active:scale-98"
+          style={{ background: "linear-gradient(135deg, #0D1B8C 0%, #08126B 100%)" }}
         >
           {createLead.isPending ? "Calculando score..." : isLastStep ? "Calcular Score →" : "Próximo →"}
         </button>
@@ -493,52 +520,52 @@ function ScoreResult({ lead, onViewLead, onNewLead }: {
   onViewLead: () => void;
   onNewLead: () => void;
 }) {
-  const chanceColor = lead.approvalChance >= 70 ? "#10A65A" : lead.approvalChance >= 50 ? "#f59e0b" : "#ef4444";
-  const caixaColor  = lead.scoreCaixa  >= 700 ? "#10A65A" : lead.scoreCaixa  >= 500 ? "#f59e0b" : "#ef4444";
+  const chanceColor = lead.approvalChance >= 70 ? "#10B981" : lead.approvalChance >= 50 ? "#F59E0B" : "#EF4444";
+  const caixaColor = lead.scoreCaixa >= 700 ? "#10B981" : lead.scoreCaixa >= 500 ? "#F59E0B" : "#EF4444";
 
   return (
-    <div className="space-y-5">
+    <div className="space-y-6 text-left">
       {/* Header */}
-      <div className="flex items-center gap-3 p-4 rounded-xl" style={{ background: "#D1FAE5" }}>
-        <CheckCircle2 className="w-6 h-6 flex-shrink-0" style={{ color: "#065F46" }} />
+      <div className="flex items-center gap-3.5 p-4.5 rounded-2xl border border-emerald-100" style={{ background: "#ECFDF5" }}>
+        <CheckCircle2 className="w-6 h-6 flex-shrink-0" style={{ color: "#059669" }} />
         <div>
-          <p className="font-semibold text-sm" style={{ color: "#065F46" }}>Lead cadastrado com sucesso!</p>
-          <p className="text-xs mt-0.5" style={{ color: "#065F46" }}>{lead.name} · Score calculado automaticamente</p>
+          <p className="font-bold text-sm text-[#065F46]">Lead cadastrado com sucesso!</p>
+          <p className="text-[11px] text-[#047857] font-semibold mt-0.5">{lead.name} · Score calculado automaticamente</p>
         </div>
       </div>
 
       {/* Score bars */}
-      <div className="space-y-3">
+      <div className="space-y-4">
         <ScoreBar
           value={lead.approvalChance} max={100}
           label="Chance de Aprovação (IA)"
           color={chanceColor}
         />
         <ScoreBar value={lead.scoreCaixa} max={1000} label="Score Caixa" color={caixaColor} />
-        <ScoreBar value={lead.scoreMCMV} max={1000} label="Score MCMV" color="#0D1B8C" />
+        <ScoreBar value={lead.scoreMCMV} max={1000} label="Score Minha Casa Minha Vida" color="#0D1B8C" />
       </div>
 
       {/* AI recommendation */}
       {lead.aiRecommendation && (
-        <div className="p-3 rounded-xl text-xs text-gray-700 leading-relaxed border" style={{ background: "#EFF6FF", borderColor: "#BFDBFE" }}>
-          <span className="font-semibold" style={{ color: "#0D1B8C" }}>Recomendação Índice de Aprovação: </span>
-          {lead.aiRecommendation}
+        <div className="p-4 rounded-2xl text-xs text-gray-700 leading-relaxed border border-blue-100" style={{ background: "#F0F4FF" }}>
+          <span className="font-extrabold text-[#0D1B8C]">Recomendação de Crédito: </span>
+          <span className="font-medium text-gray-600">{lead.aiRecommendation}</span>
         </div>
       )}
 
       {/* Actions */}
-      <div className="flex gap-3">
+      <div className="flex gap-3 pt-2">
         <button
           onClick={onNewLead}
-          className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-medium border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
+          className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl text-xs font-bold border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors"
         >
           <RotateCcw className="w-3.5 h-3.5" />
           Novo lead
         </button>
         <button
           onClick={onViewLead}
-          className="flex-1 flex items-center justify-center gap-2 py-2.5 rounded-xl text-sm font-semibold text-white transition-colors"
-          style={{ background: "#0D1B8C" }}
+          className="flex-1 flex items-center justify-center gap-2 py-3 rounded-2xl text-xs font-bold text-white transition-all shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 active:scale-98"
+          style={{ background: "linear-gradient(135deg, #0D1B8C 0%, #08126B 100%)" }}
           data-testid="button-view-created-lead"
         >
           Ver detalhes
@@ -552,15 +579,61 @@ function ScoreResult({ lead, onViewLead, onNewLead }: {
 // ─── Main page ───────────────────────────────────────────────────────────────
 
 export function Leads() {
-  const [search, setSearch]           = useState("");
+  const [search, setSearch] = useState("");
   const [statusFilter, setStatusFilter] = useState<string>("");
-  const [page, setPage]               = useState(1);
-  const [createOpen, setCreateOpen]   = useState(false);
+  const [page, setPage] = useState(1);
+  const [createOpen, setCreateOpen] = useState(false);
   const [createdLead, setCreatedLead] = useState<LeadCreated | null>(null);
-  const [, setLocation]               = useLocation();
-  const searchString                  = useSearch();
-  const queryClient                   = useQueryClient();
-  const { toast }                     = useToast();
+  const [, setLocation] = useLocation();
+  const searchString = useSearch();
+  const queryClient = useQueryClient();
+  const { toast } = useToast();
+
+  const { user } = useRequireBrokerAuth();
+  const [linkOpen, setLinkOpen] = useState(false);
+  const [linkCpf, setLinkCpf] = useState("");
+  const [linking, setLinking] = useState(false);
+
+  const BASE = useMemo(() => import.meta.env.BASE_URL.replace(/\/$/, ""), []);
+
+  const handleLinkClient = async () => {
+    if (!linkCpf) {
+      toast({ title: "Erro", description: "CPF é obrigatório.", variant: "destructive" });
+      return;
+    }
+    const cleanCpf = linkCpf.replace(/\D/g, "");
+    if (cleanCpf.length !== 11) {
+      toast({ title: "Erro", description: "CPF inválido.", variant: "destructive" });
+      return;
+    }
+
+    setLinking(true);
+    try {
+      const res = await fetch(`${BASE}/api/leads/link-client`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ cpf: cleanCpf }),
+      });
+
+      if (!res.ok) {
+        const data = await res.json().catch(() => ({}));
+        throw new Error(data.error || "Erro ao vincular cliente.");
+      }
+
+      toast({ title: "Sucesso", description: "Cliente vinculado com sucesso!" });
+      queryClient.invalidateQueries({ queryKey: getGetLeadsQueryKey() });
+      setLinkOpen(false);
+      setLinkCpf("");
+    } catch (err: any) {
+      toast({
+        title: "Erro ao vincular",
+        description: err.message || "Tente novamente.",
+        variant: "destructive",
+      });
+    } finally {
+      setLinking(false);
+    }
+  };
 
   // Detect ?prefillProperty=<id> to open the create dialog pre-filled with the property.
   const prefillPropertyId = useMemo(() => {
@@ -579,12 +652,12 @@ export function Leads() {
   });
   const prefilledProperty = prefilledPropertyData
     ? {
-        id: (prefilledPropertyData as any).id,
-        title: (prefilledPropertyData as any).title,
-        price: Number((prefilledPropertyData as any).price) || 0,
-        city: (prefilledPropertyData as any).city,
-        state: (prefilledPropertyData as any).state,
-      }
+      id: (prefilledPropertyData as any).id,
+      title: (prefilledPropertyData as any).title,
+      price: Number((prefilledPropertyData as any).price) || 0,
+      city: (prefilledPropertyData as any).city,
+      state: (prefilledPropertyData as any).state,
+    }
     : null;
 
   useEffect(() => {
@@ -634,163 +707,278 @@ export function Leads() {
   return (
     <div className="space-y-5">
       {/* Header */}
-      <div className="flex items-center justify-between">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4">
         <div>
-          <h1 className="text-xl font-bold text-foreground">Leads</h1>
-          <p className="text-sm text-muted-foreground">{data?.total ?? 0} clientes cadastrados</p>
+          <h1 className="text-2xl font-black text-gray-800 tracking-tight">Leads</h1>
+          <p className="text-xs font-semibold text-gray-400 mt-1">{data?.total ?? 0} clientes cadastrados na plataforma</p>
         </div>
 
-        <Dialog open={createOpen} onOpenChange={(open) => { setCreateOpen(open); if (!open) setCreatedLead(null); }}>
-          <DialogTrigger asChild>
-            <Button className="text-white gap-2" style={{ background: "#0D1B8C" }} data-testid="button-add-lead">
-              <Plus className="w-4 h-4" />
-              Novo Lead
-            </Button>
-          </DialogTrigger>
-          <DialogContent className="max-w-lg max-h-[90vh] overflow-y-auto">
-            <DialogHeader>
-              <DialogTitle>
-                {createdLead ? "Score calculado" : "Cadastrar Novo Lead"}
-              </DialogTitle>
-            </DialogHeader>
+        <div className="flex items-center gap-2">
+          {user?.role === "broker" && (
+            <Dialog open={linkOpen} onOpenChange={setLinkOpen}>
+              <DialogTrigger asChild>
+                <Button
+                  className="text-white gap-2 h-10 px-4 rounded-xl text-xs font-bold transition-all shadow-md hover:shadow-lg shadow-emerald-900/10 hover:-translate-y-0.5 active:translate-y-0"
+                  style={{ background: "linear-gradient(135deg, #10B981 0%, #059669 100%)" }}
+                  data-testid="button-link-client-modal"
+                >
+                  <Link2 className="w-4 h-4" />
+                  Vincular Cliente
+                </Button>
+              </DialogTrigger>
+              <DialogContent className="max-w-md rounded-3xl bg-white shadow-2xl border border-gray-100 p-0 overflow-hidden">
+                {/* Header Banner */}
+                <div className="relative p-6 text-white text-left" style={{ background: "linear-gradient(135deg, #0D1B8C 0%, #08126B 100%)" }}>
+                  <div className="absolute top-0 right-0 w-32 h-32 bg-white/5 rounded-full blur-2xl -mr-8 -mt-8" />
+                  <div className="relative z-10 flex items-center gap-3">
+                    <div className="p-2.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20">
+                      <Link2 className="w-5 h-5 text-emerald-400" />
+                    </div>
+                    <div>
+                      <DialogTitle className="text-xl font-extrabold tracking-tight">
+                        Vincular Cliente
+                      </DialogTitle>
+                      <p className="text-[11px] text-blue-200 font-semibold mt-0.5">
+                        Associe um cliente cadastrado ao seu perfil
+                      </p>
+                    </div>
+                  </div>
+                </div>
 
-            {createdLead ? (
-              <ScoreResult lead={createdLead} onViewLead={handleViewLead} onNewLead={handleNewLead} />
-            ) : (
-              <CreateLeadForm
-                key={prefilledProperty?.id ?? "blank"}
-                brokers={brokers ?? []}
-                onCreated={handleCreated}
-                onCancel={handleClose}
-                prefilledProperty={prefilledProperty}
-              />
-            )}
-          </DialogContent>
-        </Dialog>
+                <div className="p-6 space-y-5 text-left">
+                  <p className="text-xs text-gray-500 leading-relaxed">
+                    Insira o CPF do cliente registrado na plataforma para estabelecer a vinculação e carregar os dados de score.
+                  </p>
+                  <div className="space-y-1.5">
+                    <label className="block text-xs font-bold text-gray-500 uppercase tracking-wider">CPF do Cliente</label>
+                    <input
+                      type="text"
+                      value={linkCpf}
+                      onChange={(e) => setLinkCpf(maskCPF(e.target.value))}
+                      placeholder="000.000.000-00"
+                      data-testid="input-link-cpf"
+                      className="w-full px-4 py-3 rounded-2xl border border-gray-200 bg-gray-50/50 text-sm outline-none transition-all focus:border-[#0D1B8C] focus:bg-white focus:ring-4 focus:ring-[#0D1B8C]/10 font-medium text-gray-800"
+                    />
+                  </div>
+                  <div className="flex gap-3 pt-3">
+                    <button
+                      type="button"
+                      onClick={() => { setLinkOpen(false); setLinkCpf(""); }}
+                      className="flex-1 py-3 rounded-2xl text-xs font-bold border border-gray-200 text-gray-500 hover:bg-gray-50 hover:text-gray-700 transition-colors"
+                    >
+                      Cancelar
+                    </button>
+                    <button
+                      type="button"
+                      onClick={handleLinkClient}
+                      disabled={linking}
+                      data-testid="button-confirm-link-client"
+                      className="flex-1 py-3 rounded-2xl text-xs font-bold text-white transition-all disabled:opacity-60 shadow-md hover:shadow-lg hover:-translate-y-0.5 active:translate-y-0 active:scale-98"
+                      style={{ background: "linear-gradient(135deg, #10B981 0%, #059669 100%)" }}
+                    >
+                      {linking ? "Vinculando..." : "Vincular Cliente →"}
+                    </button>
+                  </div>
+                </div>
+              </DialogContent>
+            </Dialog>
+          )}
+
+          <Dialog open={createOpen} onOpenChange={(open) => { setCreateOpen(open); if (!open) setCreatedLead(null); }}>
+            <DialogTrigger asChild>
+              <Button
+                className="text-white gap-2 h-10 px-4 rounded-xl text-xs font-bold transition-all shadow-md hover:shadow-lg shadow-blue-900/10 hover:-translate-y-0.5 active:translate-y-0"
+                style={{ background: "linear-gradient(135deg, #0D1B8C 0%, #08126B 100%)" }}
+                data-testid="button-add-lead"
+              >
+                <Plus className="w-4 h-4" />
+                Novo Lead
+              </Button>
+            </DialogTrigger>
+            <DialogContent className="max-w-lg max-h-[95vh] overflow-y-auto rounded-3xl bg-white shadow-2xl border border-gray-100 p-0 overflow-hidden">
+              <div className="relative p-6 text-white text-left animate-in fade-in slide-in-from-top-4 duration-300" style={{ background: "linear-gradient(135deg, #0D1B8C 0%, #08126B 100%)" }}>
+                <div className="absolute top-0 right-0 w-36 h-36 bg-white/5 rounded-full blur-2xl -mr-6 -mt-6" />
+                <div className="relative z-10 flex items-center gap-3">
+                  <div className="p-2.5 rounded-2xl bg-white/10 backdrop-blur-md border border-white/20">
+                    <Plus className="w-5 h-5 text-blue-300" />
+                  </div>
+                  <div>
+                    <DialogTitle className="text-xl font-extrabold tracking-tight">
+                      {createdLead ? "Resultado da Simulação" : "Cadastrar Novo Lead"}
+                    </DialogTitle>
+                    <p className="text-[11px] text-blue-200 font-semibold mt-0.5">
+                      {createdLead ? "Análise concluída com sucesso" : "Preencha a ficha do cliente para calcular o score Caixa"}
+                    </p>
+                  </div>
+                </div>
+              </div>
+
+              <div className="p-6">
+                {createdLead ? (
+                  <ScoreResult lead={createdLead} onViewLead={handleViewLead} onNewLead={handleNewLead} />
+                ) : (
+                  <CreateLeadForm
+                    key={prefilledProperty?.id ?? "blank"}
+                    brokers={brokers ?? []}
+                    onCreated={handleCreated}
+                    onCancel={handleClose}
+                    prefilledProperty={prefilledProperty}
+                  />
+                )}
+              </div>
+            </DialogContent>
+          </Dialog>
+        </div>
       </div>
 
       {/* Filters */}
-      <div className="flex gap-3 flex-wrap">
-        <div className="relative flex-1 min-w-48">
-          <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-muted-foreground" />
-          <Input
-            placeholder="Buscar por nome, CPF ou email..."
-            value={search}
-            onChange={(e) => { setSearch(e.target.value); setPage(1); }}
-            className="pl-9"
-            data-testid="input-search-leads"
-          />
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col md:flex-row items-center gap-4">
+        <div className="flex items-center gap-2 text-[#07113A] font-bold text-sm w-full md:w-auto flex-shrink-0">
+          <Filter className="w-4 h-4 text-[#0D1B8C]" />
+          <span>Filtros:</span>
         </div>
-        <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v === "all" ? "" : v); setPage(1); }}>
-          <SelectTrigger className="w-44" data-testid="select-status-filter">
-            <Filter className="w-4 h-4 mr-2 text-muted-foreground" />
-            <SelectValue placeholder="Status" />
-          </SelectTrigger>
-          <SelectContent>
-            <SelectItem value="all">Todos os status</SelectItem>
-            {Object.entries(STATUS_CONFIG).map(([k, v]) => (
-              <SelectItem key={k} value={k}>{v.label}</SelectItem>
-            ))}
-          </SelectContent>
-        </Select>
+        <div className="flex flex-col sm:flex-row gap-3 w-full flex-1">
+          <div className="relative flex-1 min-w-[200px]">
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Input
+              placeholder="Buscar por nome, CPF ou email..."
+              value={search}
+              onChange={(e) => { setSearch(e.target.value); setPage(1); }}
+              className="pl-10 h-10 rounded-xl border-gray-200/80 focus:border-[#0D1B8C] focus:ring-2 focus:ring-[#0D1B8C]/10 text-xs font-semibold text-gray-700 bg-white"
+              data-testid="input-search-leads"
+            />
+          </div>
+          <Select value={statusFilter} onValueChange={(v) => { setStatusFilter(v === "all" ? "" : v); setPage(1); }}>
+            <SelectTrigger className="w-full sm:w-44 h-10 rounded-xl border-gray-200/80 text-xs font-semibold text-gray-700 bg-white" data-testid="select-status-filter">
+              <SelectValue placeholder="Filtrar por Status" />
+            </SelectTrigger>
+            <SelectContent className="rounded-xl">
+              <SelectItem value="all" className="text-xs font-semibold">Todos os status</SelectItem>
+              {Object.entries(STATUS_CONFIG).map(([k, v]) => (
+                <SelectItem key={k} value={k} className="text-xs font-semibold">{v.label}</SelectItem>
+              ))}
+            </SelectContent>
+          </Select>
+        </div>
       </div>
 
       {/* Table */}
-      <div className="bg-card rounded-xl border border-card-border shadow-sm overflow-hidden">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
         <div className="overflow-x-auto">
-          <table className="w-full text-sm">
+          <table className="w-full text-sm border-collapse">
             <thead>
-              <tr className="border-b border-border">
-                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Cliente</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">Renda</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden lg:table-cell">Imóvel</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Chance</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide hidden md:table-cell">Score Caixa</th>
-                <th className="text-left px-4 py-3 text-xs font-semibold text-muted-foreground uppercase tracking-wide">Status</th>
-                <th className="px-4 py-3" />
+              <tr className="bg-gray-50/50 border-b border-gray-100">
+                <th className="text-left px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Cliente</th>
+                <th className="text-left px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider hidden md:table-cell">Renda</th>
+                <th className="text-left px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider hidden lg:table-cell">Imóvel</th>
+                <th className="text-left px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Chance</th>
+                <th className="text-left px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider hidden md:table-cell">Score Caixa</th>
+                <th className="text-left px-6 py-4 text-xs font-bold text-gray-400 uppercase tracking-wider">Status</th>
+                <th className="px-6 py-4" />
               </tr>
             </thead>
-            <tbody>
+            <tbody className="divide-y divide-gray-50">
               {isLoading
                 ? Array.from({ length: 8 }).map((_, i) => (
-                    <tr key={i} className="border-b border-border/50">
-                      <td className="px-4 py-3"><Skeleton className="h-4 w-40" /></td>
-                      <td className="px-4 py-3 hidden md:table-cell"><Skeleton className="h-4 w-20" /></td>
-                      <td className="px-4 py-3 hidden lg:table-cell"><Skeleton className="h-4 w-24" /></td>
-                      <td className="px-4 py-3"><Skeleton className="h-4 w-16" /></td>
-                      <td className="px-4 py-3 hidden md:table-cell"><Skeleton className="h-4 w-12" /></td>
-                      <td className="px-4 py-3"><Skeleton className="h-5 w-20 rounded-full" /></td>
-                      <td className="px-4 py-3" />
-                    </tr>
-                  ))
+                  <tr key={i}>
+                    <td className="px-6 py-4.5"><Skeleton className="h-4 w-40" /></td>
+                    <td className="px-6 py-4.5 hidden md:table-cell"><Skeleton className="h-4 w-20" /></td>
+                    <td className="px-6 py-4.5 hidden lg:table-cell"><Skeleton className="h-4 w-24" /></td>
+                    <td className="px-6 py-4.5"><Skeleton className="h-4 w-16" /></td>
+                    <td className="px-6 py-4.5 hidden md:table-cell"><Skeleton className="h-4 w-12" /></td>
+                    <td className="px-6 py-4.5"><Skeleton className="h-5 w-20 rounded-full" /></td>
+                    <td className="px-6 py-4.5" />
+                  </tr>
+                ))
                 : (data?.data ?? []).map((lead) => (
-                    <tr key={lead.id} className="border-b border-border/50 hover:bg-muted/30 transition-colors" data-testid={`row-lead-${lead.id}`}>
-                      <td className="px-4 py-3">
-                        <div className="font-medium text-foreground">{lead.name}</div>
-                        <div className="text-xs text-muted-foreground">{formatCPF(lead.cpf)}</div>
-                      </td>
-                      <td className="px-4 py-3 hidden md:table-cell text-muted-foreground">{formatBRL(lead.income)}</td>
-                      <td className="px-4 py-3 hidden lg:table-cell text-muted-foreground">{formatBRL(lead.propertyValue)}</td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-2">
-                          <div className="w-16 h-1.5 bg-muted rounded-full overflow-hidden">
-                            <div
-                              className="h-full rounded-full"
-                              style={{
-                                width: `${lead.approvalChance}%`,
-                                background: lead.approvalChance >= 70 ? "#10A65A" : lead.approvalChance >= 40 ? "#F59E0B" : "#EF4444",
-                              }}
-                            />
-                          </div>
-                          <span className="text-xs font-semibold text-foreground">{lead.approvalChance}%</span>
+                  <tr key={lead.id} className="hover:bg-blue-50/10 transition-colors" data-testid={`row-lead-${lead.id}`}>
+                    <td className="px-6 py-4.5">
+                      <div className="font-bold text-gray-700">{lead.name}</div>
+                      <div className="text-[10px] text-gray-400 font-semibold mt-0.5">{formatCPF(lead.cpf)}</div>
+                    </td>
+                    <td className="px-6 py-4.5 hidden md:table-cell font-semibold text-gray-500">{formatBRL(lead.income)}</td>
+                    <td className="px-6 py-4.5 hidden lg:table-cell font-semibold text-gray-500">{formatBRL(lead.propertyValue)}</td>
+                    <td className="px-6 py-4.5">
+                      <div className="flex items-center gap-2">
+                        <div className="w-16 h-2 bg-gray-100 rounded-full overflow-hidden shadow-inner">
+                          <div
+                            className="h-full rounded-full"
+                            style={{
+                              width: `${lead.approvalChance}%`,
+                              background: lead.approvalChance >= 70 ? "linear-gradient(90deg, #10B981 0%, #059669 100%)" : lead.approvalChance >= 40 ? "linear-gradient(90deg, #F59E0B 0%, #D97706 100%)" : "linear-gradient(90deg, #EF4444 0%, #DC2626 100%)",
+                            }}
+                          />
                         </div>
-                      </td>
-                      <td className="px-4 py-3 hidden md:table-cell">
-                        <span className="font-mono text-sm font-semibold text-foreground">{lead.scoreCaixa}</span>
-                      </td>
-                      <td className="px-4 py-3">
-                        <StatusBadge status={lead.status} />
-                      </td>
-                      <td className="px-4 py-3">
-                        <div className="flex items-center gap-1">
-                          <Link href={`/leads/${lead.id}`}>
-                            <button className="p-1.5 rounded-lg hover:bg-muted transition-colors text-muted-foreground hover:text-foreground" data-testid={`button-view-lead-${lead.id}`}>
-                              <ChevronRight className="w-4 h-4" />
-                            </button>
-                          </Link>
+                        <span className="text-xs font-extrabold text-gray-700">{lead.approvalChance}%</span>
+                      </div>
+                    </td>
+                    <td className="px-6 py-4.5 hidden md:table-cell">
+                      <span className="font-sans text-xs font-extrabold text-gray-700 bg-gray-50 border border-gray-200/60 px-2 py-0.5 rounded-md">{lead.scoreCaixa}</span>
+                    </td>
+                    <td className="px-6 py-4.5">
+                      <StatusBadge status={lead.status} />
+                    </td>
+                    <td className="px-6 py-4.5">
+                      <div className="flex items-center gap-1.5 justify-end">
+                        <Link href={`/leads/${lead.id}`}>
                           <button
-                            className="p-1.5 rounded-lg hover:bg-red-50 transition-colors text-muted-foreground hover:text-red-500"
-                            onClick={() => handleDelete(lead.id, lead.name)}
-                            data-testid={`button-delete-lead-${lead.id}`}
+                            className="p-1.5 rounded-lg bg-gray-50 hover:bg-blue-50 text-gray-400 hover:text-[#0D1B8C] border border-gray-100 hover:border-blue-100 transition-colors"
+                            data-testid={`button-view-lead-${lead.id}`}
+                            title="Ver detalhes"
                           >
-                            <Trash2 className="w-4 h-4" />
+                            <ChevronRight className="w-4 h-4" />
                           </button>
-                        </div>
-                      </td>
-                    </tr>
-                  ))}
+                        </Link>
+                        <button
+                          className="p-1.5 rounded-lg bg-gray-50 hover:bg-red-50 text-gray-400 hover:text-red-500 border border-gray-100 hover:border-red-100 transition-colors"
+                          onClick={() => handleDelete(lead.id, lead.name)}
+                          data-testid={`button-delete-lead-${lead.id}`}
+                          title="Excluir"
+                        >
+                          <Trash2 className="w-4 h-4" />
+                        </button>
+                      </div>
+                    </td>
+                  </tr>
+                ))}
             </tbody>
           </table>
         </div>
 
         {!isLoading && (data?.data?.length ?? 0) === 0 && (
-          <div className="py-16 text-center">
-            <Users className="w-10 h-10 text-muted-foreground mx-auto mb-3" />
-            <div className="text-sm font-medium text-foreground">Nenhum lead encontrado</div>
-            <div className="text-xs text-muted-foreground mt-1">Ajuste os filtros ou cadastre um novo lead</div>
+          <div className="py-16 text-center bg-white">
+            <Users className="w-10 h-10 text-gray-300 mx-auto mb-3" />
+            <div className="text-sm font-bold text-gray-700">Nenhum lead encontrado</div>
+            <div className="text-xs text-gray-400 mt-1">Ajuste os filtros ou cadastre um novo lead</div>
           </div>
         )}
       </div>
 
       {/* Pagination */}
       {totalPages > 1 && (
-        <div className="flex items-center justify-between">
-          <div className="text-xs text-muted-foreground">
+        <div className="flex items-center justify-between pt-2">
+          <div className="text-xs font-semibold text-gray-400">
             Página {page} de {totalPages} — {data?.total} resultados
           </div>
           <div className="flex gap-2">
-            <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.max(1, p - 1))} disabled={page === 1}>Anterior</Button>
-            <Button variant="outline" size="sm" onClick={() => setPage((p) => Math.min(totalPages, p + 1))} disabled={page === totalPages}>Próximo</Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.max(1, p - 1))}
+              disabled={page === 1}
+              className="h-9 px-3 rounded-xl border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50 disabled:opacity-55"
+            >
+              Anterior
+            </Button>
+            <Button
+              variant="outline"
+              size="sm"
+              onClick={() => setPage((p) => Math.min(totalPages, p + 1))}
+              disabled={page === totalPages}
+              className="h-9 px-3 rounded-xl border-gray-200 text-xs font-bold text-gray-600 hover:bg-gray-50 disabled:opacity-55"
+            >
+              Próximo
+            </Button>
           </div>
         </div>
       )}

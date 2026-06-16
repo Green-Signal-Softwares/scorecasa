@@ -99,7 +99,7 @@ export function NotificationBell() {
 
       {open && (
         <div
-          className="absolute left-full top-0 ml-2 w-80 rounded-xl shadow-2xl z-50 overflow-hidden border border-white/10"
+          className="absolute right-0 top-full mt-2 w-80 rounded-xl shadow-2xl z-50 overflow-hidden border border-white/10"
           style={{ background: "#0A1650" }}
         >
           <div className="flex items-center justify-between px-4 py-3 border-b border-white/10">

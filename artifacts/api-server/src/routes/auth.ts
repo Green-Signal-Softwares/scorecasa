@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, usersTable, leadsTable, subscriptionsTable, passwordResetsTable, PLAN_TIERS, type PlanTierId } from "@workspace/db";
+import { db, usersTable, leadsTable, subscriptionsTable, passwordResetsTable, PLAN_TIERS, type PlanTierId, brokersTable, correspondentsTable } from "@workspace/db";
 import { and, eq, isNull, gt } from "drizzle-orm";
 import { LoginBody } from "@workspace/api-zod";
 import crypto from "crypto";
@@ -179,6 +179,28 @@ router.post("/register", async (req, res) => {
         nextDueAt: nextDue,
         notes: noteParts.length > 0 ? noteParts.join(" | ") : null,
       });
+
+      if (role === "broker") {
+        await tx.insert(brokersTable).values({
+          name,
+          email,
+          phone,
+          creci: userCreci || "",
+          status: "active",
+        });
+      }
+
+      if (role === "correspondent") {
+        await tx.insert(correspondentsTable).values({
+          name,
+          bank: "caixa",
+          code: userCcaCode || "",
+          email,
+          phone,
+          userId: createdUser.id,
+          status: "active",
+        });
+      }
 
       return createdUser;
     });

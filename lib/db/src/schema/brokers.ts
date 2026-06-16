@@ -1,6 +1,7 @@
 import { pgTable, serial, text, timestamp, integer, real } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { correspondentsTable } from "./correspondents";
 
 export const brokersTable = pgTable("brokers", {
   id: serial("id").primaryKey(),
@@ -12,6 +13,9 @@ export const brokersTable = pgTable("brokers", {
   totalLeads: integer("total_leads").notNull().default(0),
   approvedLeads: integer("approved_leads").notNull().default(0),
   approvalRate: real("approval_rate").notNull().default(0),
+  correspondentId: integer("correspondent_id").references(() => correspondentsTable.id, {
+    onDelete: "set null",
+  }),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 

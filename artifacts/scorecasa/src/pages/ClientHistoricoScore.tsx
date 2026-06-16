@@ -230,7 +230,7 @@ export function ClientHistoricoScore() {
           <div className="w-6 h-6 border-2 border-gray-300 border-t-[#0D1B8C] rounded-full animate-spin" />
         </div>
       ) : (
-        <div className="space-y-5 max-w-3xl">
+        <div className="space-y-5 w-full">
           {/* ── Card principal ── */}
           <div className="bg-white rounded-2xl border border-gray-100 p-6 shadow-sm">
             <div className="flex flex-col items-center">

@@ -180,7 +180,7 @@ export function ClientPagamentos() {
           <div className="w-6 h-6 border-2 border-gray-300 border-t-[#0D1B8C] rounded-full animate-spin" />
         </div>
       ) : (
-        <div className="max-w-3xl space-y-5">
+        <div className="w-full space-y-5">
           {/* ── Cards de resumo ── */}
           <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
             <SummaryCard

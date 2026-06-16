@@ -58,116 +58,120 @@ function PropertyCard({
   return (
     <div className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden hover:shadow-md transition-shadow group flex flex-col">
       {/* Image */}
-      <div className="relative h-48 bg-gradient-to-br from-[#0D1B8C]/10 to-[#10A65A]/10 flex-shrink-0">
+      <div className="relative h-48 bg-gradient-to-br from-[#0D1B8C]/10 to-[#10A65A]/10 flex-shrink-0 overflow-hidden">
         {prop.imageUrl ? (
-          <img src={prop.imageUrl} alt={prop.title} className="w-full h-full object-cover" />
+          <img src={prop.imageUrl} alt={prop.title} className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105" />
         ) : (
           <div className="w-full h-full flex items-center justify-center">
             <Building2 className="w-16 h-16 text-[#0D1B8C]/20" />
           </div>
         )}
         {/* Status badge */}
-        <div className="absolute top-3 left-3">
-          <span className="text-xs font-semibold px-2.5 py-1 rounded-full" style={{ background: st.bg, color: st.text }}>
+        <div className="absolute top-3 left-3 z-10">
+          <span className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-1 rounded-full shadow-xs text-white" style={{ background: st.text }}>
             {st.label}
           </span>
         </div>
+        {/* Floating Heart Button */}
+        <button
+          onClick={(e) => {
+            e.preventDefault();
+            e.stopPropagation();
+            onInterest(prop.id);
+          }}
+          className="absolute top-3 right-3 z-10 w-9 h-9 rounded-full bg-white/95 backdrop-blur-xs shadow-xs flex items-center justify-center hover:scale-110 active:scale-95 transition-all text-gray-400 hover:text-red-500"
+          title={isInterested ? "Remover dos favoritos" : "Adicionar aos favoritos"}
+        >
+          <Heart className={`w-4.5 h-4.5 transition-colors ${isInterested ? "fill-red-500 text-red-500" : "text-gray-400"}`} />
+        </button>
         {/* Type badge */}
-        <div className="absolute top-3 right-3">
-          <span className="text-xs font-medium px-2.5 py-1 rounded-full bg-white/90 text-[#07113A]">
+        <div className="absolute bottom-3 left-3 z-10">
+          <span className="text-[10px] font-bold uppercase tracking-wider px-2 py-0.5 rounded-md bg-black/60 text-white backdrop-blur-xs">
             {TYPE_LABELS[prop.type] ?? prop.type}
           </span>
         </div>
-        {/* Action buttons */}
-        <div className="absolute bottom-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity">
-          <Link href={`/imoveis/${prop.id}`}>
+        {/* Action buttons (for managers) */}
+        {canManage && (
+          <div className="absolute bottom-3 right-3 flex gap-2 opacity-0 group-hover:opacity-100 transition-opacity z-10">
             <button
-              className="w-8 h-8 rounded-lg bg-white shadow flex items-center justify-center hover:bg-[#0D1B8C] hover:text-white transition-colors"
-              data-testid={`button-view-property-${prop.id}`}
-              title="Ver detalhes"
+              onClick={() => onEdit(prop)}
+              className="w-8 h-8 rounded-lg bg-white shadow-xs flex items-center justify-center hover:bg-[#0D1B8C] hover:text-white transition-colors"
+              title="Editar imóvel"
             >
-              <Eye className="w-3.5 h-3.5" />
+              <Pencil className="w-3.5 h-3.5" />
             </button>
-          </Link>
-          {canManage && (
-            <>
-              <button
-                onClick={() => onEdit(prop)}
-                className="w-8 h-8 rounded-lg bg-white shadow flex items-center justify-center hover:bg-[#0D1B8C] hover:text-white transition-colors"
-              >
-                <Pencil className="w-3.5 h-3.5" />
-              </button>
-              <button
-                onClick={() => onDelete(prop.id)}
-                className="w-8 h-8 rounded-lg bg-white shadow flex items-center justify-center hover:bg-red-500 hover:text-white transition-colors"
-              >
-                <Trash2 className="w-3.5 h-3.5" />
-              </button>
-            </>
-          )}
-        </div>
+            <button
+              onClick={() => onDelete(prop.id)}
+              className="w-8 h-8 rounded-lg bg-white shadow-xs flex items-center justify-center hover:bg-red-500 hover:text-white transition-colors"
+              title="Excluir imóvel"
+            >
+              <Trash2 className="w-3.5 h-3.5" />
+            </button>
+          </div>
+        )}
       </div>
 
       {/* Content */}
-      <div className="p-4 flex flex-col flex-1">
-        <div className="mb-2">
-          <div className="font-semibold text-[#07113A] text-sm leading-tight mb-1 line-clamp-2">{prop.title}</div>
+      <div className="p-5 flex flex-col flex-1">
+        <div className="mb-3">
+          <div className="font-bold text-[#07113A] text-sm leading-snug mb-1 line-clamp-2 min-h-[40px]">{prop.title}</div>
           {(prop.neighborhood || prop.city) && (
-            <div className="flex items-center gap-1 text-xs text-gray-500">
-              <MapPin className="w-3 h-3 flex-shrink-0" />
+            <div className="flex items-center gap-1 text-xs text-gray-400">
+              <MapPin className="w-3.5 h-3.5 flex-shrink-0 text-gray-300" />
               <span className="truncate">{[prop.neighborhood, prop.city, prop.state].filter(Boolean).join(", ")}</span>
             </div>
           )}
         </div>
 
         {/* Price */}
-        <div className="mb-3">
-          <div className="text-xl font-bold" style={{ color: "#0D1B8C" }}>{formatBRL(prop.price)}</div>
+        <div className="mb-4">
+          <div className="text-xl font-extrabold text-[#0D1B8C]">{formatBRL(prop.price)}</div>
           {prop.condominiumFee && (
-            <div className="text-xs text-gray-400">+ {formatBRL(prop.condominiumFee)}/mês cond.</div>
+            <div className="text-[10px] text-gray-400 font-semibold mt-0.5">+ {formatBRL(prop.condominiumFee)}/mês cond.</div>
           )}
         </div>
 
-        {/* Specs */}
-        <div className="flex flex-wrap gap-3 text-xs text-gray-500 mb-3">
-          {prop.areaSqm && (
-            <span className="flex items-center gap-1"><Ruler className="w-3 h-3" />{prop.areaSqm}m²</span>
-          )}
-          {prop.bedrooms != null && (
-            <span className="flex items-center gap-1"><BedDouble className="w-3 h-3" />{prop.bedrooms} qto{prop.bedrooms !== 1 ? "s" : ""}</span>
-          )}
-          {prop.bathrooms != null && (
-            <span className="flex items-center gap-1"><Bath className="w-3 h-3" />{prop.bathrooms} bh{prop.bathrooms !== 1 ? "s" : ""}</span>
-          )}
-          {prop.parkingSpots != null && (
-            <span className="flex items-center gap-1"><Car className="w-3 h-3" />{prop.parkingSpots} vg{prop.parkingSpots !== 1 ? "s" : ""}</span>
-          )}
+        {/* Specs Grid */}
+        <div className="grid grid-cols-4 gap-1 text-center text-xs text-gray-500 mb-4 bg-gray-50/50 p-2.5 rounded-xl border border-gray-100/50">
+          <div className="flex flex-col items-center">
+            <span className="text-gray-400 text-[8px] uppercase font-bold flex items-center gap-0.5"><Ruler className="w-2.5 h-2.5 text-gray-300" />Área</span>
+            <span className="font-bold text-gray-700 mt-0.5">{prop.areaSqm ? `${prop.areaSqm}m²` : "—"}</span>
+          </div>
+          <div className="flex flex-col items-center">
+            <span className="text-gray-400 text-[8px] uppercase font-bold flex items-center gap-0.5"><BedDouble className="w-2.5 h-2.5 text-gray-300" />Qtos</span>
+            <span className="font-bold text-gray-700 mt-0.5">{prop.bedrooms ?? "—"}</span>
+          </div>
+          <div className="flex flex-col items-center">
+            <span className="text-gray-400 text-[8px] uppercase font-bold flex items-center gap-0.5"><Bath className="w-2.5 h-2.5 text-gray-300" />Banh</span>
+            <span className="font-bold text-gray-700 mt-0.5">{prop.bathrooms ?? "—"}</span>
+          </div>
+          <div className="flex flex-col items-center">
+            <span className="text-gray-400 text-[8px] uppercase font-bold flex items-center gap-0.5"><Car className="w-2.5 h-2.5 text-gray-300" />Vagas</span>
+            <span className="font-bold text-gray-700 mt-0.5">{prop.parkingSpots ?? "—"}</span>
+          </div>
         </div>
 
         {/* Financing badges */}
         <div className="flex flex-wrap gap-1.5 mb-4">
-          {prop.acceptsFgts && <span className="text-[10px] px-2 py-0.5 rounded-full bg-green-50 text-green-700 font-medium">FGTS</span>}
-          {prop.acceptsMcmv && <span className="text-[10px] px-2 py-0.5 rounded-full bg-blue-50 text-blue-700 font-medium">MCMV</span>}
-          {prop.acceptsSbpe && <span className="text-[10px] px-2 py-0.5 rounded-full bg-indigo-50 text-indigo-700 font-medium">SBPE</span>}
+          {prop.acceptsFgts && <span className="text-[9px] px-2 py-0.5 rounded bg-emerald-50 text-emerald-700 border border-emerald-100/50 font-bold uppercase tracking-wider">FGTS</span>}
+          {prop.acceptsMcmv && <span className="text-[9px] px-2 py-0.5 rounded bg-blue-50 text-blue-700 border border-blue-100/50 font-bold uppercase tracking-wider">MCMV</span>}
+          {prop.acceptsSbpe && <span className="text-[9px] px-2 py-0.5 rounded bg-indigo-50 text-indigo-700 border border-indigo-100/50 font-bold uppercase tracking-wider">SBPE</span>}
         </div>
 
-        {/* Broker */}
+        {/* Broker info */}
         {prop.brokerName && (
-          <div className="text-xs text-gray-400 mb-3 truncate">Corretor: {prop.brokerName}</div>
+          <div className="text-xs text-gray-400 mb-4 border-t border-gray-50 pt-3 flex items-center justify-between">
+            <span className="truncate">Corretor: <strong className="text-gray-600 font-semibold">{prop.brokerName}</strong></span>
+          </div>
         )}
 
-        {/* Interest button */}
-        <button
-          onClick={() => onInterest(prop.id)}
-          className="mt-auto flex items-center justify-center gap-2 py-2 px-4 rounded-xl text-sm font-semibold w-full transition-all"
-          style={isInterested
-            ? { background: "#FEF2F2", color: "#EF4444", border: "1px solid #FCA5A5" }
-            : { background: "#F0FDF4", color: "#10A65A", border: "1px solid #86EFAC" }
-          }
-        >
-          <Heart className={`w-4 h-4 ${isInterested ? "fill-red-400" : ""}`} />
-          {isInterested ? "Remover interesse" : "Tenho interesse"}
-        </button>
+        {/* View details */}
+        <Link href={`/imoveis/${prop.id}`} className="w-full mt-auto block" data-testid={`button-view-property-${prop.id}`}>
+          <button className="w-full flex items-center justify-center gap-1.5 py-2.5 rounded-xl text-xs font-semibold bg-[#0D1B8C]/5 hover:bg-[#0D1B8C] text-[#0D1B8C] hover:text-white border border-[#0D1B8C]/10 hover:border-[#0D1B8C] transition-all">
+            Ver Detalhes
+            <Eye className="w-3.5 h-3.5" />
+          </button>
+        </Link>
       </div>
     </div>
   );
@@ -355,37 +359,43 @@ export function Imoveis() {
       </div>
 
       {/* Filters */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-4">
-        <div className="flex flex-wrap gap-3">
+      <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-4 flex flex-col md:flex-row items-center gap-4">
+        <div className="flex items-center gap-2 text-[#07113A] font-bold text-sm w-full md:w-auto flex-shrink-0">
+          <Filter className="w-4 h-4 text-[#0D1B8C]" />
+          <span>Filtros:</span>
+        </div>
+        <div className="flex flex-col sm:flex-row gap-3 w-full flex-1">
           <div className="relative flex-1 min-w-[200px]">
-            <Search className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
+            <Search className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4 text-gray-400" />
             <Input
               placeholder="Buscar por título, cidade, bairro..."
-              className="pl-10"
+              className="pl-10 h-10 rounded-xl border-gray-200/80 focus:border-blue-500 focus:ring-2 focus:ring-blue-500/10 text-xs font-semibold text-gray-700"
               value={search}
               onChange={(e) => setSearch(e.target.value)}
             />
           </div>
           <Select value={filterType || "__all__"} onValueChange={(v) => setFilterType(v === "__all__" ? "" : v)}>
-            <SelectTrigger className="w-40">
-              <SelectValue placeholder="Tipo" />
+            <SelectTrigger className="w-full sm:w-44 h-10 rounded-xl border-gray-200/80 text-xs font-semibold text-gray-700">
+              <SelectValue placeholder="Tipo de Imóvel" />
             </SelectTrigger>
-            <SelectContent>
-              <SelectItem value="__all__">Todos os tipos</SelectItem>
-              {Object.entries(TYPE_LABELS).map(([k, v]) => <SelectItem key={k} value={k}>{v}</SelectItem>)}
+            <SelectContent className="rounded-xl">
+              <SelectItem value="__all__" className="text-xs font-semibold">Todos os tipos</SelectItem>
+              {Object.entries(TYPE_LABELS).map(([k, v]) => (
+                <SelectItem key={k} value={k} className="text-xs font-semibold">{v}</SelectItem>
+              ))}
             </SelectContent>
           </Select>
           {canManage && (
             <Select value={filterStatus || "__all__"} onValueChange={(v) => setFilterStatus(v === "__all__" ? "" : v)}>
-              <SelectTrigger className="w-40">
-                <SelectValue placeholder="Status" />
+              <SelectTrigger className="w-full sm:w-44 h-10 rounded-xl border-gray-200/80 text-xs font-semibold text-gray-700">
+                <SelectValue placeholder="Status do Imóvel" />
               </SelectTrigger>
-              <SelectContent>
-                <SelectItem value="__all__">Todos status</SelectItem>
-                <SelectItem value="available">Disponível</SelectItem>
-                <SelectItem value="reserved">Reservado</SelectItem>
-                <SelectItem value="sold">Vendido</SelectItem>
-                <SelectItem value="inactive">Inativo</SelectItem>
+              <SelectContent className="rounded-xl">
+                <SelectItem value="__all__" className="text-xs font-semibold">Todos status</SelectItem>
+                <SelectItem value="available" className="text-xs font-semibold">Disponível</SelectItem>
+                <SelectItem value="reserved" className="text-xs font-semibold">Reservado</SelectItem>
+                <SelectItem value="sold" className="text-xs font-semibold">Vendido</SelectItem>
+                <SelectItem value="inactive" className="text-xs font-semibold">Inativo</SelectItem>
               </SelectContent>
             </Select>
           )}
@@ -393,18 +403,26 @@ export function Imoveis() {
       </div>
 
       {/* Stats bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
         {[
-          { label: "Total", count: (properties as any[]).length, color: "#0D1B8C" },
-          { label: "Disponíveis", count: (properties as any[]).filter((p) => p.status === "available").length, color: "#10A65A" },
-          { label: "Reservados", count: (properties as any[]).filter((p) => p.status === "reserved").length, color: "#D97706" },
-          { label: "Meus interesses", count: interestedIds.size, color: "#EF4444" },
-        ].map((s) => (
-          <div key={s.label} className="bg-white rounded-xl border border-gray-100 p-4 text-center shadow-sm">
-            <div className="text-2xl font-bold" style={{ color: s.color }}>{s.count}</div>
-            <div className="text-xs text-gray-500 mt-1">{s.label}</div>
-          </div>
-        ))}
+          { label: "Total cadastrados", count: (properties as any[]).length, color: "#0D1B8C", bg: "#EEF2FF", icon: Building2 },
+          { label: "Disponíveis", count: (properties as any[]).filter((p) => p.status === "available").length, color: "#10A65A", bg: "#F0FDF4", icon: CheckCircle },
+          { label: "Reservados", count: (properties as any[]).filter((p) => p.status === "reserved").length, color: "#D97706", bg: "#FFFBEB", icon: Home },
+          { label: "Favoritos (Interesses)", count: interestedIds.size, color: "#EF4444", bg: "#FEF2F2", icon: Heart },
+        ].map((s) => {
+          const IconComponent = s.icon;
+          return (
+            <div key={s.label} className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm flex items-center justify-between transition-all hover:shadow-md" style={{ borderLeftWidth: 4, borderLeftColor: s.color }}>
+              <div>
+                <div className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">{s.label}</div>
+                <div className="text-2xl font-extrabold text-gray-800 mt-1">{s.count}</div>
+              </div>
+              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: s.bg, color: s.color }}>
+                <IconComponent className="w-5 h-5" />
+              </div>
+            </div>
+          );
+        })}
       </div>
 
       {/* Grid */}

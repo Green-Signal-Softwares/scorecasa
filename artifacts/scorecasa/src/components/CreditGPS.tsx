@@ -317,107 +317,132 @@ export function CreditGPS({ lead }: { lead: LeadInput }) {
   const doneCount = steps.filter((s) => s.status === "done").length;
   const totalImpact = steps.filter((s) => s.status !== "done").reduce((acc, s) => acc + s.impactPct, 0);
 
+  const totalCount = steps.length;
+  const progressPct = totalCount > 0 ? Math.round((doneCount / totalCount) * 100) : 0;
+
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Summary card */}
-      <div className="rounded-xl border border-card-border p-4 bg-card shadow-sm">
-        <div className="flex items-center gap-3 mb-3">
-          <div className="w-8 h-8 rounded-lg flex items-center justify-center" style={{ background: "#EFF6FF" }}>
-            <TrendingUp className="w-4 h-4" style={{ color: "#0D1B8C" }} />
+      <div className="rounded-2xl border border-gray-100 p-6 bg-white shadow-sm flex flex-col md:flex-row gap-6 items-center">
+        {/* Left Side: Circular Progress */}
+        <div className="flex flex-col items-center flex-shrink-0">
+          <div className="relative flex items-center justify-center">
+            <svg width="100" height="100" viewBox="0 0 100 100">
+              <circle cx="50" cy="50" r="42" fill="none" stroke="#F3F4F6" strokeWidth="6" />
+              <circle cx="50" cy="50" r="42" fill="none" stroke="#10A65A" strokeWidth="6"
+                strokeDasharray={`${2 * Math.PI * 42}`}
+                strokeDashoffset={`${2 * Math.PI * 42 * (1 - progressPct / 100)}`}
+                strokeLinecap="round"
+                style={{ transition: "stroke-dashoffset 0.5s ease", transform: "rotate(-90deg)", transformOrigin: "50px 50px" }}
+              />
+            </svg>
+            <div className="absolute flex flex-col items-center">
+              <span className="text-xl font-extrabold text-gray-800">{progressPct}%</span>
+              <span className="text-[9px] text-gray-400 uppercase font-semibold">Concluído</span>
+            </div>
           </div>
+          <div className="text-xs font-semibold text-gray-500 mt-2 text-center">Progresso das Ações</div>
+        </div>
+
+        {/* Right Side: Metrics and Details */}
+        <div className="flex-1 w-full space-y-4">
           <div>
-            <div className="text-sm font-bold text-foreground">GPS de Aprovação</div>
-            <div className="text-xs text-muted-foreground">Roteiro personalizado para conquistar o crédito imobiliário</div>
+            <h3 className="font-bold text-base text-[#07113A]">Status do Planejamento</h3>
+            <p className="text-xs text-gray-400">Verificamos seu cadastro e calculamos os pontos de atenção abaixo.</p>
           </div>
-        </div>
 
-        {/* Stats row */}
-        <div className="grid grid-cols-4 gap-2 mt-3">
-          {[
-            { label: "Críticos", value: criticalCount, color: "#EF4444", bg: "#FEE2E2" },
-            { label: "Atenção", value: warningCount, color: "#92400E", bg: "#FEF3C7" },
-            { label: "Concluídos", value: doneCount, color: "#065F46", bg: "#D1FAE5" },
-            { label: "Ganho potencial", value: `+${Math.min(totalImpact, 60)}%`, color: "#1E40AF", bg: "#DBEAFE" },
-          ].map(({ label, value, color, bg }) => (
-            <div key={label} className="rounded-lg p-2.5 text-center" style={{ background: bg }}>
-              <div className="text-lg font-bold" style={{ color }}>{value}</div>
-              <div className="text-xs font-medium" style={{ color }}>{label}</div>
-            </div>
-          ))}
-        </div>
-
-        {/* Debt summary row if data available */}
-        {debtRatioPct > 0 && (
-          <div className="mt-3 pt-3 border-t border-border/50 grid grid-cols-2 gap-3 text-xs">
-            <div>
-              <span className="text-muted-foreground">Parcelas mensais ativas: </span>
-              <span className="font-semibold text-foreground">{fmtBRL(totalMonthlyDebt)}/mês</span>
-            </div>
-            <div>
-              <span className="text-muted-foreground">% da renda comprometida: </span>
-              <span className="font-semibold" style={{ color: debtRatioPct > 30 ? "#EF4444" : debtRatioPct > 15 ? "#F59E0B" : "#10A65A" }}>
-                {debtRatioPct.toFixed(1)}%
-              </span>
-            </div>
+          <div className="grid grid-cols-2 sm:grid-cols-4 gap-3">
+            {[
+              { label: "Críticos", value: criticalCount, color: "#EF4444", bg: "#FEF2F2" },
+              { label: "Atenção", value: warningCount, color: "#D97706", bg: "#FFFBEB" },
+              { label: "Concluídos", value: doneCount, color: "#10A65A", bg: "#F0FDF4" },
+              { label: "Ganho potencial", value: `+${Math.min(totalImpact, 60)}%`, color: "#0D1B8C", bg: "#EEF2FF" },
+            ].map(({ label, value, color, bg }) => (
+              <div key={label} className="rounded-xl p-3 text-center border border-gray-100/50" style={{ background: bg }}>
+                <div className="text-xl font-extrabold" style={{ color }}>{value}</div>
+                <div className="text-[10px] font-bold uppercase tracking-wider" style={{ color }}>{label}</div>
+              </div>
+            ))}
           </div>
-        )}
+
+          {/* Debt summary row if data available */}
+          {debtRatioPct > 0 && (
+            <div className="flex flex-wrap gap-4 text-xs pt-3 border-t border-gray-100 text-gray-500">
+              <div>
+                Comprometimento financeiro: <span className="font-bold text-gray-700">{fmtBRL(totalMonthlyDebt)}/mês</span>
+              </div>
+              <div className="flex items-center gap-1.5">
+                Renda comprometida: 
+                <span className="px-2 py-0.5 rounded-full font-bold text-[10px]" style={{
+                  color: debtRatioPct > 30 ? "#991B1B" : debtRatioPct > 15 ? "#92400E" : "#065F46",
+                  background: debtRatioPct > 30 ? "#FEF2F2" : debtRatioPct > 15 ? "#FFFBEB" : "#F0FDF4"
+                }}>
+                  {debtRatioPct.toFixed(1)}%
+                </span>
+              </div>
+            </div>
+          )}
+        </div>
       </div>
 
-      {/* Steps */}
-      <div className="space-y-3">
+      {/* Steps List */}
+      <div className="space-y-4">
         {steps.map((step, index) => {
           const ui = STATUS_UI[step.status];
           const Icon = ui.icon;
           const stepNum = index + 1;
+          const isDone = step.status === "done";
           return (
             <div
               key={step.id}
-              className="rounded-xl border overflow-hidden"
-              style={{ borderColor: ui.border, borderLeftWidth: 4 }}
+              className={`rounded-2xl border bg-white shadow-xs transition-all overflow-hidden ${
+                isDone ? "opacity-75 border-gray-100" : "border-gray-200/80 hover:shadow-sm"
+              }`}
+              style={{ borderLeftWidth: 6, borderLeftColor: ui.border }}
             >
-              <div className="p-4" style={{ background: ui.bg }}>
+              <div className="p-5">
                 {/* Header row */}
-                <div className="flex items-start gap-3 mb-2">
+                <div className="flex items-start gap-4">
                   <div
-                    className="w-7 h-7 rounded-full flex items-center justify-center flex-shrink-0 text-white text-xs font-bold"
+                    className="w-8 h-8 rounded-xl flex items-center justify-center flex-shrink-0 text-white text-xs font-bold shadow-xs"
                     style={{ background: ui.border }}
                   >
-                    {step.status === "done" ? <CheckCircle className="w-4 h-4" /> : stepNum}
+                    {isDone ? <CheckCircle className="w-4 h-4 text-white" /> : stepNum}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center gap-2 flex-wrap">
-                      <span className="text-sm font-bold" style={{ color: ui.color }}>{step.title}</span>
+                      <span className="text-sm font-bold text-gray-800">{step.title}</span>
                       <span
-                        className="text-xs px-2 py-0.5 rounded-full font-medium"
-                        style={{ color: ui.color, background: "rgba(0,0,0,0.06)" }}
+                        className="text-[10px] px-2.5 py-0.5 rounded-full font-bold uppercase tracking-wider"
+                        style={{ color: ui.color, background: ui.bg }}
                       >
                         {ui.label}
                       </span>
                     </div>
-                    <p className="text-xs mt-1 leading-relaxed" style={{ color: ui.color }}>
+                    <p className="text-xs text-gray-500 mt-1.5 leading-relaxed">
                       {step.description}
                     </p>
                   </div>
                 </div>
 
                 {/* Meta row */}
-                <div className="flex items-center gap-4 flex-wrap mt-2 pt-2 border-t" style={{ borderColor: `${ui.border}40` }}>
-                  <div className="flex items-center gap-1.5">
-                    <ArrowRight className="w-3 h-3 flex-shrink-0" style={{ color: ui.color }} />
-                    <span className="text-xs font-medium" style={{ color: ui.color }}>{step.action}</span>
+                <div className="flex items-center gap-4 flex-wrap mt-4 pt-4 border-t border-gray-50">
+                  <div className="flex items-center gap-1.5 text-xs text-gray-600">
+                    <ArrowRight className="w-3.5 h-3.5 flex-shrink-0 text-gray-400" />
+                    <span className="font-semibold text-gray-700">{step.action}</span>
                   </div>
                   <div className="flex items-center gap-3 ml-auto flex-shrink-0">
-                    <div className="flex items-center gap-1 text-xs" style={{ color: ui.color }}>
-                      <Clock className="w-3 h-3" />
+                    <div className="flex items-center gap-1 text-xs text-gray-400">
+                      <Clock className="w-3.5 h-3.5" />
                       <span>{step.timeEstimate}</span>
                     </div>
                     {step.impactPct > 0 && (
                       <div
-                        className="flex items-center gap-1 text-xs font-bold px-2 py-0.5 rounded-full"
+                        className="flex items-center gap-1 text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full"
                         style={{ color: "#065F46", background: "#D1FAE5" }}
                       >
                         <TrendingUp className="w-3 h-3" />
-                        +{step.impactPct}% chance
+                        +{step.impactPct}% Chance
                       </div>
                     )}
                   </div>
@@ -428,7 +453,7 @@ export function CreditGPS({ lead }: { lead: LeadInput }) {
         })}
       </div>
 
-      <div className="text-xs text-muted-foreground text-center pt-1">
+      <div className="text-xs text-gray-400 text-center pt-2">
         Estimativas baseadas nos dados do cadastro. Impactos são aproximações — resultados reais variam conforme análise bancária.
       </div>
     </div>

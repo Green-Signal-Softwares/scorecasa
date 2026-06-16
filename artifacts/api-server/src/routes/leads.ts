@@ -1,5 +1,5 @@
 import { Router } from "express";
-import { db, leadsTable, brokersTable, notificationsTable, usersTable, propertiesTable } from "@workspace/db";
+import { db, leadsTable, brokersTable, notificationsTable, usersTable, propertiesTable, correspondentsTable } from "@workspace/db";
 import { eq, sql, ilike, or, and, desc } from "drizzle-orm";
 
 async function getSessionUser(req: any) {
@@ -18,6 +18,79 @@ async function requireAuth(req: any, res: any, next: any) {
   }
   req.sessionUser = user;
   next();
+}
+
+async function getUserBrokerOrCorrespondentId(user: any) {
+  if (user.role === "broker") {
+    let [broker] = await db
+      .select({ id: brokersTable.id, correspondentId: brokersTable.correspondentId })
+      .from(brokersTable)
+      .where(sql`lower(${brokersTable.email}) = lower(${user.email})`)
+      .limit(1);
+    if (!broker) {
+      const [newBroker] = await db
+        .insert(brokersTable)
+        .values({
+          name: user.name,
+          email: user.email.toLowerCase(),
+          phone: "(11) 99999-9999",
+          creci: user.creci || "000000",
+          status: "active",
+        })
+        .returning({ id: brokersTable.id, correspondentId: brokersTable.correspondentId });
+      broker = newBroker;
+    }
+    return { brokerId: broker.id, correspondentId: broker.correspondentId ?? null };
+  }
+  if (user.role === "correspondent") {
+    let [correspondent] = await db
+      .select({ id: correspondentsTable.id })
+      .from(correspondentsTable)
+      .where(
+        or(
+          eq(correspondentsTable.userId, user.id),
+          sql`lower(${correspondentsTable.email}) = lower(${user.email})`
+        )
+      )
+      .limit(1);
+    if (!correspondent) {
+      const [newCorr] = await db
+        .insert(correspondentsTable)
+        .values({
+          name: user.name,
+          bank: "caixa",
+          code: user.ccaCode || "000000",
+          email: user.email.toLowerCase(),
+          phone: "(11) 99999-9999",
+          userId: user.id,
+          status: "active",
+        })
+        .returning({ id: correspondentsTable.id });
+      correspondent = newCorr;
+    }
+    return { correspondentId: correspondent.id, brokerId: null };
+  }
+  return { brokerId: null, correspondentId: null };
+}
+
+async function hasAccessToLead(sessionUser: any, lead: any): Promise<boolean> {
+  if (!sessionUser) return false;
+  if (sessionUser.role === "admin" || sessionUser.role === "analyst") return true;
+  if (sessionUser.role === "client") {
+    return sessionUser.leadId === lead.id;
+  }
+  if (sessionUser.role === "broker") {
+    const { brokerId } = await getUserBrokerOrCorrespondentId(sessionUser);
+    return brokerId !== null && lead.brokerId === brokerId;
+  }
+  if (sessionUser.role === "correspondent") {
+    const { correspondentId } = await getUserBrokerOrCorrespondentId(sessionUser);
+    return (
+      correspondentId !== null &&
+      (lead.correspondentId === correspondentId || lead.linkedCorrespondentId === correspondentId)
+    );
+  }
+  return false;
 }
 import { cityTier, evaluateMcmv2026, FAIXA_LIMITS } from "@workspace/cities-br";
 import {
@@ -557,6 +630,27 @@ router.get("/", async (req, res) => {
     );
   }
 
+  if (sessionUser?.role === "broker") {
+    const { brokerId } = await getUserBrokerOrCorrespondentId(sessionUser);
+    if (!brokerId) {
+      res.json({ data: [], total: 0, page, limit });
+      return;
+    }
+    conditions.push(eq(leadsTable.brokerId, brokerId));
+  } else if (sessionUser?.role === "correspondent") {
+    const { correspondentId } = await getUserBrokerOrCorrespondentId(sessionUser);
+    if (!correspondentId) {
+      res.json({ data: [], total: 0, page, limit });
+      return;
+    }
+    conditions.push(
+      or(
+        eq(leadsTable.correspondentId, correspondentId),
+        eq(leadsTable.linkedCorrespondentId, correspondentId)
+      )!
+    );
+  }
+
   const where = conditions.length > 0 ? and(...conditions) : undefined;
 
   const [leads, countResult] = await Promise.all([
@@ -612,11 +706,26 @@ router.post("/", async (req, res) => {
     }
   }
 
+  let additionalValues: Record<string, any> = {};
+  if (sessionUser?.role === "broker") {
+    const { brokerId, correspondentId } = await getUserBrokerOrCorrespondentId(sessionUser);
+    if (brokerId) {
+      additionalValues.brokerId = brokerId;
+    }
+    if (correspondentId) {
+      additionalValues.correspondentId = correspondentId;
+      additionalValues.linkedCorrespondentId = correspondentId;
+    }
+    // Delete any brokerId from request payload to guarantee the lead is assigned only to the logged-in broker
+    delete (parsed.data as any).brokerId;
+  }
+
   const [lead] = await db
     .insert(leadsTable)
     .values({
       ...parsed.data,
       ...scores,
+      ...additionalValues,
       status: "pending",
     })
     .returning();
@@ -636,6 +745,113 @@ router.post("/", async (req, res) => {
   });
 });
 
+router.post("/link-client", async (req, res) => {
+  const sessionUser = await getSessionUser(req);
+  if (sessionUser?.role !== "broker") {
+    res.status(403).json({ error: "Apenas corretores podem vincular clientes pelo CPF." });
+    return;
+  }
+
+  const { cpf } = req.body;
+  if (!cpf) {
+    res.status(400).json({ error: "CPF é obrigatório." });
+    return;
+  }
+
+  const cleanCpf = cpf.replace(/\D/g, "");
+  if (cleanCpf.length !== 11) {
+    res.status(400).json({ error: "CPF inválido." });
+    return;
+  }
+
+  // 1. Procurar o cliente/usuário na plataforma com esse CPF
+  const [clientUser] = await db
+    .select()
+    .from(usersTable)
+    .where(and(eq(usersTable.cpf, cleanCpf), eq(usersTable.role, "client")))
+    .limit(1);
+
+  if (!clientUser) {
+    res.status(404).json({ error: "Cliente não cadastrado na plataforma com este CPF." });
+    return;
+  }
+
+  let leadId = clientUser.leadId;
+  if (!leadId) {
+    const [existingLead] = await db
+      .select({ id: leadsTable.id })
+      .from(leadsTable)
+      .where(eq(leadsTable.cpf, cleanCpf))
+      .limit(1);
+    
+    if (existingLead) {
+      leadId = existingLead.id;
+      await db.update(usersTable).set({ leadId }).where(eq(usersTable.id, clientUser.id));
+    }
+  }
+
+  if (!leadId) {
+    res.status(404).json({ error: "Cadastro do cliente incompleto (Lead não encontrado)." });
+    return;
+  }
+
+  const [lead] = await db
+    .select()
+    .from(leadsTable)
+    .where(eq(leadsTable.id, leadId))
+    .limit(1);
+
+  if (!lead) {
+    res.status(404).json({ error: "Lead não encontrado." });
+    return;
+  }
+
+  const { brokerId, correspondentId } = await getUserBrokerOrCorrespondentId(sessionUser);
+  if (!brokerId) {
+    res.status(400).json({ error: "Corretor sem cadastro ativo." });
+    return;
+  }
+
+  if (lead.brokerId) {
+    if (lead.brokerId === brokerId) {
+      res.status(400).json({ error: "Você já está vinculado a este cliente." });
+      return;
+    } else {
+      res.status(400).json({ error: "Este cliente já está vinculado a outro corretor." });
+      return;
+    }
+  }
+
+  // 2. Atualizar o lead
+  const updates: Record<string, any> = {
+    brokerId,
+  };
+  if (correspondentId) {
+    updates.correspondentId = correspondentId;
+    updates.linkedCorrespondentId = correspondentId;
+  }
+
+  await db.update(leadsTable).set(updates).where(eq(leadsTable.id, leadId));
+
+  // 3. Incrementar totalLeads do corretor
+  await db
+    .update(brokersTable)
+    .set({ totalLeads: sql`${brokersTable.totalLeads} + 1` })
+    .where(eq(brokersTable.id, brokerId));
+
+  // 4. Criar notificação para o cliente
+  await db.insert(notificationsTable).values({
+    userId: clientUser.id,
+    type: "lead_status",
+    leadId: lead.id,
+    leadName: lead.name,
+    message: `Você foi vinculado ao corretor ${sessionUser.name}.`,
+    isRead: false,
+  });
+
+  res.json({ ok: true, leadId });
+});
+
 router.get("/:id", async (req, res) => {
   const parsed = GetLeadParams.safeParse({ id: Number(req.params.id) });
   if (!parsed.success) {
@@ -643,15 +859,15 @@ router.get("/:id", async (req, res) => {
     return;
   }
 
-  const sessionUser = await getSessionUser(req);
-  if (sessionUser?.role === "client" && sessionUser.leadId !== parsed.data.id) {
-    res.status(403).json({ error: "Acesso negado a este lead." });
-    return;
-  }
-
   const [lead] = await db.select().from(leadsTable).where(eq(leadsTable.id, parsed.data.id)).limit(1);
   if (!lead) {
     res.status(404).json({ error: "Lead not found" });
+    return;
+  }
+
+  const sessionUser = await getSessionUser(req);
+  if (!await hasAccessToLead(sessionUser, lead)) {
+    res.status(403).json({ error: "Acesso negado a este lead." });
     return;
   }
 
@@ -693,7 +909,15 @@ router.put("/:id", async (req, res) => {
     return;
   }
 
+  if (!await hasAccessToLead(sessionUser, existing)) {
+    res.status(403).json({ error: "Acesso negado a este lead." });
+    return;
+  }
+
   const updateData: Record<string, any> = { ...bodyParsed.data, updatedAt: new Date() };
+  if (sessionUser?.role === "broker") {
+    delete updateData.brokerId;
+  }
   if (bodyParsed.data.income !== undefined || bodyParsed.data.propertyValue !== undefined) {
     const breakdown = computeScore({
       income: bodyParsed.data.income ?? existing.income,
@@ -784,6 +1008,17 @@ router.delete("/:id", async (req, res) => {
     return;
   }
 
+  const [existing] = await db.select().from(leadsTable).where(eq(leadsTable.id, parsed.data.id)).limit(1);
+  if (!existing) {
+    res.status(404).json({ error: "Lead not found" });
+    return;
+  }
+
+  if (!await hasAccessToLead(sessionUser, existing)) {
+    res.status(403).json({ error: "Acesso negado a este lead." });
+    return;
+  }
+
   await db.delete(leadsTable).where(eq(leadsTable.id, parsed.data.id));
   res.status(204).send();
 });
@@ -809,6 +1044,11 @@ router.put("/:id/enrich", async (req, res) => {
   const [existing] = await db.select().from(leadsTable).where(eq(leadsTable.id, paramsParsed.data.id)).limit(1);
   if (!existing) {
     res.status(404).json({ error: "Lead not found" });
+    return;
+  }
+
+  if (!await hasAccessToLead(sessionUser, existing)) {
+    res.status(403).json({ error: "Acesso negado a este lead." });
     return;
   }
 
@@ -889,15 +1129,15 @@ router.get("/:id/score", async (req, res) => {
     return;
   }
 
-  const sessionUser = await getSessionUser(req);
-  if (sessionUser?.role === "client" && sessionUser.leadId !== parsed.data.id) {
-    res.status(403).json({ error: "Acesso negado a este lead." });
-    return;
-  }
-
   const [lead] = await db.select().from(leadsTable).where(eq(leadsTable.id, parsed.data.id)).limit(1);
   if (!lead) {
     res.status(404).json({ error: "Lead not found" });
+    return;
+  }
+
+  const sessionUser = await getSessionUser(req);
+  if (!await hasAccessToLead(sessionUser, lead)) {
+    res.status(403).json({ error: "Acesso negado a este lead." });
     return;
   }
 

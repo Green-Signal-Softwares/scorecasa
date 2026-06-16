@@ -307,7 +307,7 @@ export function ClientDividas() {
           <div className="w-6 h-6 border-2 border-gray-300 border-t-[#0D1B8C] rounded-full animate-spin" />
         </div>
       ) : (
-        <div className="max-w-3xl space-y-5">
+        <div className="w-full space-y-5">
           {/* Aviso de privacidade */}
           <div className="rounded-xl p-4 flex items-start gap-3" style={{ background: "#F0FDF4", border: "1px solid #10A65A33" }}>
             <ShieldCheck className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: "#10A65A" }} />

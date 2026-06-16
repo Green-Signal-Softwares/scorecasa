@@ -122,56 +122,56 @@ function BankRow({
           : undefined
       }
       data-testid={`bankrow-${offerToBankSlug(offer.bank) ?? "x"}`}
-      className={`rounded-xl border transition-all ${
-        canPick ? "cursor-pointer hover:shadow-md" : "cursor-default"
+      className={`rounded-2xl border transition-all bg-white overflow-hidden ${
+        canPick ? "cursor-pointer hover:shadow-md hover:border-gray-300" : "cursor-default"
       }`}
       style={{
         borderColor: selected
           ? "#10A65A"
           : offer.isBest
           ? offer.color
-          : "hsl(var(--border))",
+          : "#E5E7EB",
         borderWidth: selected || offer.isBest ? 2 : 1,
-        background: selected ? "#ECFDF5" : undefined,
+        background: selected ? "#F0FDF4" : undefined,
       }}
     >
       {selected && (
         <div
-          className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold rounded-t-xl"
-          style={{ background: "#10A65A", color: "#fff" }}
+          className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white uppercase tracking-wider"
+          style={{ background: "#10A65A" }}
         >
-          <CheckCircle className="w-3 h-3" /> Banco escolhido para o seu financiamento
+          <CheckCircle className="w-3.5 h-3.5" /> Banco escolhido para o seu financiamento
         </div>
       )}
       {/* Best badge */}
-      {offer.isBest && (
+      {offer.isBest && !selected && (
         <div
-          className="flex items-center gap-1.5 px-4 py-1.5 text-xs font-bold rounded-t-xl"
-          style={{ background: offer.color, color: "#fff" }}
+          className="flex items-center gap-1.5 px-4 py-2 text-xs font-bold text-white uppercase tracking-wider"
+          style={{ background: offer.color }}
         >
-          <Star className="w-3 h-3 fill-white" />
+          <Star className="w-3.5 h-3.5 fill-white" />
           Melhor opção para este perfil
         </div>
       )}
 
-      <div className="p-4">
+      <div className="p-5">
         {/* Bank header */}
-        <div className="flex items-start justify-between gap-2 mb-3">
+        <div className="flex items-start justify-between gap-2 mb-4">
           <div className="flex items-center gap-3">
             {/* Color avatar */}
             <div
-              className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-white font-bold text-xs"
+              className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0 text-white font-extrabold text-xs shadow-xs"
               style={{ background: offer.color }}
             >
               {offer.shortName}
             </div>
             <div>
-              <div className="text-sm font-semibold text-foreground leading-tight">
+              <div className="text-sm font-bold text-gray-800 leading-tight">
                 {offer.bank}
               </div>
-              <div className="flex items-center gap-1.5 mt-0.5">
+              <div className="flex items-center gap-1.5 mt-1">
                 <span
-                  className="inline-flex items-center px-2 py-0.5 rounded-full text-xs font-bold"
+                  className="inline-flex items-center px-2.5 py-0.5 rounded-full text-[10px] font-bold uppercase tracking-wider"
                   style={{ color: progUI.color, background: progUI.bg }}
                 >
                   {offer.program}
@@ -182,22 +182,22 @@ function BankRow({
 
           {/* Status badge */}
           <div
-            className="flex items-center gap-1.5 px-2.5 py-1 rounded-full text-xs font-semibold flex-shrink-0"
+            className="flex items-center gap-1.5 px-3 py-1 rounded-full text-xs font-bold flex-shrink-0"
             style={{ color: stUI.color, background: stUI.bg }}
           >
-            <StatusIcon className="w-3 h-3" />
+            <StatusIcon className="w-3.5 h-3.5" />
             {offer.statusLabel}
           </div>
         </div>
 
         {/* Approval bar */}
-        <div className="mb-3">
-          <div className="text-xs text-muted-foreground mb-1">Probabilidade de aprovação</div>
+        <div className="mb-4">
+          <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-1">Probabilidade de aprovação</div>
           <ApprovalBar pct={offer.approvalPct} status={offer.status} />
         </div>
 
         {/* Key metrics grid */}
-        <div className="grid grid-cols-2 gap-2 mb-3">
+        <div className="grid grid-cols-2 md:grid-cols-3 gap-3 mb-4">
           <MetricCell
             label="Juros efetivos"
             value={fmtRate(offer.annualRate)}
@@ -222,7 +222,7 @@ function BankRow({
             {offer.highlights.map((h) => (
               <span
                 key={h}
-                className="text-xs px-2 py-0.5 rounded-full"
+                className="text-[10px] font-bold uppercase tracking-wider px-2.5 py-0.5 rounded-full"
                 style={{ background: offer.bgColor, color: offer.color }}
               >
                 {h}
@@ -233,10 +233,10 @@ function BankRow({
 
         {/* Restrictions */}
         {offer.restrictions.length > 0 && (
-          <div className="mt-2 space-y-1">
+          <div className="mt-3 space-y-1.5">
             {offer.restrictions.map((r) => (
-              <div key={r} className="flex items-center gap-1.5 text-xs" style={{ color: "#991B1B" }}>
-                <AlertCircle className="w-3 h-3 flex-shrink-0" />
+              <div key={r} className="flex items-center gap-1.5 text-xs font-semibold" style={{ color: "#991B1B" }}>
+                <AlertCircle className="w-3.5 h-3.5 flex-shrink-0" />
                 {r}
               </div>
             ))}
@@ -262,18 +262,18 @@ function MetricCell({
 }) {
   return (
     <div
-      className="rounded-lg p-2.5"
-      style={{ background: highlight ? "#D1FAE5" : "hsl(var(--muted))" }}
+      className="rounded-xl p-3 border border-gray-100"
+      style={{ background: highlight ? "#D1FAE5" : "#F9FAFB" }}
     >
-      <div className="text-xs text-muted-foreground leading-tight mb-0.5">{label}</div>
+      <div className="text-[10px] text-gray-400 font-bold uppercase tracking-wider mb-0.5">{label}</div>
       <div
-        className={`text-sm leading-tight ${bold ? "font-bold" : "font-semibold"} text-foreground`}
+        className={`text-sm leading-tight ${bold ? "font-extrabold" : "font-bold"} text-gray-800`}
         style={highlight ? { color: "#065F46" } : undefined}
       >
         {value}
       </div>
       {sub && (
-        <div className="text-xs text-muted-foreground mt-0.5 leading-tight">{sub}</div>
+        <div className="text-[10px] text-gray-400 mt-0.5 leading-tight">{sub}</div>
       )}
     </div>
   );
@@ -295,10 +295,6 @@ export function BankComparison({
   onFocusConsumed,
 }: {
   lead: LeadInput;
-  // Slug do banco vindo do pivot SBPE — quando presente, a comparação faz
-  // scroll automático até a linha desse banco e destaca os parâmetros SBPE
-  // pré-aplicados (prazo, LTV, parcela). `onFocusConsumed` é disparado depois
-  // do scroll para o pai poder limpar o foco e evitar re-aplicar a cada render.
   focusBankSlug?: string | null;
   sbpePivot?: SbpePivotFocus | null;
   onFocusConsumed?: () => void;
@@ -314,7 +310,6 @@ export function BankComparison({
     if (el) {
       el.scrollIntoView({ behavior: "smooth", block: "center" });
     }
-    // Mantém o foco visual por alguns segundos; depois libera o estado no pai.
     const t = window.setTimeout(() => onFocusConsumed?.(), 4000);
     return () => window.clearTimeout(t);
   }, [focusBankSlug, onFocusConsumed]);
@@ -344,34 +339,38 @@ export function BankComparison({
   ).length;
 
   return (
-    <div className="space-y-4">
+    <div className="space-y-6">
       {/* Summary banner */}
-      <div className="rounded-xl p-4 border border-card-border" style={{ background: "hsl(var(--muted))" }}>
+      <div className="rounded-2xl p-5 border border-gray-100 bg-white shadow-sm space-y-4">
         <div className="flex items-start gap-3">
-          <Info className="w-4 h-4 flex-shrink-0 mt-0.5 text-muted-foreground" />
-          <div className="space-y-1 text-xs text-muted-foreground">
-            <p>
-              Análise baseada nos dados do lead e taxas de mercado de maio/2026.{" "}
-              <strong className="text-foreground">
-                {eligibleCount} {eligibleCount === 1 ? "opção" : "opções"} de crédito
-              </strong>{" "}
-              com perfil favorável.
-            </p>
-            <p>
-              Renda composta:{" "}
-              <strong className="text-foreground">{fmtBRL(totalIncome)}/mês</strong> ·
-              Imóvel:{" "}
-              <strong className="text-foreground">{fmtBRL(lead.propertyValue)}</strong> ·
-              MCMV:{" "}
-              <strong style={{ color: mcmvEligible ? "#065F46" : "#991B1B" }}>
-                {mcmvEligible ? "Elegível" : "Fora do perfil"}
-              </strong>
-            </p>
-            <p className="italic">
-              Parcelas calculadas pelo sistema Price (tabela de amortização constante). Valores
-              estimados — sujeitos à análise de crédito de cada instituição.
-            </p>
+          <div className="w-8 h-8 rounded-lg bg-blue-50 flex items-center justify-center text-blue-600 flex-shrink-0">
+            <Info className="w-4 h-4" />
           </div>
+          <div>
+            <h4 className="font-bold text-sm text-[#07113A]">Parâmetros de Simulação</h4>
+            <p className="text-xs text-gray-400">Taxas e ofertas calculadas com base no mercado imobiliário e seu perfil.</p>
+          </div>
+        </div>
+
+        <div className="grid grid-cols-1 sm:grid-cols-3 gap-3">
+          <div className="bg-gray-50/50 border border-gray-100/80 rounded-xl p-3">
+            <div className="text-[10px] text-gray-400 uppercase font-bold">Renda Composta</div>
+            <div className="text-sm font-extrabold text-gray-800 mt-0.5">{fmtBRL(totalIncome)}/mês</div>
+          </div>
+          <div className="bg-gray-50/50 border border-gray-100/80 rounded-xl p-3">
+            <div className="text-[10px] text-gray-400 uppercase font-bold">Valor do Imóvel</div>
+            <div className="text-sm font-extrabold text-gray-800 mt-0.5">{fmtBRL(lead.propertyValue)}</div>
+          </div>
+          <div className="bg-gray-50/50 border border-gray-100/80 rounded-xl p-3">
+            <div className="text-[10px] text-gray-400 uppercase font-bold">Programa MCMV</div>
+            <div className={`text-sm font-extrabold mt-0.5 ${mcmvEligible ? "text-[#10A65A]" : "text-gray-500"}`}>
+              {mcmvEligible ? "Elegível" : "Não Elegível"}
+            </div>
+          </div>
+        </div>
+
+        <div className="text-[11px] text-gray-400 italic pt-2 border-t border-gray-100">
+          * {eligibleCount} {eligibleCount === 1 ? "opção disponível" : "opções disponíveis"} com base no seu perfil. Parcelas estimadas via tabela Price.
         </div>
       </div>
 

@@ -93,6 +93,9 @@ function Router() {
       <Route path="/portal/score" component={ClientHistoricoScore} />
       <Route path="/portal/pagamentos" component={ClientPagamentos} />
       <Route path="/portal/dividas" component={ClientDividas} />
+      <Route path="/portal/analise" component={ClientPortal} />
+      <Route path="/portal/gps" component={ClientPortal} />
+      <Route path="/portal/bancos" component={ClientPortal} />
       <Route path="/portal" component={ClientPortal} />
 
       <Route path="/p/:id">
