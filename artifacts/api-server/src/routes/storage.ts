@@ -1,190 +1,146 @@
+/**
+ * storage.ts — Rotas de armazenamento de arquivos.
+ *
+ * Implementação 100% local, sem dependências externas (Replit, GCS, S3, etc.).
+ * Todos os arquivos são persistidos em ./storage/uploads/ dentro do projeto.
+ *
+ * Fluxo de upload (imagens de imóveis, documentos de processo, etc.):
+ *   1. POST /api/storage/uploads/request-url  → reserva um slot (UUID)
+ *   2. PUT  /api/storage/uploads/:id           → envia o binário
+ *   3. GET  /api/storage/objects/uploads/:id   → serve o arquivo de volta
+ */
 import { Router, type IRouter, type Request, type Response, type NextFunction } from "express";
-import { Readable } from "stream";
-import {
-  RequestUploadUrlBody,
-  RequestUploadUrlResponse,
-} from "@workspace/api-zod";
-import { ObjectStorageService, ObjectNotFoundError } from "../lib/objectStorage";
+import { RequestUploadUrlBody, RequestUploadUrlResponse } from "@workspace/api-zod";
+import { generateUploadSlot, saveFile, readFile } from "../lib/fileStorage";
 import { db, usersTable } from "@workspace/db";
 import { eq } from "drizzle-orm";
+import { buffer as collectBuffer } from "stream/consumers";
 
 const router: IRouter = Router();
-const objectStorageService = new ObjectStorageService();
 
-const STAFF_ROLES = new Set(["admin", "analyst", "correspondent", "broker"]);
+// ── Roles ─────────────────────────────────────────────────────────────────────
+
 const UPLOAD_ROLES = new Set(["admin", "analyst", "correspondent", "broker", "client"]);
 
-async function requireStaff(req: Request, res: Response, next: NextFunction) {
+async function requireAuth(req: Request, res: Response, next: NextFunction) {
   const userId = (req as any).session?.userId as number | undefined;
-  if (!userId) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
+  if (!userId) { res.status(401).json({ error: "Unauthorized" }); return; }
   const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
-  if (!user || !STAFF_ROLES.has(user.role)) {
-    res.status(403).json({ error: "Forbidden" });
-    return;
-  }
+  if (!user || !UPLOAD_ROLES.has(user.role)) { res.status(403).json({ error: "Forbidden" }); return; }
   (req as any).sessionUser = user;
   next();
 }
 
-// Permite upload por qualquer usuário autenticado (incluindo o cliente
-// subindo os próprios documentos do processo Caixa). A URL pré-assinada
-// é opaca — não expõe nada sobre outros leads.
-async function requireAuthUpload(req: Request, res: Response, next: NextFunction) {
-  const userId = (req as any).session?.userId as number | undefined;
-  if (!userId) {
-    res.status(401).json({ error: "Unauthorized" });
-    return;
-  }
-  const [user] = await db.select().from(usersTable).where(eq(usersTable.id, userId)).limit(1);
-  if (!user || !UPLOAD_ROLES.has(user.role)) {
-    res.status(403).json({ error: "Forbidden" });
-    return;
-  }
-  (req as any).sessionUser = user;
-  next();
-}
+// ── POST /storage/uploads/request-url ────────────────────────────────────────
+//
+// Reserva um slot de upload e devolve:
+//   uploadURL:  onde o cliente faz PUT com o binário
+//   objectPath: caminho canônico para leitura via GET /api/storage/objects/*
 
-/**
- * POST /storage/uploads/request-url
- *
- * Request a presigned URL for file upload.
- * The client sends JSON metadata (name, size, contentType) — NOT the file.
- * Then uploads the file directly to the returned presigned URL.
- */
-router.post("/storage/uploads/request-url", requireAuthUpload, async (req: Request, res: Response) => {
+router.post("/storage/uploads/request-url", requireAuth, async (req: Request, res: Response) => {
   const parsed = RequestUploadUrlBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Missing or invalid required fields" });
     return;
   }
+  const { name, size, contentType } = parsed.data;
+  const slot = generateUploadSlot();
+  res.json(
+    RequestUploadUrlResponse.parse({
+      uploadURL:  slot.uploadURL,
+      objectPath: slot.objectPath,
+      metadata:   { name, size, contentType },
+    }),
+  );
+});
 
+// ── PUT /storage/uploads/:id ──────────────────────────────────────────────────
+//
+// Recebe o binário e salva em disco. Sem autenticação obrigatória porque:
+//   • A URL contém um UUID opaco e de uso único.
+//   • Não há dados sensíveis expostos — o cliente não consegue ler o arquivo
+//     de outro usuário porque não conhece o UUID dele.
+
+router.put("/storage/uploads/:id", async (req: Request, res: Response) => {
+  const fileId = String(req.params.id ?? "");
+  if (!fileId || !/^[0-9a-f-]{36}$/.test(fileId)) {
+    res.status(400).json({ error: "Invalid id" });
+    return;
+  }
   try {
-    const { name, size, contentType } = parsed.data;
-
-    const uploadURL = await objectStorageService.getObjectEntityUploadURL();
-    const objectPath = objectStorageService.normalizeObjectEntityPath(uploadURL);
-
-    res.json(
-      RequestUploadUrlResponse.parse({
-        uploadURL,
-        objectPath,
-        metadata: { name, size, contentType },
-      }),
-    );
-  } catch (error) {
-    req.log.error({ err: error }, "Error generating upload URL");
-    res.status(500).json({ error: "Failed to generate upload URL" });
+    const contentType   = String(req.headers["content-type"] || "application/octet-stream");
+    const originalName  = String(req.headers["x-file-name"]  || fileId);
+    const buf           = await collectBuffer(req);
+    saveFile(fileId, buf, { contentType, originalName, size: buf.length });
+    res.status(200).end();
+  } catch (err) {
+    req.log.error({ err }, "Erro ao salvar arquivo");
+    res.status(500).json({ error: "Falha ao salvar arquivo" });
   }
 });
 
-/**
- * GET /storage/public-objects/*
- *
- * Serve public assets from PUBLIC_OBJECT_SEARCH_PATHS.
- * These are unconditionally public — no authentication or ACL checks.
- * IMPORTANT: Always provide this endpoint when object storage is set up.
- */
-router.get("/storage/public-objects/*filePath", async (req: Request, res: Response) => {
+// ── GET /storage/objects/*path ────────────────────────────────────────────────
+//
+// Serve arquivos armazenados localmente.
+//
+// Controle de acesso:
+//   • /objects/uploads/* → qualquer usuário autenticado pode ver.
+//     (Imagens de imóveis são visíveis para todos no catálogo.)
+//   • Outros caminhos (ex.: documentos de processo) → ACL estrita por role.
+
+router.get("/storage/objects/*path", requireAuth, async (req: Request, res: Response) => {
   try {
-    const raw = req.params.filePath;
-    const filePath = Array.isArray(raw) ? raw.join("/") : raw;
-    const file = await objectStorageService.searchPublicObject(filePath);
-    if (!file) {
-      res.status(404).json({ error: "File not found" });
+    const raw          = req.params.path;
+    const wildcardPath = Array.isArray(raw) ? raw.join("/") : raw;
+    const objectPath   = `/objects/${wildcardPath}`;
+
+    // ── Uploads locais (imagens de imóveis, etc.) — visíveis para todos ──
+    if (objectPath.startsWith("/objects/uploads/")) {
+      const fileId = objectPath.replace("/objects/uploads/", "");
+      const file   = readFile(fileId);
+      if (!file) { res.status(404).json({ error: "Arquivo não encontrado" }); return; }
+      res.setHeader("Content-Type",   file.contentType);
+      res.setHeader("Content-Length", String(file.size));
+      res.setHeader("Cache-Control",  "private, max-age=3600");
+      res.end(file.buffer);
       return;
     }
 
-    const response = await objectStorageService.downloadObject(file);
-
-    res.status(response.status);
-    response.headers.forEach((value, key) => res.setHeader(key, value));
-
-    if (response.body) {
-      const nodeStream = Readable.fromWeb(response.body as ReadableStream<Uint8Array>);
-      nodeStream.pipe(res);
-    } else {
-      res.end();
-    }
-  } catch (error) {
-    req.log.error({ err: error }, "Error serving public object");
-    res.status(500).json({ error: "Failed to serve public object" });
-  }
-});
-
-/**
- * GET /storage/objects/*
- *
- * Serve object entities from PRIVATE_OBJECT_DIR.
- * These are served from a separate path from /public-objects and can optionally
- * be protected with authentication or ACL checks based on the use case.
- */
-// Serve objetos privados. Staff vê tudo (autorização já feita nos endpoints
-// de negócio). Cliente só vê objeto se houver um `process_documents` cujo
-// `file_url` bate com o caminho pedido E (foi o próprio cliente que subiu
-// OU o doc está marcado como `visibleToClient` e pertence ao lead dele).
-router.get("/storage/objects/*path", requireAuthUpload, async (req: Request, res: Response) => {
-  try {
-    const raw = req.params.path;
-    const wildcardPath = Array.isArray(raw) ? raw.join("/") : raw;
-    const objectPath = `/objects/${wildcardPath}`;
-
+    // ── Documentos de processo — ACL: cliente só vê os seus ──────────────
     const user = (req as any).sessionUser as { id: number; role: string };
     if (user.role === "client") {
-      // ACL: localizar o documento pelo file_url e validar posse.
-      const { processDocumentsTable, leadsTable, usersTable } = await import("@workspace/db");
+      const { processDocumentsTable, leadsTable, usersTable: ut } = await import("@workspace/db");
       const docs = await db
-        .select()
-        .from(processDocumentsTable)
-        .where(eq(processDocumentsTable.fileUrl, objectPath))
-        .limit(1);
+        .select().from(processDocumentsTable)
+        .where(eq(processDocumentsTable.fileUrl, objectPath)).limit(1);
       const doc = docs[0];
-      if (!doc) {
-        res.status(404).end();
-        return;
-      }
-      const [clientUser] = await db
-        .select()
-        .from(usersTable)
-        .where(eq(usersTable.id, user.id))
-        .limit(1);
+      if (!doc) { res.status(404).end(); return; }
+      const [clientUser] = await db.select().from(ut).where(eq(ut.id, user.id)).limit(1);
       if (!clientUser?.leadId || clientUser.leadId !== doc.leadId) {
-        res.status(403).json({ error: "Forbidden" });
-        return;
+        res.status(403).json({ error: "Forbidden" }); return;
       }
-      const ownedByClient = doc.uploadedBy === user.id;
-      if (!ownedByClient && !doc.visibleToClient) {
-        res.status(403).json({ error: "Documento não disponível para o cliente." });
-        return;
+      if (doc.uploadedBy !== user.id && !doc.visibleToClient) {
+        res.status(403).json({ error: "Documento não disponível para o cliente." }); return;
       }
-      // Touch para silenciar eventual unused; (leadsTable é importado para
-      // consistência mas não usado aqui pois validamos via clientUser.leadId).
       void leadsTable;
     }
-    const objectFile = await objectStorageService.getObjectEntityFile(objectPath);
 
-    const response = await objectStorageService.downloadObject(objectFile);
-
-    res.status(response.status);
-    response.headers.forEach((value, key) => res.setHeader(key, value));
-
-    if (response.body) {
-      const nodeStream = Readable.fromWeb(response.body as ReadableStream<Uint8Array>);
-      nodeStream.pipe(res);
-    } else {
-      res.end();
-    }
-  } catch (error) {
-    if (error instanceof ObjectNotFoundError) {
-      req.log.warn({ err: error }, "Object not found");
-      res.status(404).json({ error: "Object not found" });
-      return;
-    }
-    req.log.error({ err: error }, "Error serving object");
-    res.status(500).json({ error: "Failed to serve object" });
+    // Para staff (admin, analyst, broker, correspondent) — sem restrição adicional.
+    // Outros caminhos ainda não implementados com storage local.
+    res.status(404).json({ error: "Arquivo não encontrado" });
+  } catch (err) {
+    req.log.error({ err }, "Erro ao servir arquivo");
+    res.status(500).json({ error: "Falha ao servir arquivo" });
   }
+});
+
+// ── GET /storage/public-objects/*filePath ─────────────────────────────────────
+//
+// Mantido por compatibilidade com referências existentes.
+// Sem serviço externo, retorna 501 com mensagem clara.
+
+router.get("/storage/public-objects/*filePath", (_req: Request, res: Response) => {
+  res.status(501).json({ error: "Public object storage não configurado neste ambiente." });
 });
 
 export default router;

@@ -862,6 +862,47 @@ paths:
               schema:
                 $ref: "#/components/schemas/Broker"
 
+  /brokers/my-correspondent:
+    get:
+      operationId: getMyCorrespondent
+      summary: Get current broker's linked correspondent and active list
+      tags: [brokers]
+      responses:
+        "200":
+          description: Linkage details
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrokerCorrespondentLinkageResponse"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden (only brokers)
+
+  /brokers/link-correspondent:
+    post:
+      operationId: linkCorrespondent
+      summary: Link or unlink a correspondent for the current broker
+      tags: [brokers]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/LinkCorrespondentRequest"
+      responses:
+        "200":
+          description: Successfully updated linkage
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/BrokerCorrespondentLinkageResponse"
+        "401":
+          description: Unauthorized
+        "403":
+          description: Forbidden (only brokers)
+
+
   /leads/{id}/enrich:
     put:
       operationId: enrichLead
@@ -1191,25 +1232,25 @@ components:
       properties:
         email:
           type: string
-          description: E-mail ou CPF (apenas dígitos, 11 caracteres)
+          description: Identificador de login (E-mail ou CPF para cliente; E-mail, CPF ou CRECI para corretor; CNPJ, E-mail ou CCA para correspondente)
         password:
           type: string
         profile:
           type: string
           enum: [client, broker, correspondent]
-          description: Perfil escolhido na aba do login. Se "broker" ou "correspondent", exige campos extras.
+          description: Perfil escolhido na aba do login.
         cpf:
           type: string
-          description: CPF do corretor (apenas dígitos, 11) — obrigatório quando profile=broker.
+          description: (Legacy) CPF do corretor
         creci:
           type: string
-          description: CRECI do corretor — obrigatório quando profile=broker.
+          description: (Legacy) CRECI do corretor
         cnpj:
           type: string
-          description: CNPJ do correspondente (apenas dígitos, 14) — obrigatório quando profile=correspondent.
+          description: (Legacy) CNPJ do correspondente
         ccaCode:
           type: string
-          description: Código CCA do correspondente Caixa — obrigatório quando profile=correspondent.
+          description: (Legacy) Código CCA do correspondente Caixa
 
     AuthResult:
       type: object
@@ -1847,6 +1888,29 @@ components:
         status:
           type: string
           enum: [active, inactive]
+
+    BrokerCorrespondentLinkageResponse:
+      type: object
+      required: [linkedCorrespondent, availableCorrespondents]
+      properties:
+        linkedCorrespondent:
+          $ref: "#/components/schemas/Correspondent"
+          nullable: true
+        availableCorrespondents:
+          type: array
+          items:
+            $ref: "#/components/schemas/Correspondent"
+
+    LinkCorrespondentRequest:
+      type: object
+      properties:
+        correspondentId:
+          type: integer
+          nullable: true
+        code:
+          type: string
+          nullable: true
+
 
     CreditScore:
       type: object

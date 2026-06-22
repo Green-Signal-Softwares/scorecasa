@@ -148,90 +148,90 @@ export function Brokers() {
       <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
         {isLoading
           ? Array.from({ length: 6 }).map((_, i) => (
-              <Skeleton key={i} className="h-44 rounded-xl" />
-            ))
+            <Skeleton key={i} className="h-44 rounded-xl" />
+          ))
           : (brokers ?? []).map((broker) => {
-              const isActive = broker.status === "active";
-              const approvalRate = broker.totalLeads > 0
-                ? Math.round((broker.approvedLeads / broker.totalLeads) * 100)
-                : 0;
+            const isActive = broker.status === "active";
+            const approvalRate = broker.totalLeads > 0
+              ? Math.round((broker.approvedLeads / broker.totalLeads) * 100)
+              : 0;
 
-              return (
-                <div
-                  key={broker.id}
-                  className="bg-card rounded-xl border border-card-border p-5 shadow-sm"
-                  data-testid={`card-broker-${broker.id}`}
-                >
-                  <div className="flex items-start justify-between mb-3">
-                    <div className="flex items-center gap-3">
-                      <div
-                        className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white text-sm"
-                        style={{ background: "#0D1B8C" }}
-                      >
-                        {broker.name.split(" ").map((n) => n[0]).slice(0, 2).join("")}
-                      </div>
-                      <div>
-                        <div className="font-semibold text-sm text-foreground">{broker.name}</div>
-                        <div className="text-xs text-muted-foreground">{broker.creci}</div>
-                      </div>
-                    </div>
-                    <button
-                      onClick={() => toggleStatus(broker.id, broker.status)}
-                      className="text-muted-foreground hover:text-foreground transition-colors"
-                      data-testid={`button-toggle-broker-${broker.id}`}
+            return (
+              <div
+                key={broker.id}
+                className="bg-card rounded-xl border border-card-border p-5 shadow-sm"
+                data-testid={`card-broker-${broker.id}`}
+              >
+                <div className="flex items-start justify-between mb-3">
+                  <div className="flex items-center gap-3">
+                    <div
+                      className="w-10 h-10 rounded-xl flex items-center justify-center font-bold text-white text-sm"
+                      style={{ background: "#0D1B8C" }}
                     >
-                      {isActive
-                        ? <ToggleRight className="w-5 h-5" style={{ color: "#10A65A" }} />
-                        : <ToggleLeft className="w-5 h-5 text-muted-foreground" />
-                      }
-                    </button>
-                  </div>
-
-                  <div className="space-y-1 mb-3">
-                    <div className="text-xs text-muted-foreground">{broker.email}</div>
-                    <div className="text-xs text-muted-foreground">{broker.phone}</div>
-                  </div>
-
-                  <div className="border-t border-border/50 pt-3 grid grid-cols-3 gap-2 text-center">
-                    <div>
-                      <div className="text-base font-bold text-foreground">{broker.totalLeads}</div>
-                      <div className="text-xs text-muted-foreground">Leads</div>
+                      {broker.name.split(" ").map((n) => n[0]).slice(0, 2).join("")}
                     </div>
                     <div>
-                      <div className="text-base font-bold" style={{ color: "#10A65A" }}>{broker.approvedLeads}</div>
-                      <div className="text-xs text-muted-foreground">Aprovados</div>
-                    </div>
-                    <div>
-                      <div className="text-base font-bold" style={{ color: approvalRate >= 60 ? "#10A65A" : approvalRate >= 40 ? "#F59E0B" : "#EF4444" }}>
-                        {approvalRate}%
-                      </div>
-                      <div className="text-xs text-muted-foreground">Taxa</div>
+                      <div className="font-semibold text-sm text-foreground">{broker.name}</div>
+                      <div className="text-xs text-muted-foreground">{broker.creci}</div>
                     </div>
                   </div>
+                  <button
+                    onClick={() => toggleStatus(broker.id, broker.status)}
+                    className="text-muted-foreground hover:text-foreground transition-colors"
+                    data-testid={`button-toggle-broker-${broker.id}`}
+                  >
+                    {isActive
+                      ? <ToggleRight className="w-5 h-5" style={{ color: "#10A65A" }} />
+                      : <ToggleLeft className="w-5 h-5 text-muted-foreground" />
+                    }
+                  </button>
+                </div>
 
-                  <div className="mt-3">
-                    <div className="h-1.5 bg-muted rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full transition-all"
-                        style={{
-                          width: `${approvalRate}%`,
-                          background: approvalRate >= 60 ? "#10A65A" : approvalRate >= 40 ? "#F59E0B" : "#EF4444",
-                        }}
-                      />
-                    </div>
+                <div className="space-y-1 mb-3">
+                  <div className="text-xs text-muted-foreground">{broker.email}</div>
+                  <div className="text-xs text-muted-foreground">{broker.phone}</div>
+                </div>
+
+                <div className="border-t border-border/50 pt-3 grid grid-cols-3 gap-2 text-center">
+                  <div>
+                    <div className="text-base font-bold text-foreground">{broker.totalLeads}</div>
+                    <div className="text-xs text-muted-foreground">Leads</div>
                   </div>
-
-                  <div className="mt-3 text-center">
-                    <span
-                      className="text-xs px-2 py-0.5 rounded-full font-medium"
-                      style={isActive ? { color: "#065F46", background: "#D1FAE5" } : { color: "#374151", background: "#F3F4F6" }}
-                    >
-                      {isActive ? "Ativo" : "Inativo"}
-                    </span>
+                  <div>
+                    <div className="text-base font-bold" style={{ color: "#10A65A" }}>{broker.approvedLeads}</div>
+                    <div className="text-xs text-muted-foreground">Aprovados</div>
+                  </div>
+                  <div>
+                    <div className="text-base font-bold" style={{ color: approvalRate >= 60 ? "#10A65A" : approvalRate >= 40 ? "#F59E0B" : "#EF4444" }}>
+                      {approvalRate}%
+                    </div>
+                    <div className="text-xs text-muted-foreground">Taxa</div>
                   </div>
                 </div>
-              );
-            })}
+
+                <div className="mt-3">
+                  <div className="h-1.5 bg-muted rounded-full overflow-hidden">
+                    <div
+                      className="h-full rounded-full transition-all"
+                      style={{
+                        width: `${approvalRate}%`,
+                        background: approvalRate >= 60 ? "#10A65A" : approvalRate >= 40 ? "#F59E0B" : "#EF4444",
+                      }}
+                    />
+                  </div>
+                </div>
+
+                <div className="mt-3 text-center">
+                  <span
+                    className="text-xs px-2 py-0.5 rounded-full font-medium"
+                    style={isActive ? { color: "#065F46", background: "#D1FAE5" } : { color: "#374151", background: "#F3F4F6" }}
+                  >
+                    {isActive ? "Ativo" : "Inativo"}
+                  </span>
+                </div>
+              </div>
+            );
+          })}
       </div>
 
       {!isLoading && (brokers ?? []).length === 0 && (

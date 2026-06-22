@@ -31,16 +31,12 @@ const clientSchema = z.object({
 });
 
 const brokerSchema = z.object({
-  cpf: z.string().refine((v) => v.replace(/\D/g, "").length === 11, "CPF inválido (11 dígitos)"),
-  email: z.string().email("E-mail inválido"),
-  creci: z.string().min(2, "Informe seu CRECI"),
+  identifier: z.string().min(1, "Informe seu e-mail, CPF ou CRECI"),
   password: z.string().min(1, "Senha obrigatória"),
 });
 
 const correspondentSchema = z.object({
-  cnpj: z.string().refine((v) => v.replace(/\D/g, "").length === 14, "CNPJ inválido (14 dígitos)"),
-  email: z.string().email("E-mail inválido"),
-  ccaCode: z.string().min(2, "Informe seu código CCA"),
+  identifier: z.string().min(1, "Informe seu e-mail, CNPJ ou CCA"),
   password: z.string().min(1, "Senha obrigatória"),
 });
 
@@ -162,11 +158,11 @@ export function Login() {
   });
   const brokerForm = useForm<BrokerForm>({
     resolver: zodResolver(brokerSchema),
-    defaultValues: { cpf: "", email: "", creci: "", password: "" },
+    defaultValues: { identifier: "", password: "" },
   });
   const correspondentForm = useForm<CorrespondentForm>({
     resolver: zodResolver(correspondentSchema),
-    defaultValues: { cnpj: "", email: "", ccaCode: "", password: "" },
+    defaultValues: { identifier: "", password: "" },
   });
 
   const handleSuccess = (data: unknown) => {
@@ -190,14 +186,13 @@ export function Login() {
   };
 
   const onBrokerSubmit = (data: BrokerForm) => {
+    const trimmed = data.identifier.trim();
     login.mutate(
       {
         data: {
-          email: data.email.trim().toLowerCase(),
+          email: trimmed,
           password: data.password,
           profile: "broker",
-          cpf: data.cpf.replace(/\D/g, ""),
-          creci: data.creci.trim(),
         },
       },
       {
@@ -209,14 +204,13 @@ export function Login() {
   };
 
   const onCorrespondentSubmit = (data: CorrespondentForm) => {
+    const trimmed = data.identifier.trim();
     login.mutate(
       {
         data: {
-          email: data.email.trim().toLowerCase(),
+          email: trimmed,
           password: data.password,
           profile: "correspondent",
-          cnpj: data.cnpj.replace(/\D/g, ""),
-          ccaCode: data.ccaCode.trim(),
         },
       },
       {
@@ -548,61 +542,18 @@ export function Login() {
                 <form onSubmit={brokerForm.handleSubmit(onBrokerSubmit)} className="space-y-4">
                   <FormField
                     control={brokerForm.control}
-                    name="cpf"
+                    name="identifier"
                     render={({ field }) => (
                       <FormItem>
                         <FormControl>
                           <div className="relative">
-                            <IdCard className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#9CA3AF" }} />
+                            <UserIcon className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#9CA3AF" }} />
                             <Input
                               {...field}
-                              inputMode="numeric"
-                              placeholder="CPF"
+                              type="text"
+                              placeholder="E-mail, CPF ou CRECI"
                               className="pl-11 h-12 rounded-xl bg-gray-50 border-gray-200"
-                              onChange={(e) => field.onChange(maskCPF(e.target.value))}
-                              data-testid="input-broker-cpf"
-                            />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={brokerForm.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormControl>
-                          <div className="relative">
-                            <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#9CA3AF" }} />
-                            <Input
-                              {...field}
-                              type="email"
-                              autoComplete="email"
-                              placeholder="E-mail"
-                              className="pl-11 h-12 rounded-xl bg-gray-50 border-gray-200"
-                              data-testid="input-broker-email"
-                            />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={brokerForm.control}
-                    name="creci"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormControl>
-                          <div className="relative">
-                            <Hash className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#9CA3AF" }} />
-                            <Input
-                              {...field}
-                              placeholder="CRECI"
-                              className="pl-11 h-12 rounded-xl bg-gray-50 border-gray-200"
-                              data-testid="input-broker-creci"
+                              data-testid="input-broker-identifier"
                             />
                           </div>
                         </FormControl>
@@ -652,7 +603,7 @@ export function Login() {
                 <form onSubmit={correspondentForm.handleSubmit(onCorrespondentSubmit)} className="space-y-4">
                   <FormField
                     control={correspondentForm.control}
-                    name="cnpj"
+                    name="identifier"
                     render={({ field }) => (
                       <FormItem>
                         <FormControl>
@@ -660,53 +611,10 @@ export function Login() {
                             <Building2 className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#9CA3AF" }} />
                             <Input
                               {...field}
-                              inputMode="numeric"
-                              placeholder="CNPJ"
+                              type="text"
+                              placeholder="CNPJ, e-mail ou CCA"
                               className="pl-11 h-12 rounded-xl bg-gray-50 border-gray-200"
-                              onChange={(e) => field.onChange(maskCNPJ(e.target.value))}
-                              data-testid="input-corr-cnpj"
-                            />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={correspondentForm.control}
-                    name="email"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormControl>
-                          <div className="relative">
-                            <Mail className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#9CA3AF" }} />
-                            <Input
-                              {...field}
-                              type="email"
-                              autoComplete="email"
-                              placeholder="E-mail"
-                              className="pl-11 h-12 rounded-xl bg-gray-50 border-gray-200"
-                              data-testid="input-corr-email"
-                            />
-                          </div>
-                        </FormControl>
-                        <FormMessage />
-                      </FormItem>
-                    )}
-                  />
-                  <FormField
-                    control={correspondentForm.control}
-                    name="ccaCode"
-                    render={({ field }) => (
-                      <FormItem>
-                        <FormControl>
-                          <div className="relative">
-                            <Hash className="absolute left-3.5 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#9CA3AF" }} />
-                            <Input
-                              {...field}
-                              placeholder="Código CCA (Correspondente Caixa)"
-                              className="pl-11 h-12 rounded-xl bg-gray-50 border-gray-200"
-                              data-testid="input-corr-cca"
+                              data-testid="input-corr-identifier"
                             />
                           </div>
                         </FormControl>

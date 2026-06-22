@@ -3,7 +3,7 @@ import request from "supertest";
 import crypto from "node:crypto";
 import { eq } from "drizzle-orm";
 import app from "../app";
-import { db, leadsTable, usersTable, pool } from "@workspace/db";
+import { db, leadsTable, usersTable, pool, brokersTable } from "@workspace/db";
 
 // Cobre o pivot SBPE no endpoint GET /api/leads/:id/score. Quando o lead
 // possui o blocker `alreadyOwnsPropertyInPropertyCity=true`, a resposta deve
@@ -26,8 +26,22 @@ const brokerEmail = `${tag}-broker@test.local`;
 let leadBlockedId = 0;
 let leadEligibleId = 0;
 let brokerUserId = 0;
+let brokerProfileId = 0;
 
 beforeAll(async () => {
+  // Criar perfil do corretor
+  const [brokerProfile] = await db
+    .insert(brokersTable)
+    .values({
+      name: `Broker Profile ${tag}`,
+      email: brokerEmail,
+      phone: "11999999999",
+      creci: randDigits(6),
+      status: "active",
+    })
+    .returning();
+  brokerProfileId = brokerProfile.id;
+
   // Lead com bloqueador MCMV → deve ativar o pivot SBPE.
   const [blocked] = await db
     .insert(leadsTable)
@@ -46,6 +60,7 @@ beforeAll(async () => {
       propertyCity: "São Paulo",
       propertyState: "SP",
       alreadyOwnsPropertyInPropertyCity: true,
+      brokerId: brokerProfileId,
     })
     .returning();
   leadBlockedId = blocked.id;
@@ -66,6 +81,7 @@ beforeAll(async () => {
       propertyCity: "São Paulo",
       propertyState: "SP",
       alreadyOwnsPropertyInPropertyCity: false,
+      brokerId: brokerProfileId,
     })
     .returning();
   leadEligibleId = eligible.id;
@@ -85,6 +101,7 @@ beforeAll(async () => {
 
 afterAll(async () => {
   if (brokerUserId) await db.delete(usersTable).where(eq(usersTable.id, brokerUserId));
+  if (brokerProfileId) await db.delete(brokersTable).where(eq(brokersTable.id, brokerProfileId));
   if (leadBlockedId) await db.delete(leadsTable).where(eq(leadsTable.id, leadBlockedId));
   if (leadEligibleId) await db.delete(leadsTable).where(eq(leadsTable.id, leadEligibleId));
   await pool.end();

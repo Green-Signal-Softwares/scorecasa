@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, usersTable, leadsTable, subscriptionsTable, passwordResetsTable, PLAN_TIERS, type PlanTierId, brokersTable, correspondentsTable } from "@workspace/db";
-import { and, eq, isNull, gt } from "drizzle-orm";
+import { and, eq, isNull, gt, or } from "drizzle-orm";
 import { LoginBody } from "@workspace/api-zod";
 import crypto from "crypto";
 import { z } from "zod";
@@ -265,28 +265,78 @@ router.post("/login", async (req, res) => {
 
   // ── Perfis Corretor / Correspondente: exigem combinação de identificadores ──
   if (profile === "broker" || profile === "correspondent") {
-    const emailNorm = email.trim().toLowerCase();
-    if (!emailNorm) return denyGeneric();
-    const [user] = await db.select().from(usersTable).where(eq(usersTable.email, emailNorm)).limit(1);
-    if (!user || user.passwordHash !== hashPassword(password)) return denyGeneric();
+    const rawInput = email.trim();
+    if (!rawInput) return denyGeneric();
+
+    let user: any = null;
 
     if (profile === "broker") {
-      if (user.role !== "broker") return denyGeneric();
-      const cpfDigits = (cpfInput ?? "").replace(/\D/g, "");
-      const creciNorm = (creciInput ?? "").trim();
-      if (!cpfDigits || !creciNorm) return denyGeneric();
-      // Backward compat: usuários antigos sem coluna preenchida ainda entram
-      // se a senha bater, mas se a coluna existir ela precisa bater exato.
-      if (user.cpf && user.cpf !== cpfDigits) return denyGeneric();
-      if (user.creci && user.creci !== creciNorm) return denyGeneric();
+      const emailNorm = rawInput.toLowerCase();
+      const digits = rawInput.replace(/\D/g, "");
+      const creciNorm = rawInput;
+
+      const orConditions = [eq(usersTable.email, emailNorm)];
+      if (digits.length === 11) {
+        orConditions.push(eq(usersTable.cpf, digits));
+      }
+      if (creciNorm) {
+        orConditions.push(eq(usersTable.creci, creciNorm));
+      }
+
+      if (cpfInput) {
+        const legacyCpfDigits = cpfInput.replace(/\D/g, "");
+        if (legacyCpfDigits) {
+          orConditions.push(eq(usersTable.cpf, legacyCpfDigits));
+        }
+      }
+      if (creciInput) {
+        const legacyCreciNorm = creciInput.trim();
+        if (legacyCreciNorm) {
+          orConditions.push(eq(usersTable.creci, legacyCreciNorm));
+        }
+      }
+
+      const [foundUser] = await db
+        .select()
+        .from(usersTable)
+        .where(and(eq(usersTable.role, "broker"), or(...orConditions)))
+        .limit(1);
+      user = foundUser;
     } else {
-      if (user.role !== "correspondent") return denyGeneric();
-      const cnpjDigits = (cnpjInput ?? "").replace(/\D/g, "");
-      const ccaNorm = (ccaInput ?? "").trim();
-      if (!cnpjDigits || !ccaNorm) return denyGeneric();
-      if (user.cnpj && user.cnpj !== cnpjDigits) return denyGeneric();
-      if (user.ccaCode && user.ccaCode !== ccaNorm) return denyGeneric();
+      const emailNorm = rawInput.toLowerCase();
+      const digits = rawInput.replace(/\D/g, "");
+      const ccaNorm = rawInput;
+
+      const orConditions = [eq(usersTable.email, emailNorm)];
+      if (digits.length === 14) {
+        orConditions.push(eq(usersTable.cnpj, digits));
+      }
+      if (ccaNorm) {
+        orConditions.push(eq(usersTable.ccaCode, ccaNorm));
+      }
+
+      if (cnpjInput) {
+        const legacyCnpjDigits = cnpjInput.replace(/\D/g, "");
+        if (legacyCnpjDigits) {
+          orConditions.push(eq(usersTable.cnpj, legacyCnpjDigits));
+        }
+      }
+      if (ccaInput) {
+        const legacyCcaNorm = ccaInput.trim();
+        if (legacyCcaNorm) {
+          orConditions.push(eq(usersTable.ccaCode, legacyCcaNorm));
+        }
+      }
+
+      const [foundUser] = await db
+        .select()
+        .from(usersTable)
+        .where(and(eq(usersTable.role, "correspondent"), or(...orConditions)))
+        .limit(1);
+      user = foundUser;
     }
+
+    if (!user || user.passwordHash !== hashPassword(password)) return denyGeneric();
 
     (req as any).session = (req as any).session ?? {};
     (req as any).session.userId = user.id;

@@ -92,7 +92,7 @@ export interface HealthStatus {
 }
 
 /**
- * Perfil escolhido na aba do login. Se "broker" ou "correspondent", exige campos extras.
+ * Perfil escolhido na aba do login.
  */
 export type LoginRequestProfile =
   (typeof LoginRequestProfile)[keyof typeof LoginRequestProfile];
@@ -104,18 +104,18 @@ export const LoginRequestProfile = {
 } as const;
 
 export interface LoginRequest {
-  /** E-mail ou CPF (apenas dígitos, 11 caracteres) */
+  /** Identificador de login (E-mail ou CPF para cliente; E-mail, CPF ou CRECI para corretor; CNPJ, E-mail ou CCA para correspondente) */
   email: string;
   password: string;
-  /** Perfil escolhido na aba do login. Se "broker" ou "correspondent", exige campos extras. */
+  /** Perfil escolhido na aba do login. */
   profile?: LoginRequestProfile;
-  /** CPF do corretor (apenas dígitos, 11) — obrigatório quando profile=broker. */
+  /** (Legacy) CPF do corretor */
   cpf?: string;
-  /** CRECI do corretor — obrigatório quando profile=broker. */
+  /** (Legacy) CRECI do corretor */
   creci?: string;
-  /** CNPJ do correspondente (apenas dígitos, 14) — obrigatório quando profile=correspondent. */
+  /** (Legacy) CNPJ do correspondente */
   cnpj?: string;
-  /** Código CCA do correspondente Caixa — obrigatório quando profile=correspondent. */
+  /** (Legacy) Código CCA do correspondente Caixa */
   ccaCode?: string;
 }
 
@@ -533,6 +533,16 @@ export interface UpdateBrokerRequest {
   email?: string;
   phone?: string;
   status?: UpdateBrokerRequestStatus;
+}
+
+export interface BrokerCorrespondentLinkageResponse {
+  linkedCorrespondent: Correspondent | null;
+  availableCorrespondents: Correspondent[];
+}
+
+export interface LinkCorrespondentRequest {
+  correspondentId?: number | null;
+  code?: string | null;
 }
 
 export type ScoreFactorImpact =

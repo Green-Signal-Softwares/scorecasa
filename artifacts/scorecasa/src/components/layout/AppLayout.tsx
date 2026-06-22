@@ -1,5 +1,5 @@
 import { useLocation, Link } from "wouter";
-import { LayoutDashboard, Users, UserCheck, Trophy, LogOut, Menu, X, Building2, CreditCard, ClipboardList, Star, Workflow, Plug, Percent } from "lucide-react";
+import { LayoutDashboard, Users, UserCheck, Trophy, LogOut, Menu, X, Building2, CreditCard, ClipboardList, Star, Workflow, Plug, Percent, Handshake } from "lucide-react";
 import { useState } from "react";
 import { useLogout, useGetMe, useGetMySubscription } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
@@ -16,15 +16,15 @@ const ROLE_LABELS: Record<string, { label: string; color: string; bg: string }> 
 };
 
 // Nav items per role
-function getNavItems(role: string, marketplaceAddon: boolean) {
+function getNavItems(role: string, hasMarketplaceAccess: boolean) {
   const base = [
     { href: "/dashboard", label: "Resumo", icon: LayoutDashboard },
     { href: "/leads", label: "Leads", icon: Users },
   ];
 
-  // Aba Imóveis: corretor só vê se tiver contratado o add-on de Vitrine.
+  // Aba Imóveis: corretor só vê se tiver contratado o add-on de Vitrine ou se o plano for imobiliaria/enterprise.
   // Admin, analista, correspondente e cliente sempre veem (estes últimos só visualizam).
-  const showImoveis = role === "broker" ? marketplaceAddon : true;
+  const showImoveis = role === "broker" ? hasMarketplaceAccess : true;
   if (showImoveis) {
     base.push({ href: "/imoveis", label: "Imóveis", icon: Building2 });
   }
@@ -42,6 +42,10 @@ function getNavItems(role: string, marketplaceAddon: boolean) {
       { href: "/historico", label: "Histórico", icon: ClipboardList },
       { href: "/avaliacoes", label: "Avaliações", icon: Star },
     );
+  }
+
+  if (role === "broker") {
+    base.push({ href: "/dashboard/correspondente", label: "Correspondente", icon: Handshake });
   }
 
   if (["correspondent", "admin", "analyst"].includes(role)) {
@@ -90,7 +94,8 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
   const userName = (me as any)?.name ?? "";
   // 404 quando o usuário não tem assinatura — tratamos como sem add-on.
   const { data: sub } = useGetMySubscription({ query: { retry: false } } as any);
-  const marketplaceAddon = !!(sub as any)?.marketplaceAddon;
+  const planId = (sub as any)?.plan;
+  const hasMarketplaceAccess = !!(sub as any)?.marketplaceAddon || planId === "imobiliaria" || planId === "enterprise";
 
   const toggleCollapse = () => {
     setCollapsed((prev) => {
@@ -134,7 +139,7 @@ export function AppLayout({ children }: { children: React.ReactNode }) {
     });
   };
 
-  const navItems = getNavItems(role, marketplaceAddon);
+  const navItems = getNavItems(role, hasMarketplaceAccess);
   const roleInfo = ROLE_LABELS[role] ?? ROLE_LABELS.analyst;
 
   const currentNavItem = navItems.find((item) => {

@@ -3,7 +3,7 @@ import request from "supertest";
 import crypto from "node:crypto";
 import { eq } from "drizzle-orm";
 import app from "../app";
-import { db, leadsTable, usersTable, pool } from "@workspace/db";
+import { db, leadsTable, usersTable, pool, brokersTable } from "@workspace/db";
 
 function hashPassword(p: string): string {
   return crypto.createHash("sha256").update(p + "scorecasa_salt").digest("hex");
@@ -47,6 +47,7 @@ const PRIVATE_VALUES = {
 const tag = `privtest-${Date.now()}-${crypto.randomBytes(3).toString("hex")}`;
 const clientEmail = `${tag}-client@test.local`;
 const brokerEmail = `${tag}-broker@test.local`;
+const unauthorizedBrokerEmail = `${tag}-unauth-broker@test.local`;
 
 function randDigits(n: number): string {
   let s = "";
@@ -57,8 +58,22 @@ function randDigits(n: number): string {
 let leadId = 0;
 let clientUserId = 0;
 let brokerUserId = 0;
+let brokerProfileId = 0;
+let unauthorizedBrokerUserId = 0;
 
 beforeAll(async () => {
+  const [brokerProfile] = await db
+    .insert(brokersTable)
+    .values({
+      name: `Broker Profile ${tag}`,
+      email: brokerEmail,
+      phone: "11999999999",
+      creci: randDigits(6),
+      status: "active",
+    })
+    .returning();
+  brokerProfileId = brokerProfile.id;
+
   const [lead] = await db
     .insert(leadsTable)
     .values({
@@ -68,6 +83,7 @@ beforeAll(async () => {
       phone: "11999999999",
       income: 8000,
       propertyValue: 250000,
+      brokerId: brokerProfileId,
       ...PRIVATE_VALUES,
     })
     .returning();
@@ -97,11 +113,25 @@ beforeAll(async () => {
     })
     .returning();
   brokerUserId = broker.id;
+
+  const [unauthBroker] = await db
+    .insert(usersTable)
+    .values({
+      name: `Unauth Broker ${tag}`,
+      email: unauthorizedBrokerEmail,
+      cpf: randDigits(11),
+      passwordHash: hashPassword("secret123"),
+      role: "broker",
+    })
+    .returning();
+  unauthorizedBrokerUserId = unauthBroker.id;
 });
 
 afterAll(async () => {
   if (clientUserId) await db.delete(usersTable).where(eq(usersTable.id, clientUserId));
   if (brokerUserId) await db.delete(usersTable).where(eq(usersTable.id, brokerUserId));
+  if (unauthorizedBrokerUserId) await db.delete(usersTable).where(eq(usersTable.id, unauthorizedBrokerUserId));
+  if (brokerProfileId) await db.delete(brokersTable).where(eq(brokersTable.id, brokerProfileId));
   if (leadId) await db.delete(leadsTable).where(eq(leadsTable.id, leadId));
   await pool.end();
 });
@@ -191,5 +221,14 @@ describe("Privacidade dos dados de dívida/BCB do cliente", () => {
     // Sanidade: o campo legítimo de enrich foi persistido — prova que o
     // request foi processado e que a defesa é seletiva, não um no-op.
     expect(row.serasaScore).toBe(750);
+  });
+
+  it("GET /api/leads/:id como corretor não vinculado: retorna 403", async () => {
+    const cookies = await loginCookies(unauthorizedBrokerEmail);
+    const res = await request(app)
+      .get(`/api/leads/${leadId}`)
+      .set("Cookie", cookies);
+    expect(res.status).toBe(403);
+    expect(res.body.error).toMatch(/Acesso negado/i);
   });
 });

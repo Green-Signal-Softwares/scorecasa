@@ -117,11 +117,22 @@ router.patch("/:id", requireAuth, async (req, res) => {
   const parsed = UpdateSubBody.safeParse(req.body);
   if (!parsed.success) { res.status(400).json({ error: "Invalid body" }); return; }
 
+  const [existing] = await db.select().from(subscriptionsTable).where(eq(subscriptionsTable.id, id)).limit(1);
+  if (!existing) { res.status(404).json({ error: "Not found" }); return; }
+
   const updateData: any = { ...parsed.data, updatedAt: new Date() };
 
-  if (parsed.data.plan) {
-    updateData.priceMonthly = getPlanPrice(parsed.data.plan);
+  // Recalcular o valor mensal (priceMonthly) considerando o plano final e o status final do add-on do marketplace
+  const finalPlan = parsed.data.plan !== undefined ? parsed.data.plan : existing.plan;
+  const finalMarketplaceAddon = parsed.data.marketplaceAddon !== undefined ? parsed.data.marketplaceAddon : existing.marketplaceAddon;
+  const finalMarketplaceAddonPrice = parsed.data.marketplaceAddonPrice !== undefined ? parsed.data.marketplaceAddonPrice : (existing.marketplaceAddonPrice ?? 0);
+
+  let priceMonthly = getPlanPrice(finalPlan);
+  if (finalMarketplaceAddon && finalMarketplaceAddonPrice) {
+    priceMonthly += finalMarketplaceAddonPrice;
   }
+  updateData.priceMonthly = priceMonthly;
+
   if (parsed.data.lastPaymentAt) updateData.lastPaymentAt = new Date(parsed.data.lastPaymentAt);
   if (parsed.data.nextDueAt) updateData.nextDueAt = new Date(parsed.data.nextDueAt);
   if (parsed.data.status === "cancelled") updateData.cancelledAt = new Date();
@@ -130,7 +141,6 @@ router.patch("/:id", requireAuth, async (req, res) => {
     .set(updateData)
     .where(eq(subscriptionsTable.id, id))
     .returning();
-  if (!updated) { res.status(404).json({ error: "Not found" }); return; }
   res.json(formatSub(updated));
 });
 

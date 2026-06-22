@@ -24,7 +24,7 @@ async function requireCanManageProperty(req: any, res: any, next: () => void) {
   if (user.role === "broker") {
     const [sub] = await db.select().from(subscriptionsTable)
       .where(eq(subscriptionsTable.userId, userId)).limit(1);
-    if (sub?.marketplaceAddon) { next(); return; }
+    if (sub?.marketplaceAddon || sub?.plan === "imobiliaria" || sub?.plan === "enterprise") { next(); return; }
     res.status(403).json({
       error: "Você precisa contratar o add-on de Vitrine de Imóveis na página Financeiro para divulgar imóveis.",
     });

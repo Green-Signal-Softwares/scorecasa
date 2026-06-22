@@ -21,10 +21,12 @@ import { Processos } from "@/pages/Processos";
 import { ProcessDetails } from "@/pages/ProcessDetails";
 import { ScoreCasaConectado } from "@/pages/ScoreCasaConectado";
 import { Correspondente } from "@/pages/Correspondente";
+import { BrokerCorrespondente } from "@/pages/BrokerCorrespondente";
 import { AdminTaxas } from "@/pages/AdminTaxas";
 import { Termos } from "@/pages/Termos";
 import { Privacidade } from "@/pages/Privacidade";
 import { AppLayout } from "@/components/layout/AppLayout";
+import { ClientLayout } from "@/components/layout/ClientLayout";
 import { ClientPortal } from "@/pages/ClientPortal";
 import { ClientRegister } from "@/pages/ClientRegister";
 import { ClientMeusDados } from "@/pages/ClientMeusDados";
@@ -76,6 +78,34 @@ function CorrespondentOnly({ children }: { children: ReactNode }) {
   return <>{children}</>;
 }
 
+function PropertyDetailsRoute({ id }: { id: number }) {
+  const [, setLocation] = useLocation();
+  const { data: me, isLoading, error } = useGetMe({
+    query: { queryKey: getGetMeQueryKey(), retry: false, staleTime: 60_000 },
+  });
+
+  useEffect(() => {
+    if (isLoading) return;
+    if (!me || error) setLocation("/login");
+  }, [isLoading, me, error, setLocation]);
+
+  if (isLoading || !me) return <FullscreenLoader />;
+
+  if (me.role === "client") {
+    return (
+      <ClientLayout userName={me.name} activePage="imoveis">
+        <PropertyDetails id={id} />
+      </ClientLayout>
+    );
+  }
+
+  return (
+    <AppLayout>
+      <PropertyDetails id={id} />
+    </AppLayout>
+  );
+}
+
 function Router() {
   return (
     <Switch>
@@ -122,6 +152,16 @@ function Router() {
         )}
       </Route>
 
+      <Route path="/dashboard/correspondente">
+        {() => (
+          <StaffOnly>
+            <AppLayout>
+              <BrokerCorrespondente />
+            </AppLayout>
+          </StaffOnly>
+        )}
+      </Route>
+
       <Route path="/dashboard">
         {() => (
           <StaffOnly>
@@ -153,13 +193,7 @@ function Router() {
       </Route>
 
       <Route path="/imoveis/:id">
-        {(params) => (
-          <StaffOnly>
-            <AppLayout>
-              <PropertyDetails id={Number(params?.id)} />
-            </AppLayout>
-          </StaffOnly>
-        )}
+        {(params) => <PropertyDetailsRoute id={Number(params?.id)} />}
       </Route>
 
       <Route path="/imoveis">

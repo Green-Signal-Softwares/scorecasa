@@ -17,36 +17,23 @@ export const HealthCheckResponse = zod.object({
  * @summary Login with email and password
  */
 export const LoginBody = zod.object({
-  email: zod.string().describe("E-mail ou CPF (apenas dígitos, 11 caracteres)"),
+  email: zod
+    .string()
+    .describe(
+      "Identificador de login (E-mail ou CPF para cliente; E-mail, CPF ou CRECI para corretor; CNPJ, E-mail ou CCA para correspondente)",
+    ),
   password: zod.string(),
   profile: zod
     .enum(["client", "broker", "correspondent"])
     .optional()
-    .describe(
-      'Perfil escolhido na aba do login. Se \"broker\" ou \"correspondent\", exige campos extras.',
-    ),
-  cpf: zod
-    .string()
-    .optional()
-    .describe(
-      "CPF do corretor (apenas dígitos, 11) — obrigatório quando profile=broker.",
-    ),
-  creci: zod
-    .string()
-    .optional()
-    .describe("CRECI do corretor — obrigatório quando profile=broker."),
-  cnpj: zod
-    .string()
-    .optional()
-    .describe(
-      "CNPJ do correspondente (apenas dígitos, 14) — obrigatório quando profile=correspondent.",
-    ),
+    .describe("Perfil escolhido na aba do login."),
+  cpf: zod.string().optional().describe("(Legacy) CPF do corretor"),
+  creci: zod.string().optional().describe("(Legacy) CRECI do corretor"),
+  cnpj: zod.string().optional().describe("(Legacy) CNPJ do correspondente"),
   ccaCode: zod
     .string()
     .optional()
-    .describe(
-      "Código CCA do correspondente Caixa — obrigatório quando profile=correspondent.",
-    ),
+    .describe("(Legacy) Código CCA do correspondente Caixa"),
 });
 
 export const LoginResponse = zod.object({
@@ -2279,6 +2266,91 @@ export const UpdateBrokerResponse = zod.object({
   approvedLeads: zod.number(),
   approvalRate: zod.number().optional(),
   createdAt: zod.coerce.date(),
+});
+
+/**
+ * @summary Get current broker's linked correspondent and active list
+ */
+export const GetMyCorrespondentResponse = zod.object({
+  linkedCorrespondent: zod
+    .object({
+      id: zod.number(),
+      name: zod.string(),
+      bank: zod
+        .string()
+        .describe(
+          "Slug do banco (caixa, bb, bradesco, itau, santander, inter)",
+        ),
+      code: zod
+        .string()
+        .describe("Código identificador no banco (ex.: CCA-1024)"),
+      email: zod.string().nullish(),
+      phone: zod.string().nullish(),
+      status: zod.enum(["active", "inactive"]),
+    })
+    .nullable(),
+  availableCorrespondents: zod.array(
+    zod.object({
+      id: zod.number(),
+      name: zod.string(),
+      bank: zod
+        .string()
+        .describe(
+          "Slug do banco (caixa, bb, bradesco, itau, santander, inter)",
+        ),
+      code: zod
+        .string()
+        .describe("Código identificador no banco (ex.: CCA-1024)"),
+      email: zod.string().nullish(),
+      phone: zod.string().nullish(),
+      status: zod.enum(["active", "inactive"]),
+    }),
+  ),
+});
+
+/**
+ * @summary Link or unlink a correspondent for the current broker
+ */
+export const LinkCorrespondentBody = zod.object({
+  correspondentId: zod.number().nullish(),
+  code: zod.string().nullish(),
+});
+
+export const LinkCorrespondentResponse = zod.object({
+  linkedCorrespondent: zod
+    .object({
+      id: zod.number(),
+      name: zod.string(),
+      bank: zod
+        .string()
+        .describe(
+          "Slug do banco (caixa, bb, bradesco, itau, santander, inter)",
+        ),
+      code: zod
+        .string()
+        .describe("Código identificador no banco (ex.: CCA-1024)"),
+      email: zod.string().nullish(),
+      phone: zod.string().nullish(),
+      status: zod.enum(["active", "inactive"]),
+    })
+    .nullable(),
+  availableCorrespondents: zod.array(
+    zod.object({
+      id: zod.number(),
+      name: zod.string(),
+      bank: zod
+        .string()
+        .describe(
+          "Slug do banco (caixa, bb, bradesco, itau, santander, inter)",
+        ),
+      code: zod
+        .string()
+        .describe("Código identificador no banco (ex.: CCA-1024)"),
+      email: zod.string().nullish(),
+      phone: zod.string().nullish(),
+      status: zod.enum(["active", "inactive"]),
+    }),
+  ),
 });
 
 /**

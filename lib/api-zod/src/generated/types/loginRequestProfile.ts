@@ -6,7 +6,7 @@
  */
 
 /**
- * Perfil escolhido na aba do login. Se "broker" ou "correspondent", exige campos extras.
+ * Perfil escolhido na aba do login.
  */
 export type LoginRequestProfile =
   (typeof LoginRequestProfile)[keyof typeof LoginRequestProfile];

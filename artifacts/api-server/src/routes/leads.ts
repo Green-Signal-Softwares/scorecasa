@@ -1,6 +1,6 @@
 import { Router } from "express";
 import { db, leadsTable, brokersTable, notificationsTable, usersTable, propertiesTable, correspondentsTable } from "@workspace/db";
-import { eq, sql, ilike, or, and, desc } from "drizzle-orm";
+import { eq, sql, ilike, or, and, desc, inArray } from "drizzle-orm";
 
 async function getSessionUser(req: any) {
   const userId = req.session?.userId as number | undefined;
@@ -85,10 +85,21 @@ async function hasAccessToLead(sessionUser: any, lead: any): Promise<boolean> {
   }
   if (sessionUser.role === "correspondent") {
     const { correspondentId } = await getUserBrokerOrCorrespondentId(sessionUser);
-    return (
-      correspondentId !== null &&
-      (lead.correspondentId === correspondentId || lead.linkedCorrespondentId === correspondentId)
-    );
+    if (correspondentId === null) return false;
+    if (lead.correspondentId === correspondentId || lead.linkedCorrespondentId === correspondentId) {
+      return true;
+    }
+    if (lead.brokerId) {
+      const [broker] = await db
+        .select({ correspondentId: brokersTable.correspondentId })
+        .from(brokersTable)
+        .where(eq(brokersTable.id, lead.brokerId))
+        .limit(1);
+      if (broker && broker.correspondentId === correspondentId) {
+        return true;
+      }
+    }
+    return false;
   }
   return false;
 }
@@ -643,12 +654,19 @@ router.get("/", async (req, res) => {
       res.json({ data: [], total: 0, page, limit });
       return;
     }
-    conditions.push(
-      or(
-        eq(leadsTable.correspondentId, correspondentId),
-        eq(leadsTable.linkedCorrespondentId, correspondentId)
-      )!
-    );
+    const linkedBrokers = await db
+      .select({ id: brokersTable.id })
+      .from(brokersTable)
+      .where(eq(brokersTable.correspondentId, correspondentId));
+    const brokerIds = linkedBrokers.map((b) => b.id);
+    const orConditions = [
+      eq(leadsTable.correspondentId, correspondentId),
+      eq(leadsTable.linkedCorrespondentId, correspondentId),
+    ];
+    if (brokerIds.length > 0) {
+      orConditions.push(inArray(leadsTable.brokerId, brokerIds));
+    }
+    conditions.push(or(...orConditions)!);
   }
 
   const where = conditions.length > 0 ? and(...conditions) : undefined;

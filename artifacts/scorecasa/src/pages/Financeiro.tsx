@@ -151,14 +151,14 @@ const PLAN_TIERS = {
     ],
   },
   // ── Legacy (mantidos para compat com assinaturas antigas) ──
-  client:                   { id: "client",                   label: "Individual (legado)",      group: "individual",   role: "client",        priceMonthly: 29.90,  leadLimit: null, enterprise: false, color: "#10A65A", bg: "#F0FDF4", icon: Shield,     description: "", features: [] },
-  corretor_50:              { id: "corretor_50",              label: "Corretor 50 (legado)",     group: "corretor",     role: "broker",        priceMonthly: 199.00, leadLimit: 50,   enterprise: false, color: "#0D1B8C", bg: "#EEF2FF", icon: TrendingUp, description: "", features: [] },
-  corretor_200:             { id: "corretor_200",             label: "Corretor 200 (legado)",    group: "corretor",     role: "broker",        priceMonthly: 499.00, leadLimit: 200,  enterprise: false, color: "#0D1B8C", bg: "#EEF2FF", icon: TrendingUp, description: "", features: [] },
-  corretor_enterprise:      { id: "corretor_enterprise",      label: "Corretor Emp. (legado)",   group: "corretor",     role: "broker",        priceMonthly: 0,      leadLimit: null, enterprise: true,  color: "#0D1B8C", bg: "#EEF2FF", icon: TrendingUp, description: "", features: [] },
-  correspondent:            { id: "correspondent",            label: "Correspondente (legado)",  group: "correspondent",role: "correspondent", priceMonthly: 299.00, leadLimit: 50,   enterprise: false, color: "#7C3AED", bg: "#F5F3FF", icon: Crown,      description: "", features: [] },
-  correspondent_50:         { id: "correspondent_50",         label: "Corresp. 50 (legado)",     group: "correspondent",role: "correspondent", priceMonthly: 299.00, leadLimit: 50,   enterprise: false, color: "#7C3AED", bg: "#F5F3FF", icon: Crown,      description: "", features: [] },
-  correspondent_200:        { id: "correspondent_200",        label: "Corresp. 200 (legado)",    group: "correspondent",role: "correspondent", priceMonthly: 599.00, leadLimit: 200,  enterprise: false, color: "#7C3AED", bg: "#F5F3FF", icon: Crown,      description: "", features: [] },
-  correspondent_enterprise: { id: "correspondent_enterprise", label: "Corresp. Emp. (legado)",   group: "correspondent",role: "correspondent", priceMonthly: 0,      leadLimit: null, enterprise: true,  color: "#7C3AED", bg: "#F5F3FF", icon: Crown,      description: "", features: [] },
+  client: { id: "client", label: "Individual (legado)", group: "individual", role: "client", priceMonthly: 29.90, leadLimit: null, enterprise: false, color: "#10A65A", bg: "#F0FDF4", icon: Shield, description: "", features: [] },
+  corretor_50: { id: "corretor_50", label: "Corretor 50 (legado)", group: "corretor", role: "broker", priceMonthly: 199.00, leadLimit: 50, enterprise: false, color: "#0D1B8C", bg: "#EEF2FF", icon: TrendingUp, description: "", features: [] },
+  corretor_200: { id: "corretor_200", label: "Corretor 200 (legado)", group: "corretor", role: "broker", priceMonthly: 499.00, leadLimit: 200, enterprise: false, color: "#0D1B8C", bg: "#EEF2FF", icon: TrendingUp, description: "", features: [] },
+  corretor_enterprise: { id: "corretor_enterprise", label: "Corretor Emp. (legado)", group: "corretor", role: "broker", priceMonthly: 0, leadLimit: null, enterprise: true, color: "#0D1B8C", bg: "#EEF2FF", icon: TrendingUp, description: "", features: [] },
+  correspondent: { id: "correspondent", label: "Correspondente (legado)", group: "correspondent", role: "correspondent", priceMonthly: 299.00, leadLimit: 50, enterprise: false, color: "#7C3AED", bg: "#F5F3FF", icon: Crown, description: "", features: [] },
+  correspondent_50: { id: "correspondent_50", label: "Corresp. 50 (legado)", group: "correspondent", role: "correspondent", priceMonthly: 299.00, leadLimit: 50, enterprise: false, color: "#7C3AED", bg: "#F5F3FF", icon: Crown, description: "", features: [] },
+  correspondent_200: { id: "correspondent_200", label: "Corresp. 200 (legado)", group: "correspondent", role: "correspondent", priceMonthly: 599.00, leadLimit: 200, enterprise: false, color: "#7C3AED", bg: "#F5F3FF", icon: Crown, description: "", features: [] },
+  correspondent_enterprise: { id: "correspondent_enterprise", label: "Corresp. Emp. (legado)", group: "correspondent", role: "correspondent", priceMonthly: 0, leadLimit: null, enterprise: true, color: "#7C3AED", bg: "#F5F3FF", icon: Crown, description: "", features: [] },
 } as const;
 
 type PlanId = keyof typeof PLAN_TIERS;
@@ -169,11 +169,11 @@ const MARKETPLACE_ADDONS = [
 ];
 
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: any }> = {
-  trial:     { label: "Período Trial",  color: "#0D1B8C", bg: "#EEF2FF", icon: Clock },
-  active:    { label: "Ativo",          color: "#10A65A", bg: "#F0FDF4", icon: CheckCircle },
-  overdue:   { label: "Em atraso",      color: "#EF4444", bg: "#FEF2F2", icon: AlertCircle },
-  cancelled: { label: "Cancelado",      color: "#6B7280", bg: "#F3F4F6", icon: XCircle },
-  inactive:  { label: "Inativo",        color: "#6B7280", bg: "#F3F4F6", icon: XCircle },
+  trial: { label: "Período Trial", color: "#0D1B8C", bg: "#EEF2FF", icon: Clock },
+  active: { label: "Ativo", color: "#10A65A", bg: "#F0FDF4", icon: CheckCircle },
+  overdue: { label: "Em atraso", color: "#EF4444", bg: "#FEF2F2", icon: AlertCircle },
+  cancelled: { label: "Cancelado", color: "#6B7280", bg: "#F3F4F6", icon: XCircle },
+  inactive: { label: "Inativo", color: "#6B7280", bg: "#F3F4F6", icon: XCircle },
 };
 
 function formatBRL(v: number) { return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }); }
@@ -246,7 +246,9 @@ function TierCard({ tier, isCurrent }: { tier: (typeof PLAN_TIERS)[PlanId]; isCu
 
 // ── Seção add-on marketplace ───────────────────────────────────────────────────
 function MarketplaceAddonSection({ sub }: { sub: any }) {
-  const hasAddon = sub?.marketplaceAddon;
+  const planId = sub?.plan;
+  const isVitrineIncluded = planId === "imobiliaria" || planId === "enterprise";
+  const hasAddon = sub?.marketplaceAddon || isVitrineIncluded;
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const [, setLocation] = useLocation();
@@ -295,7 +297,19 @@ function MarketplaceAddonSection({ sub }: { sub: any }) {
         <div className="text-sm font-semibold text-[#07113A]">Vitrine de Imóveis</div>
       </div>
 
-      {hasAddon ? (
+      {isVitrineIncluded ? (
+        <div className="space-y-3">
+          <div className="p-3 rounded-xl bg-[#F0FDF4] flex items-center gap-3">
+            <CheckCircle className="w-5 h-5 text-[#10A65A]" />
+            <div>
+              <div className="font-semibold text-sm text-[#10A65A]">Vitrine Inclusa</div>
+              <div className="text-xs text-gray-500">
+                Imóveis ilimitados · Incluso no seu plano
+              </div>
+            </div>
+          </div>
+        </div>
+      ) : hasAddon ? (
         <div className="space-y-3">
           <div className="p-3 rounded-xl bg-[#EEF2FF] flex items-center gap-3">
             <CheckCircle className="w-5 h-5 text-[#0D1B8C]" />
@@ -554,7 +568,7 @@ function AdminView() {
 
   const list = (subs as any[]).filter((s) => {
     if (search && !s.userName.toLowerCase().includes(search.toLowerCase()) &&
-        !s.userEmail.toLowerCase().includes(search.toLowerCase())) return false;
+      !s.userEmail.toLowerCase().includes(search.toLowerCase())) return false;
     if (filterStatus && s.status !== filterStatus) return false;
     if (filterGroup) {
       const tier = PLAN_TIERS[s.plan as PlanId];
@@ -595,10 +609,10 @@ function AdminView() {
       {/* KPIs */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
         {[
-          { label: "MRR Total",        value: formatBRL(totalMRR),              icon: DollarSign, color: "#10A65A", bg: "#F0FDF4" },
-          { label: "Total assinaturas",value: String((subs as any[]).length),    icon: Users,      color: "#0D1B8C", bg: "#EEF2FF" },
-          { label: "Em trial",         value: String(trialCount),               icon: Clock,      color: "#D97706", bg: "#FFFBEB" },
-          { label: "Em atraso",        value: String(overdueCount),             icon: AlertCircle,color: "#EF4444", bg: "#FEF2F2" },
+          { label: "MRR Total", value: formatBRL(totalMRR), icon: DollarSign, color: "#10A65A", bg: "#F0FDF4" },
+          { label: "Total assinaturas", value: String((subs as any[]).length), icon: Users, color: "#0D1B8C", bg: "#EEF2FF" },
+          { label: "Em trial", value: String(trialCount), icon: Clock, color: "#D97706", bg: "#FFFBEB" },
+          { label: "Em atraso", value: String(overdueCount), icon: AlertCircle, color: "#EF4444", bg: "#FEF2F2" },
         ].map((kpi) => {
           const Icon = kpi.icon;
           return (

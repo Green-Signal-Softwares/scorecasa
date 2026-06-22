@@ -370,6 +370,31 @@ export function ClientSimulador() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [lead?.id]);
 
+  // Prefill property parameters if prefillProperty query param is provided.
+  useEffect(() => {
+    const params = new URLSearchParams(window.location.search);
+    const prefillPropertyId = params.get("prefillProperty");
+    if (prefillPropertyId) {
+      fetch(`${BASE}/api/properties/${prefillPropertyId}`)
+        .then((res) => {
+          if (!res.ok) throw new Error();
+          return res.json();
+        })
+        .then((prop) => {
+          if (prop && prop.price) {
+            setValorImovelStr(formatBRL(prop.price));
+            setEntradaStr(formatBRL(Math.round(prop.price * 0.2)));
+            if (prop.acceptsMcmv && !prop.acceptsSbpe) {
+              setProgramId("caixa-mcmv");
+            } else if (prop.acceptsSbpe) {
+              setProgramId("caixa-sbpe");
+            }
+          }
+        })
+        .catch(() => {});
+    }
+  }, [BASE]);
+
   // Snapshot dinâmico (a hook lê o estado atual via getForm na hora do 401).
   const currentDraft: SimulatorDraft = {
     valorImovelStr, entradaStr, rendaStr, prazoAnos, sistema, programId,

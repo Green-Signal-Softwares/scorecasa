@@ -1,4 +1,4 @@
-import { useEffect, useState } from "react";
+import { useEffect, useRef, useState, useMemo } from "react";
 import { Link } from "wouter";
 import { useGetProperties, useCreateProperty, useUpdateProperty, useDeleteProperty, useTogglePropertyInterest, useGetMyInterests, useGetMe, useGetMySubscription, ApiError } from "@workspace/api-client-react";
 import { useSessionGuard } from "@/hooks/use-session-guard";
@@ -13,6 +13,7 @@ import {
   Building2, Home, Search, Plus, Heart, MapPin, Ruler, BedDouble, Bath,
   Car, X, Save, ChevronDown, CheckCircle, Tag, Pencil, Trash2, Eye,
   Wifi, Dumbbell, Waves, TreePine, Filter,
+  ImagePlus, Link2, Upload, Loader2, ImageOff,
 } from "lucide-react";
 
 const TYPE_LABELS: Record<string, string> = {
@@ -46,6 +47,116 @@ const EMPTY_FORM = {
 
 function formatBRL(v: number) {
   return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL", maximumFractionDigits: 0 });
+}
+
+// ─── Image Upload Hook ────────────────────────────────────────────────────────
+function useImageUpload(opts: { onError?: (err: Error) => void } = {}) {
+  const [isUploading, setIsUploading] = useState(false);
+  const uploadFile = async (file: File): Promise<string | null> => {
+    setIsUploading(true);
+    try {
+      const res = await fetch("/api/storage/uploads/request-url", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ name: file.name, size: file.size, contentType: file.type || "image/jpeg" }),
+      });
+      if (!res.ok) throw new Error((await res.json().catch(() => ({}))).error || "Falha ao gerar URL de upload");
+      const { uploadURL, objectPath } = (await res.json()) as { uploadURL: string; objectPath: string };
+      const put = await fetch(uploadURL, {
+        method: "PUT",
+        body: file,
+        headers: { "Content-Type": file.type || "image/jpeg" },
+      });
+      if (!put.ok) throw new Error("Falha ao enviar arquivo");
+      // Serve via storage proxy so the card's <img> can load it
+      return `/api/storage${objectPath.startsWith("/") ? objectPath : "/" + objectPath}`;
+    } catch (err) {
+      opts.onError?.(err instanceof Error ? err : new Error("Upload falhou"));
+      return null;
+    } finally {
+      setIsUploading(false);
+    }
+  };
+  return { uploadFile, isUploading };
+}
+
+// ─── Dual-mode image field (URL link OR file upload) ──────────────────────────
+function ImageUploadField({
+  label, value, onChange, isUploading, onUpload,
+}: {
+  label: string;
+  value: string;
+  onChange: (v: string) => void;
+  isUploading: boolean;
+  onUpload: (file: File) => void;
+}) {
+  const fileRef = useRef<HTMLInputElement>(null);
+  const [mode, setMode] = useState<"url" | "upload">(value && !value.startsWith("/api/storage") ? "url" : value.startsWith("/api/storage") ? "upload" : "url");
+  const previewSrc = value || null;
+
+  function handleFile(e: React.ChangeEvent<HTMLInputElement>) {
+    const file = e.target.files?.[0];
+    e.target.value = "";
+    if (!file) return;
+    setMode("upload");
+    onUpload(file);
+  }
+
+  return (
+    <div className="space-y-2">
+      <div className="flex items-center gap-2">
+        {/* Mode toggle */}
+        <div className="flex rounded-lg border border-gray-200 overflow-hidden flex-shrink-0">
+          <button
+            type="button"
+            onClick={() => setMode("url")}
+            className={`px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide flex items-center gap-1 transition-colors ${
+              mode === "url" ? "bg-[#0D1B8C] text-white" : "bg-white text-gray-400 hover:bg-gray-50"
+            }`}
+          >
+            <Link2 className="w-3 h-3" /> Link
+          </button>
+          <button
+            type="button"
+            onClick={() => fileRef.current?.click()}
+            disabled={isUploading}
+            className={`px-2.5 py-1.5 text-[10px] font-bold uppercase tracking-wide flex items-center gap-1 transition-colors ${
+              mode === "upload" ? "bg-[#0D1B8C] text-white" : "bg-white text-gray-400 hover:bg-gray-50"
+            } disabled:opacity-60`}
+          >
+            {isUploading ? <Loader2 className="w-3 h-3 animate-spin" /> : <Upload className="w-3 h-3" />}
+            Upload
+          </button>
+        </div>
+        {/* URL input (shown when mode=url) */}
+        {mode === "url" ? (
+          <Input
+            placeholder={`URL da ${label}`}
+            value={value}
+            onChange={(e) => onChange(e.target.value)}
+            className="text-xs flex-1"
+          />
+        ) : (
+          <div className="flex-1 text-xs text-gray-400 italic truncate">
+            {isUploading ? "Enviando imagem…" : value ? "Imagem carregada via upload" : "Clique em Upload para selecionar"}
+          </div>
+        )}
+        {/* Clear button */}
+        {value && (
+          <button type="button" onClick={() => { onChange(""); setMode("url"); }} className="text-gray-300 hover:text-red-400 transition-colors">
+            <X className="w-4 h-4" />
+          </button>
+        )}
+      </div>
+      {/* Preview */}
+      {previewSrc && (
+        <div className="relative h-24 rounded-lg overflow-hidden border border-gray-100 bg-gray-50">
+          <img src={previewSrc} alt={label} className="w-full h-full object-cover" />
+        </div>
+      )}
+      <input ref={fileRef} type="file" accept="image/*" className="hidden" onChange={handleFile} />
+    </div>
+  );
 }
 
 function PropertyCard({
@@ -183,13 +294,14 @@ export function Imoveis() {
   const { data: me, error: meError } = useGetMe({});
   const role = (me as any)?.role ?? "client";
   const { data: sub, error: subError } = useGetMySubscription({ query: { retry: false } } as any);
-  const hasMarketplaceAddon = !!(sub as any)?.marketplaceAddon;
-  // Só admin/analista e corretor com add-on de Vitrine podem cadastrar/editar.
+  const planId = (sub as any)?.plan;
+  const hasMarketplaceAccess = !!(sub as any)?.marketplaceAddon || planId === "imobiliaria" || planId === "enterprise";
+  // Só admin/analista e corretor com add-on de Vitrine ou plano correspondente podem cadastrar/editar.
   // Cliente e correspondente apenas visualizam o catálogo divulgado pelos corretores.
   const canManage =
     role === "admin" ||
     role === "analyst" ||
-    (role === "broker" && hasMarketplaceAddon);
+    (role === "broker" && hasMarketplaceAccess);
 
   const [search, setSearch] = useState("");
   const [filterType, setFilterType] = useState("");
@@ -197,8 +309,24 @@ export function Imoveis() {
   const [showForm, setShowForm] = useState(false);
   const [editingProp, setEditingProp] = useState<any>(null);
   const [form, setForm] = useState({ ...EMPTY_FORM });
+  const [uploadingSlot, setUploadingSlot] = useState<0 | 1 | 2 | 3>(0);
 
-  const { data: properties = [], isLoading, error: propsError } = useGetProperties({});
+  const { uploadFile: uploadImage } = useImageUpload({
+    onError: (err) => toast({ title: "Erro no upload da imagem", description: err.message, variant: "destructive" }),
+  });
+
+  async function handleImageUpload(file: File, slot: 1 | 2 | 3) {
+    setUploadingSlot(slot);
+    const url = await uploadImage(file);
+    setUploadingSlot(0);
+    if (!url) return;
+    if (slot === 1) setForm((f) => ({ ...f, imageUrl: url }));
+    if (slot === 2) setForm((f) => ({ ...f, imageUrl2: url }));
+    if (slot === 3) setForm((f) => ({ ...f, imageUrl3: url }));
+  }
+
+  const getPropsOptions = useMemo(() => ({ query: { keepPreviousData: true } }), []);
+  const { data: properties = [], isLoading, error: propsError } = useGetProperties(undefined, getPropsOptions);
   const { data: myInterests = [], error: interestsError } = useGetMyInterests({});
 
   const createProp = useCreateProperty();
@@ -272,8 +400,12 @@ export function Imoveis() {
       });
     } else {
       createProp.mutate({ data }, {
-        onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: getGetPropertiesQueryKey() });
+        onSuccess: (newProp) => {
+          // Atualiza o cache local para evitar lista vazia entre refetches
+          queryClient.setQueryData(getGetPropertiesQueryKey(), (old) => {
+            const prev = (old as any[]) ?? [];
+            return [...prev, newProp];
+          });
           toast({ title: "Imóvel cadastrado com sucesso!" });
           setShowForm(false);
         },
@@ -301,9 +433,9 @@ export function Imoveis() {
     });
   }
 
-  // Corretor sem add-on não deve nem ter acesso à página (a aba está oculta).
+  // Corretor sem add-on/plano de Vitrine não deve nem ter acesso à página (a aba está oculta).
   // Se chegar aqui via URL direta, mostramos um aviso direcionando ao Financeiro.
-  if (role === "broker" && !hasMarketplaceAddon) {
+  if (role === "broker" && !hasMarketplaceAccess) {
     return (
       <div className="max-w-xl mx-auto mt-12 bg-white rounded-2xl border border-gray-100 shadow-sm p-8 text-center">
         <Building2 className="w-12 h-12 mx-auto mb-4" style={{ color: "#0D1B8C", opacity: 0.3 }} />
@@ -403,26 +535,28 @@ export function Imoveis() {
       </div>
 
       {/* Stats bar */}
-      <div className="grid grid-cols-2 sm:grid-cols-4 gap-4">
+      <div className={`grid grid-cols-2 ${role === "client" ? "sm:grid-cols-2 max-w-2xl" : "sm:grid-cols-4"} gap-4`}>
         {[
-          { label: "Total cadastrados", count: (properties as any[]).length, color: "#0D1B8C", bg: "#EEF2FF", icon: Building2 },
+          { label: "Total cadastrados", count: (properties as any[]).length, color: "#0D1B8C", bg: "#EEF2FF", icon: Building2, hideForClient: true },
           { label: "Disponíveis", count: (properties as any[]).filter((p) => p.status === "available").length, color: "#10A65A", bg: "#F0FDF4", icon: CheckCircle },
-          { label: "Reservados", count: (properties as any[]).filter((p) => p.status === "reserved").length, color: "#D97706", bg: "#FFFBEB", icon: Home },
+          { label: "Reservados", count: (properties as any[]).filter((p) => p.status === "reserved").length, color: "#D97706", bg: "#FFFBEB", icon: Home, hideForClient: true },
           { label: "Favoritos (Interesses)", count: interestedIds.size, color: "#EF4444", bg: "#FEF2F2", icon: Heart },
-        ].map((s) => {
-          const IconComponent = s.icon;
-          return (
-            <div key={s.label} className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm flex items-center justify-between transition-all hover:shadow-md" style={{ borderLeftWidth: 4, borderLeftColor: s.color }}>
-              <div>
-                <div className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">{s.label}</div>
-                <div className="text-2xl font-extrabold text-gray-800 mt-1">{s.count}</div>
+        ]
+          .filter((s) => role !== "client" || !s.hideForClient)
+          .map((s) => {
+            const IconComponent = s.icon;
+            return (
+              <div key={s.label} className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm flex items-center justify-between transition-all hover:shadow-md" style={{ borderLeftWidth: 4, borderLeftColor: s.color }}>
+                <div>
+                  <div className="text-[10px] text-gray-400 uppercase font-bold tracking-wider">{s.label}</div>
+                  <div className="text-2xl font-extrabold text-gray-800 mt-1">{s.count}</div>
+                </div>
+                <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: s.bg, color: s.color }}>
+                  <IconComponent className="w-5 h-5" />
+                </div>
               </div>
-              <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: s.bg, color: s.color }}>
-                <IconComponent className="w-5 h-5" />
-              </div>
-            </div>
-          );
-        })}
+            );
+          })}
       </div>
 
       {/* Grid */}
@@ -623,11 +757,32 @@ export function Imoveis() {
 
               {/* Fotos */}
               <div>
-                <div className="text-xs font-semibold uppercase tracking-wide mb-3" style={{ color: "#0D1B8C" }}>Fotos (URLs)</div>
-                <div className="space-y-2">
-                  <Input placeholder="URL da foto principal" value={form.imageUrl} onChange={(e) => setForm((f) => ({ ...f, imageUrl: e.target.value }))} />
-                  <Input placeholder="URL da foto 2" value={form.imageUrl2} onChange={(e) => setForm((f) => ({ ...f, imageUrl2: e.target.value }))} />
-                  <Input placeholder="URL da foto 3" value={form.imageUrl3} onChange={(e) => setForm((f) => ({ ...f, imageUrl3: e.target.value }))} />
+                <div className="flex items-center gap-2 mb-3">
+                  <div className="text-xs font-semibold uppercase tracking-wide" style={{ color: "#0D1B8C" }}>Fotos</div>
+                  <span className="text-[10px] text-gray-400">(cole um link ou faça upload)</span>
+                </div>
+                <div className="space-y-4">
+                  <ImageUploadField
+                    label="foto principal"
+                    value={form.imageUrl}
+                    onChange={(v) => setForm((f) => ({ ...f, imageUrl: v }))}
+                    isUploading={uploadingSlot === 1}
+                    onUpload={(file) => handleImageUpload(file, 1)}
+                  />
+                  <ImageUploadField
+                    label="foto 2"
+                    value={form.imageUrl2}
+                    onChange={(v) => setForm((f) => ({ ...f, imageUrl2: v }))}
+                    isUploading={uploadingSlot === 2}
+                    onUpload={(file) => handleImageUpload(file, 2)}
+                  />
+                  <ImageUploadField
+                    label="foto 3"
+                    value={form.imageUrl3}
+                    onChange={(v) => setForm((f) => ({ ...f, imageUrl3: v }))}
+                    isUploading={uploadingSlot === 3}
+                    onUpload={(file) => handleImageUpload(file, 3)}
+                  />
                 </div>
               </div>
             </div>

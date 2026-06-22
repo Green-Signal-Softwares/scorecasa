@@ -22,6 +22,7 @@ import type {
   BankRateHistoryPoint,
   BanksAndCorrespondentsResponse,
   Broker,
+  BrokerCorrespondentLinkageResponse,
   BrokerRanking,
   CaixaEnrichRequest,
   ChangeStageRequest,
@@ -44,6 +45,7 @@ import type {
   Lead,
   LeadList,
   LeadRanking,
+  LinkCorrespondentRequest,
   ListProcessesParams,
   LoginRequest,
   MarkAllNotificationsRead200,
@@ -3978,6 +3980,173 @@ export const useUpdateBroker = <
   TContext
 > => {
   return useMutation(getUpdateBrokerMutationOptions(options));
+};
+
+/**
+ * @summary Get current broker's linked correspondent and active list
+ */
+export const getGetMyCorrespondentUrl = () => {
+  return `/api/brokers/my-correspondent`;
+};
+
+export const getMyCorrespondent = async (
+  options?: RequestInit,
+): Promise<BrokerCorrespondentLinkageResponse> => {
+  return customFetch<BrokerCorrespondentLinkageResponse>(
+    getGetMyCorrespondentUrl(),
+    {
+      ...options,
+      method: "GET",
+    },
+  );
+};
+
+export const getGetMyCorrespondentQueryKey = () => {
+  return [`/api/brokers/my-correspondent`] as const;
+};
+
+export const getGetMyCorrespondentQueryOptions = <
+  TData = Awaited<ReturnType<typeof getMyCorrespondent>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMyCorrespondent>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}) => {
+  const { query: queryOptions, request: requestOptions } = options ?? {};
+
+  const queryKey = queryOptions?.queryKey ?? getGetMyCorrespondentQueryKey();
+
+  const queryFn: QueryFunction<
+    Awaited<ReturnType<typeof getMyCorrespondent>>
+  > = ({ signal }) => getMyCorrespondent({ signal, ...requestOptions });
+
+  return { queryKey, queryFn, ...queryOptions } as UseQueryOptions<
+    Awaited<ReturnType<typeof getMyCorrespondent>>,
+    TError,
+    TData
+  > & { queryKey: QueryKey };
+};
+
+export type GetMyCorrespondentQueryResult = NonNullable<
+  Awaited<ReturnType<typeof getMyCorrespondent>>
+>;
+export type GetMyCorrespondentQueryError = ErrorType<void>;
+
+/**
+ * @summary Get current broker's linked correspondent and active list
+ */
+
+export function useGetMyCorrespondent<
+  TData = Awaited<ReturnType<typeof getMyCorrespondent>>,
+  TError = ErrorType<void>,
+>(options?: {
+  query?: UseQueryOptions<
+    Awaited<ReturnType<typeof getMyCorrespondent>>,
+    TError,
+    TData
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseQueryResult<TData, TError> & { queryKey: QueryKey } {
+  const queryOptions = getGetMyCorrespondentQueryOptions(options);
+
+  const query = useQuery(queryOptions) as UseQueryResult<TData, TError> & {
+    queryKey: QueryKey;
+  };
+
+  return { ...query, queryKey: queryOptions.queryKey };
+}
+
+/**
+ * @summary Link or unlink a correspondent for the current broker
+ */
+export const getLinkCorrespondentUrl = () => {
+  return `/api/brokers/link-correspondent`;
+};
+
+export const linkCorrespondent = async (
+  linkCorrespondentRequest: LinkCorrespondentRequest,
+  options?: RequestInit,
+): Promise<BrokerCorrespondentLinkageResponse> => {
+  return customFetch<BrokerCorrespondentLinkageResponse>(
+    getLinkCorrespondentUrl(),
+    {
+      ...options,
+      method: "POST",
+      headers: { "Content-Type": "application/json", ...options?.headers },
+      body: JSON.stringify(linkCorrespondentRequest),
+    },
+  );
+};
+
+export const getLinkCorrespondentMutationOptions = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof linkCorrespondent>>,
+    TError,
+    { data: BodyType<LinkCorrespondentRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationOptions<
+  Awaited<ReturnType<typeof linkCorrespondent>>,
+  TError,
+  { data: BodyType<LinkCorrespondentRequest> },
+  TContext
+> => {
+  const mutationKey = ["linkCorrespondent"];
+  const { mutation: mutationOptions, request: requestOptions } = options
+    ? options.mutation &&
+      "mutationKey" in options.mutation &&
+      options.mutation.mutationKey
+      ? options
+      : { ...options, mutation: { ...options.mutation, mutationKey } }
+    : { mutation: { mutationKey }, request: undefined };
+
+  const mutationFn: MutationFunction<
+    Awaited<ReturnType<typeof linkCorrespondent>>,
+    { data: BodyType<LinkCorrespondentRequest> }
+  > = (props) => {
+    const { data } = props ?? {};
+
+    return linkCorrespondent(data, requestOptions);
+  };
+
+  return { mutationFn, ...mutationOptions };
+};
+
+export type LinkCorrespondentMutationResult = NonNullable<
+  Awaited<ReturnType<typeof linkCorrespondent>>
+>;
+export type LinkCorrespondentMutationBody = BodyType<LinkCorrespondentRequest>;
+export type LinkCorrespondentMutationError = ErrorType<void>;
+
+/**
+ * @summary Link or unlink a correspondent for the current broker
+ */
+export const useLinkCorrespondent = <
+  TError = ErrorType<void>,
+  TContext = unknown,
+>(options?: {
+  mutation?: UseMutationOptions<
+    Awaited<ReturnType<typeof linkCorrespondent>>,
+    TError,
+    { data: BodyType<LinkCorrespondentRequest> },
+    TContext
+  >;
+  request?: SecondParameter<typeof customFetch>;
+}): UseMutationResult<
+  Awaited<ReturnType<typeof linkCorrespondent>>,
+  TError,
+  { data: BodyType<LinkCorrespondentRequest> },
+  TContext
+> => {
+  return useMutation(getLinkCorrespondentMutationOptions(options));
 };
 
 /**

@@ -6,6 +6,7 @@ import {
   useTogglePropertyInterest,
   getGetMyInterestsQueryKey,
   getGetPropertyQueryKey,
+  useGetMe,
 } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -43,6 +44,9 @@ export function PropertyDetails({ id }: { id: number }) {
   const [activeImage, setActiveImage] = useState(0);
   const [copied, setCopied] = useState(false);
 
+  const { data: me } = useGetMe({});
+  const role = (me as any)?.role ?? "client";
+
   const { data: property, isLoading, error } = useGetProperty(id, {
     query: {
       enabled: Number.isInteger(id) && id > 0,
@@ -71,7 +75,7 @@ export function PropertyDetails({ id }: { id: number }) {
         <p className="text-sm text-gray-500 mb-6">
           Este imóvel pode ter sido removido do catálogo ou o link está incorreto.
         </p>
-        <Link href="/imoveis">
+        <Link href={role === "client" ? "/portal/imoveis" : "/imoveis"}>
           <Button className="text-white" style={{ background: "#0D1B8C" }}>
             <ArrowLeft className="w-4 h-4 mr-2" /> Voltar para a vitrine
           </Button>
@@ -99,7 +103,11 @@ export function PropertyDetails({ id }: { id: number }) {
   };
 
   const handleSimulate = () => {
-    setLocation(`/leads?prefillProperty=${prop.id}`);
+    if (role === "client") {
+      setLocation(`/portal/simulador?prefillProperty=${prop.id}`);
+    } else {
+      setLocation(`/leads?prefillProperty=${prop.id}`);
+    }
   };
 
   const handleCopyPublicLink = async () => {
@@ -123,7 +131,7 @@ export function PropertyDetails({ id }: { id: number }) {
     <div className="max-w-5xl mx-auto space-y-5" data-testid="page-property-details">
       {/* Breadcrumb / back */}
       <div className="flex items-center justify-between">
-        <Link href="/imoveis">
+        <Link href={role === "client" ? "/portal/imoveis" : "/imoveis"}>
           <button
             className="inline-flex items-center gap-1.5 text-sm text-gray-500 hover:text-[#0D1B8C] transition-colors"
             data-testid="link-back-properties"
