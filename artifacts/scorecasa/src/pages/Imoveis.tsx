@@ -3,7 +3,7 @@ import { Link } from "wouter";
 import { useGetProperties, useCreateProperty, useUpdateProperty, useDeleteProperty, useTogglePropertyInterest, useGetMyInterests, useGetMe, useGetMySubscription, ApiError } from "@workspace/api-client-react";
 import { useSessionGuard } from "@/hooks/use-session-guard";
 import { SessionExpiredBanner } from "@/components/SessionExpiredBanner";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, keepPreviousData } from "@tanstack/react-query";
 import { getGetPropertiesQueryKey, getGetMyInterestsQueryKey } from "@workspace/api-client-react";
 import { useToast } from "@/hooks/use-toast";
 import { Input } from "@/components/ui/input";
@@ -325,7 +325,12 @@ export function Imoveis() {
     if (slot === 3) setForm((f) => ({ ...f, imageUrl3: url }));
   }
 
-  const getPropsOptions = useMemo(() => ({ query: { keepPreviousData: true } }), []);
+  const getPropsOptions = useMemo(() => ({
+    query: {
+      queryKey: getGetPropertiesQueryKey(undefined),
+      placeholderData: keepPreviousData,
+    }
+  }), []);
   const { data: properties = [], isLoading, error: propsError } = useGetProperties(undefined, getPropsOptions);
   const { data: myInterests = [], error: interestsError } = useGetMyInterests({});
 
