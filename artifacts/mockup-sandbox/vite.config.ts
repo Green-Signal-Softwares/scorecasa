@@ -44,7 +44,7 @@ export default defineConfig({
           ),
         ]
       : []),
-  ],
+  ] as any,
   resolve: {
     alias: {
       "@": path.resolve(import.meta.dirname, "src"),
