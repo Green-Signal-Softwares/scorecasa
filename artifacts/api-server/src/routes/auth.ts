@@ -28,6 +28,16 @@ function hashPassword(password: string): string {
   return crypto.createHash("sha256").update(password + "scorecasa_salt").digest("hex");
 }
 
+function establishSession(req: any, userId: number) {
+  req.session = req.session ?? {};
+  for (const key of Object.keys(req.session)) {
+    if (key !== "destroy") {
+      delete req.session[key];
+    }
+  }
+  req.session.userId = userId;
+}
+
 declare global {
   namespace Express {
     interface Request {
@@ -126,6 +136,32 @@ router.post("/register", async (req, res) => {
       let leadId: number | null = null;
 
       if (role === "client" && income && propertyValue && cpf) {
+        const cleanCpf = cpf.replace(/\D/g, "");
+        
+        // Find existing lead by CPF or email
+        const [existingLead] = await tx
+          .select()
+          .from(leadsTable)
+          .where(
+            or(
+              eq(leadsTable.cpf, cleanCpf),
+              eq(leadsTable.email, email.toLowerCase())
+            )
+          )
+          .limit(1);
+
+        let isLeadAssigned = false;
+        if (existingLead) {
+          const [assignedUser] = await tx
+            .select()
+            .from(usersTable)
+            .where(eq(usersTable.leadId, existingLead.id))
+            .limit(1);
+          if (assignedUser) {
+            isLeadAssigned = true;
+          }
+        }
+
         const ratio = propertyValue / (income * 12);
         const maxRatio = 4.5;
         const baseChance = Math.max(0, Math.min(100, 100 - (ratio / maxRatio) * 60));
@@ -137,13 +173,39 @@ router.post("/register", async (req, res) => {
         else if (approvalChance >= 50) recommendation = "Perfil com chances moderadas. Ajustando o comprometimento de renda, a aprovação pode ser garantida.";
         else recommendation = "Perfil com chances baixas. Sugerimos rever o valor do imóvel ou aumentar a renda comprovada.";
 
-        const [lead] = await tx.insert(leadsTable).values({
-          name, cpf, email, phone, income, propertyValue,
-          status: "pending",
-          approvalChance, scoreCaixa, scoreMCMV,
-          aiRecommendation: recommendation,
-        }).returning();
-        leadId = lead.id;
+        if (existingLead && !isLeadAssigned) {
+          leadId = existingLead.id;
+          await tx
+            .update(leadsTable)
+            .set({
+              name,
+              cpf: cleanCpf,
+              email: email.toLowerCase(),
+              phone,
+              income,
+              propertyValue,
+              approvalChance,
+              scoreCaixa,
+              scoreMCMV,
+              aiRecommendation: recommendation,
+            })
+            .where(eq(leadsTable.id, leadId));
+        } else {
+          const [lead] = await tx.insert(leadsTable).values({
+            name,
+            cpf: cleanCpf,
+            email: email.toLowerCase(),
+            phone,
+            income,
+            propertyValue,
+            status: "pending",
+            approvalChance,
+            scoreCaixa,
+            scoreMCMV,
+            aiRecommendation: recommendation,
+          }).returning();
+          leadId = lead.id;
+        }
       }
 
       // Persistimos CPF para cliente e corretor (ambos PF). Corretor precisa
@@ -226,8 +288,7 @@ router.post("/register", async (req, res) => {
     return;
   }
 
-  (req as any).session = (req as any).session ?? {};
-  (req as any).session.userId = user.id;
+  establishSession(req, user.id);
 
   res.status(201).json({
     user: {
@@ -338,8 +399,7 @@ router.post("/login", async (req, res) => {
 
     if (!user || user.passwordHash !== hashPassword(password)) return denyGeneric();
 
-    (req as any).session = (req as any).session ?? {};
-    (req as any).session.userId = user.id;
+    establishSession(req, user.id);
     res.json({
       user: {
         id: user.id,
@@ -380,8 +440,7 @@ router.post("/login", async (req, res) => {
     if (user.role === "correspondent" && (user.cnpj || user.ccaCode)) return denyGeneric();
   }
 
-  (req as any).session = (req as any).session ?? {};
-  (req as any).session.userId = user.id;
+  establishSession(req, user.id);
 
   res.json({
     user: {

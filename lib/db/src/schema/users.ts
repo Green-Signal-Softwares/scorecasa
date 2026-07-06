@@ -1,6 +1,7 @@
 import { pgTable, serial, text, timestamp, integer } from "drizzle-orm/pg-core";
 import { createInsertSchema } from "drizzle-zod";
 import { z } from "zod/v4";
+import { leadsTable } from "./leads";
 
 export const usersTable = pgTable("users", {
   id: serial("id").primaryKey(),
@@ -10,7 +11,7 @@ export const usersTable = pgTable("users", {
   passwordHash: text("password_hash").notNull(),
   role: text("role", { enum: ["admin", "broker", "analyst", "client", "correspondent"] }).notNull().default("analyst"),
   avatarUrl: text("avatar_url"),
-  leadId: integer("lead_id"),
+  leadId: integer("lead_id").references(() => leadsTable.id, { onDelete: "set null" }).unique(),
   // Identificação profissional usada no login do corretor/correspondente.
   // Nulos para perfis que não usam (cliente, admin).
   creci: text("creci"),
