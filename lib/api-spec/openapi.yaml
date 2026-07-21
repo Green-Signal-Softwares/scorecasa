@@ -522,6 +522,106 @@ paths:
               schema:
                 $ref: "#/components/schemas/Subscription"
 
+  /plans:
+    get:
+      operationId: getPlans
+      summary: List active plans (public)
+      tags: [plans]
+      parameters:
+        - name: role
+          in: query
+          schema: { type: string, enum: [client, broker, correspondent] }
+        - name: includeInactive
+          in: query
+          schema: { type: string }
+        - name: includeLegacy
+          in: query
+          schema: { type: string }
+      responses:
+        "200":
+          description: Plans list
+          content:
+            application/json:
+              schema:
+                type: array
+                items:
+                  $ref: "#/components/schemas/Plan"
+    post:
+      operationId: createPlan
+      summary: Admin — create a new plan
+      tags: [plans]
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/CreatePlanRequest"
+      responses:
+        "201":
+          description: Plan created
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Plan"
+
+  /plans/{id}:
+    get:
+      operationId: getPlan
+      summary: Get a single plan
+      tags: [plans]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Plan"
+        "404":
+          description: Not found
+    patch:
+      operationId: updatePlan
+      summary: Admin — update a plan
+      tags: [plans]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      requestBody:
+        required: true
+        content:
+          application/json:
+            schema:
+              $ref: "#/components/schemas/UpdatePlanRequest"
+      responses:
+        "200":
+          description: Updated plan
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Plan"
+    delete:
+      operationId: deletePlan
+      summary: Admin — deactivate a plan (soft delete)
+      tags: [plans]
+      parameters:
+        - name: id
+          in: path
+          required: true
+          schema: { type: string }
+      responses:
+        "200":
+          description: Deactivated
+          content:
+            application/json:
+              schema:
+                $ref: "#/components/schemas/Plan"
+
   /ratings/me:
     get:
       operationId: getMyRatings
@@ -2847,3 +2947,69 @@ components:
           enum: [pending, approved, rejected]
         notes: { type: string }
         name: { type: string }
+
+    Plan:
+      type: object
+      required: [id, label, role, group, priceMonthly, enterprise, color, bgLight, description, features, isActive, isLegacy, sortOrder]
+      properties:
+        id: { type: string }
+        label: { type: string }
+        role:
+          type: string
+          enum: [client, broker, correspondent]
+        group:
+          type: string
+          enum: [individual, corretor, correspondent]
+        priceMonthly: { type: number }
+        leadLimit: { type: integer, nullable: true }
+        enterprise: { type: boolean }
+        color: { type: string }
+        bgLight: { type: string }
+        description: { type: string }
+        features:
+          type: array
+          items: { type: string }
+        isActive: { type: boolean }
+        isLegacy: { type: boolean }
+        sortOrder: { type: integer }
+        createdAt: { type: string, format: date-time }
+        updatedAt: { type: string, format: date-time }
+
+    CreatePlanRequest:
+      type: object
+      required: [id, label, role, group, priceMonthly]
+      properties:
+        id: { type: string }
+        label: { type: string }
+        role:
+          type: string
+          enum: [client, broker, correspondent]
+        group:
+          type: string
+          enum: [individual, corretor, correspondent]
+        priceMonthly: { type: number }
+        leadLimit: { type: integer, nullable: true }
+        enterprise: { type: boolean }
+        color: { type: string }
+        bgLight: { type: string }
+        description: { type: string }
+        features:
+          type: array
+          items: { type: string }
+        sortOrder: { type: integer }
+
+    UpdatePlanRequest:
+      type: object
+      properties:
+        label: { type: string }
+        priceMonthly: { type: number }
+        leadLimit: { type: integer, nullable: true }
+        enterprise: { type: boolean }
+        color: { type: string }
+        bgLight: { type: string }
+        description: { type: string }
+        features:
+          type: array
+          items: { type: string }
+        isActive: { type: boolean }
+        sortOrder: { type: integer }

@@ -66,6 +66,10 @@ function getNavItems(role: string, hasMarketplaceAccess: boolean) {
     base.push({ href: "/admin/taxas", label: "Taxas", icon: Percent });
   }
 
+  if (role === "admin") {
+    base.push({ href: "/admin/planos", label: "Gestão de Planos", icon: ClipboardList });
+  }
+
   if (role === "client") {
     base.push({ href: "/avaliacoes", label: "Avaliações", icon: Star });
   }

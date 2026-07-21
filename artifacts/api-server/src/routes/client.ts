@@ -659,6 +659,17 @@ router.put("/debts", requireClient, async (req, res) => {
   const MAX_OPS = 1_000;
   const errors: string[] = [];
 
+  const FIELD_LABELS: Record<string, string> = {
+    vehicleLoanMonthly: "Parcela do veículo",
+    otherLoansMonthly: "Outras parcelas",
+    creditCardLimit: "Limite total dos cartões",
+    creditCardUsage: "Utilização do cartão",
+    bcbTotalDebt: "Total de dívidas ativas",
+    bcbMonthlyCommitment: "Parcelas mensais BCB",
+    bcbOperationsCount: "Qtd. operações ativas",
+    bcbQueryDate: "Data de referência",
+  };
+
   function money(name: string, v: any): number | null | undefined {
     if (v === undefined) return undefined;
     if (v === null || v === "") return null;
@@ -702,8 +713,9 @@ router.put("/debts", requireClient, async (req, res) => {
   };
 
   if (errors.length > 0) {
+    const friendlyFields = errors.map((f) => FIELD_LABELS[f] || f).join(", ");
     res.status(400).json({
-      error: `Valores inválidos: ${errors.join(", ")}. Use apenas números positivos (cartão até 100%, operações até ${MAX_OPS}).`,
+      error: `Ops! Identificamos um preenchimento incorreto nos seguintes campos: ${friendlyFields}. Por favor, insira apenas números inteiros e positivos (com o percentual de utilização do cartão limitado a no máximo 100%).`,
       fields: errors,
     });
     return;

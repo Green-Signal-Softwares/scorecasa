@@ -23,6 +23,7 @@ import { ScoreCasaConectado } from "@/pages/ScoreCasaConectado";
 import { Correspondente } from "@/pages/Correspondente";
 import { BrokerCorrespondente } from "@/pages/BrokerCorrespondente";
 import { AdminTaxas } from "@/pages/AdminTaxas";
+import { AdminPlanos } from "@/pages/AdminPlanos";
 import { Termos } from "@/pages/Termos";
 import { Privacidade } from "@/pages/Privacidade";
 import { AppLayout } from "@/components/layout/AppLayout";
@@ -261,6 +262,16 @@ function Router() {
           <StaffOnly>
             <AppLayout>
               <AdminTaxas />
+            </AppLayout>
+          </StaffOnly>
+        )}
+      </Route>
+
+      <Route path="/admin/planos">
+        {() => (
+          <StaffOnly>
+            <AppLayout>
+              <AdminPlanos />
             </AppLayout>
           </StaffOnly>
         )}

@@ -22,6 +22,7 @@ import caixaLtvRouter from "./caixa-ltv";
 import calcRouter from "./calc";
 import clientDocumentsRouter from "./client-documents";
 import ratesRouter from "./rates";
+import plansRouter from "./plans";
 
 const router: IRouter = Router();
 
@@ -48,5 +49,6 @@ router.use("/client/documents", clientDocumentsRouter);
 router.use("/caixa-ltv", caixaLtvRouter);
 router.use("/calc", calcRouter);
 router.use("/rates", ratesRouter);
+router.use("/plans", plansRouter);
 
 export default router;

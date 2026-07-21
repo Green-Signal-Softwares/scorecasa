@@ -18,6 +18,7 @@ export interface FormFieldProps {
   testId?: string;
   size?: "compact" | "comfortable";
   required?: boolean;
+  inputMode?: "numeric" | "text" | "decimal" | "email" | "tel" | "search" | "url";
 }
 
 export function FormField({
@@ -36,6 +37,7 @@ export function FormField({
   testId,
   size = "comfortable",
   required,
+  inputMode,
 }: FormFieldProps) {
   const isInvalid = !!(invalid || error);
 
@@ -53,17 +55,22 @@ export function FormField({
   const labelCls = isInvalid ? "text-red-600" : "text-gray-700";
   const labelSize = size === "compact" ? "text-xs mb-1" : "text-sm font-medium mb-1";
 
+  // Separa o asterisco do label para renderizá-lo em vermelho
+  const labelText = label.endsWith(" *") ? label.slice(0, -2) : label;
+  const isRequired = required || label.endsWith(" *");
+
   return (
     <div>
       <label className={`block ${labelSize} ${labelCls} flex items-center gap-1`}>
         {Icon && <Icon className="w-3 h-3" />}
         <span>
-          {label}
-          {required ? " *" : ""}
+          {labelText}
+          {isRequired && <span className="text-red-500 ml-0.5">*</span>}
         </span>
       </label>
       <input
         type={type}
+        inputMode={inputMode}
         min={min ?? (type === "number" ? 0 : undefined)}
         max={max}
         placeholder={placeholder}

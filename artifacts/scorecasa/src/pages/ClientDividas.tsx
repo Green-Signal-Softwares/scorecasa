@@ -63,6 +63,7 @@ export function ClientDividas() {
   const [saved, setSaved] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [errFields, setErrFields] = useState<Set<string>>(new Set());
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [sessionExpired, setSessionExpired] = useState(false);
   const [draftRestored, setDraftRestored] = useState(false);
 
@@ -90,9 +91,109 @@ export function ClientDividas() {
     setLocation("/login");
   }
 
+  function sanitizeNumeric(val: string): string {
+    return val.replace(/\D/g, "");
+  }
+
+  function validateField(name: string, value: string): string | null {
+    if (value === "") return null;
+
+    const moneyFields = [
+      "vehicleLoanMonthly",
+      "otherLoansMonthly",
+      "creditCardLimit",
+      "bcbTotalDebt",
+      "bcbMonthlyCommitment"
+    ];
+
+    if (moneyFields.includes(name)) {
+      const cleanVal = value.trim();
+      if (/\D/.test(cleanVal)) {
+        return "Por favor, digite apenas números, sem pontos, vírgulas ou símbolos.";
+      }
+      const num = Number(cleanVal);
+      if (Number.isNaN(num)) {
+        return "Ops! O valor digitado não parece um número válido. Tente novamente.";
+      }
+      if (num < 0) {
+        return "O valor não pode ser menor que zero.";
+      }
+      if (num > 1000000000) {
+        return "O valor digitado está muito alto. Por favor, verifique se o número está correto.";
+      }
+    }
+
+    if (name === "creditCardUsage") {
+      const cleanVal = value.trim();
+      if (/\D/.test(cleanVal)) {
+        return "Por favor, digite apenas números inteiros de 0 a 100.";
+      }
+      const num = Number(cleanVal);
+      if (Number.isNaN(num)) {
+        return "Ops! O percentual digitado não é válido. Tente novamente.";
+      }
+      if (num < 0) {
+        return "A utilização do cartão não pode ser menor que 0%.";
+      }
+      if (num > 100) {
+        return "O percentual de utilização não pode ser maior que 100%.";
+      }
+    }
+
+    if (name === "bcbOperationsCount") {
+      const cleanVal = value.trim();
+      if (/\D/.test(cleanVal)) {
+        return "Por favor, digite apenas números inteiros para a quantidade.";
+      }
+      const num = Number(cleanVal);
+      if (num < 0) {
+        return "A quantidade não pode ser menor que zero.";
+      }
+      if (num > 1000) {
+        return "A quantidade máxima permitida é de 1000 operações.";
+      }
+    }
+
+    if (name === "bcbQueryDate") {
+      const val = value.trim();
+      if (val && !/^\d{2}\/\d{4}$/.test(val) && !/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+        return "Por favor, insira a data no formato MM/AAAA (ex: 05/2026).";
+      }
+      if (val && /^\d{2}\/\d{4}$/.test(val)) {
+        const [m, y] = val.split("/").map(Number);
+        if (m < 1 || m > 12) {
+          return "O mês digitado é inválido. Escolha um mês entre 01 e 12.";
+        }
+        if (y < 1900 || y > 2100) {
+          return "O ano digitado é inválido. Digite um ano entre 1900 e 2100.";
+        }
+      }
+    }
+
+    return null;
+  }
+
   function updateField(name: keyof typeof form, value: string) {
-    setForm((f) => ({ ...f, [name]: value }));
+    let cleaned = value;
+    if (name !== "bcbQueryDate") {
+      cleaned = sanitizeNumeric(value);
+    }
+
+    setForm((f) => ({ ...f, [name]: cleaned }));
     if (draftRestored) setDraftRestored(false);
+
+    // Validação em tempo real
+    const errorText = validateField(name, cleaned);
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      if (errorText) {
+        next[name] = errorText;
+      } else {
+        delete next[name];
+      }
+      return next;
+    });
+
     setErrFields((prev) => {
       if (!prev.has(name)) return prev;
       const next = new Set(prev);
@@ -226,6 +327,25 @@ export function ClientDividas() {
     setErr(null);
     setErrFields(new Set());
     setSaved(false);
+
+    // Validar localmente antes de enviar
+    const errorsMap: Record<string, string> = {};
+    for (const [k, v] of Object.entries(form)) {
+      const errText = validateField(k, v);
+      if (errText) {
+        errorsMap[k] = errText;
+      }
+    }
+
+    if (Object.keys(errorsMap).length > 0) {
+      setFieldErrors(errorsMap);
+      setErr("Por favor, corrija os erros nos campos destacados antes de salvar.");
+      setSaving(false);
+      return;
+    }
+
+    setFieldErrors({});
+
     try {
       const payload: Record<string, any> = {};
       for (const [k, v] of Object.entries(form)) {
@@ -340,7 +460,8 @@ export function ClientDividas() {
                 value={form.vehicleLoanMonthly}
                 onChange={(v) => updateField("vehicleLoanMonthly", v)}
                 testId="input-vehicle-loan"
-                invalid={errFields.has("vehicleLoanMonthly")}
+                invalid={errFields.has("vehicleLoanMonthly") || !!fieldErrors.vehicleLoanMonthly}
+                error={fieldErrors.vehicleLoanMonthly}
               />
               <Field
                 icon={Wallet}
@@ -349,7 +470,8 @@ export function ClientDividas() {
                 value={form.otherLoansMonthly}
                 onChange={(v) => updateField("otherLoansMonthly", v)}
                 testId="input-other-loans"
-                invalid={errFields.has("otherLoansMonthly")}
+                invalid={errFields.has("otherLoansMonthly") || !!fieldErrors.otherLoansMonthly}
+                error={fieldErrors.otherLoansMonthly}
               />
               <Field
                 icon={CreditCard}
@@ -358,7 +480,8 @@ export function ClientDividas() {
                 value={form.creditCardLimit}
                 onChange={(v) => updateField("creditCardLimit", v)}
                 testId="input-credit-card-limit"
-                invalid={errFields.has("creditCardLimit")}
+                invalid={errFields.has("creditCardLimit") || !!fieldErrors.creditCardLimit}
+                error={fieldErrors.creditCardLimit}
               />
               <Field
                 icon={CreditCard}
@@ -368,7 +491,8 @@ export function ClientDividas() {
                 onChange={(v) => updateField("creditCardUsage", v)}
                 max={100}
                 testId="input-credit-card-usage"
-                invalid={errFields.has("creditCardUsage")}
+                invalid={errFields.has("creditCardUsage") || !!fieldErrors.creditCardUsage}
+                error={fieldErrors.creditCardUsage}
               />
             </div>
 
@@ -431,7 +555,8 @@ export function ClientDividas() {
                 value={form.bcbTotalDebt}
                 onChange={(v) => updateField("bcbTotalDebt", v)}
                 testId="input-bcb-total-debt"
-                invalid={errFields.has("bcbTotalDebt")}
+                invalid={errFields.has("bcbTotalDebt") || !!fieldErrors.bcbTotalDebt}
+                error={fieldErrors.bcbTotalDebt}
               />
               <Field
                 label="Parcelas mensais BCB (R$/mês)"
@@ -439,7 +564,8 @@ export function ClientDividas() {
                 value={form.bcbMonthlyCommitment}
                 onChange={(v) => updateField("bcbMonthlyCommitment", v)}
                 testId="input-bcb-monthly"
-                invalid={errFields.has("bcbMonthlyCommitment")}
+                invalid={errFields.has("bcbMonthlyCommitment") || !!fieldErrors.bcbMonthlyCommitment}
+                error={fieldErrors.bcbMonthlyCommitment}
               />
               <Field
                 label="Qtd. operações ativas"
@@ -447,7 +573,8 @@ export function ClientDividas() {
                 value={form.bcbOperationsCount}
                 onChange={(v) => updateField("bcbOperationsCount", v)}
                 testId="input-bcb-ops"
-                invalid={errFields.has("bcbOperationsCount")}
+                invalid={errFields.has("bcbOperationsCount") || !!fieldErrors.bcbOperationsCount}
+                error={fieldErrors.bcbOperationsCount}
               />
               <Field
                 type="text"
@@ -456,7 +583,8 @@ export function ClientDividas() {
                 value={form.bcbQueryDate}
                 onChange={(v) => updateField("bcbQueryDate", v)}
                 testId="input-bcb-date"
-                invalid={errFields.has("bcbQueryDate")}
+                invalid={errFields.has("bcbQueryDate") || !!fieldErrors.bcbQueryDate}
+                error={fieldErrors.bcbQueryDate}
               />
             </div>
 
@@ -692,6 +820,14 @@ function OFStat({ label, value, good, bad }: { label: string; value: string; goo
   );
 }
 
-function Field(props: Omit<FormFieldProps, "size" | "type"> & { type?: "number" | "text" }) {
-  return <FormField {...props} type={props.type ?? "number"} size="compact" />;
+function Field(props: Omit<FormFieldProps, "size" | "type" | "inputMode"> & { type?: "number" | "text" }) {
+  const isDate = props.label === "Data de referência";
+  return (
+    <FormField
+      {...props}
+      type="text"
+      inputMode={isDate ? undefined : "numeric"}
+      size="compact"
+    />
+  );
 }

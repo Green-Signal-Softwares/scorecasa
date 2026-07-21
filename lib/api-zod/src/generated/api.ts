@@ -1315,6 +1315,144 @@ export const UpdateSubscriptionResponse = zod.object({
 });
 
 /**
+ * @summary List active plans (public)
+ */
+export const GetPlansQueryParams = zod.object({
+  role: zod.enum(["client", "broker", "correspondent"]).optional(),
+  includeInactive: zod.coerce.string().optional(),
+  includeLegacy: zod.coerce.string().optional(),
+});
+
+export const GetPlansResponseItem = zod.object({
+  id: zod.string(),
+  label: zod.string(),
+  role: zod.enum(["client", "broker", "correspondent"]),
+  group: zod.enum(["individual", "corretor", "correspondent"]),
+  priceMonthly: zod.number(),
+  leadLimit: zod.number().nullish(),
+  enterprise: zod.boolean(),
+  color: zod.string(),
+  bgLight: zod.string(),
+  description: zod.string(),
+  features: zod.array(zod.string()),
+  isActive: zod.boolean(),
+  isLegacy: zod.boolean(),
+  sortOrder: zod.number(),
+  createdAt: zod.coerce.date().optional(),
+  updatedAt: zod.coerce.date().optional(),
+});
+export const GetPlansResponse = zod.array(GetPlansResponseItem);
+
+/**
+ * @summary Admin — create a new plan
+ */
+export const CreatePlanBody = zod.object({
+  id: zod.string(),
+  label: zod.string(),
+  role: zod.enum(["client", "broker", "correspondent"]),
+  group: zod.enum(["individual", "corretor", "correspondent"]),
+  priceMonthly: zod.number(),
+  leadLimit: zod.number().nullish(),
+  enterprise: zod.boolean().optional(),
+  color: zod.string().optional(),
+  bgLight: zod.string().optional(),
+  description: zod.string().optional(),
+  features: zod.array(zod.string()).optional(),
+  sortOrder: zod.number().optional(),
+});
+
+/**
+ * @summary Get a single plan
+ */
+export const GetPlanParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const GetPlanResponse = zod.object({
+  id: zod.string(),
+  label: zod.string(),
+  role: zod.enum(["client", "broker", "correspondent"]),
+  group: zod.enum(["individual", "corretor", "correspondent"]),
+  priceMonthly: zod.number(),
+  leadLimit: zod.number().nullish(),
+  enterprise: zod.boolean(),
+  color: zod.string(),
+  bgLight: zod.string(),
+  description: zod.string(),
+  features: zod.array(zod.string()),
+  isActive: zod.boolean(),
+  isLegacy: zod.boolean(),
+  sortOrder: zod.number(),
+  createdAt: zod.coerce.date().optional(),
+  updatedAt: zod.coerce.date().optional(),
+});
+
+/**
+ * @summary Admin — update a plan
+ */
+export const UpdatePlanParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const UpdatePlanBody = zod.object({
+  label: zod.string().optional(),
+  priceMonthly: zod.number().optional(),
+  leadLimit: zod.number().nullish(),
+  enterprise: zod.boolean().optional(),
+  color: zod.string().optional(),
+  bgLight: zod.string().optional(),
+  description: zod.string().optional(),
+  features: zod.array(zod.string()).optional(),
+  isActive: zod.boolean().optional(),
+  sortOrder: zod.number().optional(),
+});
+
+export const UpdatePlanResponse = zod.object({
+  id: zod.string(),
+  label: zod.string(),
+  role: zod.enum(["client", "broker", "correspondent"]),
+  group: zod.enum(["individual", "corretor", "correspondent"]),
+  priceMonthly: zod.number(),
+  leadLimit: zod.number().nullish(),
+  enterprise: zod.boolean(),
+  color: zod.string(),
+  bgLight: zod.string(),
+  description: zod.string(),
+  features: zod.array(zod.string()),
+  isActive: zod.boolean(),
+  isLegacy: zod.boolean(),
+  sortOrder: zod.number(),
+  createdAt: zod.coerce.date().optional(),
+  updatedAt: zod.coerce.date().optional(),
+});
+
+/**
+ * @summary Admin — deactivate a plan (soft delete)
+ */
+export const DeletePlanParams = zod.object({
+  id: zod.coerce.string(),
+});
+
+export const DeletePlanResponse = zod.object({
+  id: zod.string(),
+  label: zod.string(),
+  role: zod.enum(["client", "broker", "correspondent"]),
+  group: zod.enum(["individual", "corretor", "correspondent"]),
+  priceMonthly: zod.number(),
+  leadLimit: zod.number().nullish(),
+  enterprise: zod.boolean(),
+  color: zod.string(),
+  bgLight: zod.string(),
+  description: zod.string(),
+  features: zod.array(zod.string()),
+  isActive: zod.boolean(),
+  isLegacy: zod.boolean(),
+  sortOrder: zod.number(),
+  createdAt: zod.coerce.date().optional(),
+  updatedAt: zod.coerce.date().optional(),
+});
+
+/**
  * @summary Get ratings received by current user
  */
 export const getMyRatingsResponseRatingsItemStarsMax = 5;

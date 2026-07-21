@@ -1,6 +1,6 @@
 import { Router } from "express";
-import { db, subscriptionsTable, PLAN_TIERS, MARKETPLACE_ADDONS } from "@workspace/db";
-import { eq, sql } from "drizzle-orm";
+import { db, subscriptionsTable, plansTable } from "@workspace/db";
+import { eq, sql, and } from "drizzle-orm";
 import { z } from "zod";
 
 const router = Router();
@@ -17,23 +17,12 @@ function formatSub(s: any) {
   return out;
 }
 
-const ALL_PLANS = [
-  // Estrutura atual
-  "free", "individual", "plus",
-  "corretor", "imobiliaria", "enterprise",
-  "correspondente_individual", "correspondente_sucesso", "bank_connect",
-  // Legacy
-  "corretor_50", "corretor_200", "corretor_enterprise",
-  "correspondent_50", "correspondent_200", "correspondent_enterprise",
-  "client", "correspondent",
-] as const;
-
 const CreateSubBody = z.object({
   userId: z.number().int(),
   userName: z.string(),
   userEmail: z.string().email(),
   userRole: z.string(),
-  plan: z.enum(ALL_PLANS),
+  plan: z.string().min(1),
   status: z.enum(["trial", "active", "overdue", "cancelled", "inactive"]).optional(),
   billingDay: z.number().int().optional(),
   marketplaceAddon: z.boolean().optional(),
@@ -43,7 +32,7 @@ const CreateSubBody = z.object({
 });
 
 const UpdateSubBody = z.object({
-  plan: z.enum(ALL_PLANS).optional(),
+  plan: z.string().min(1).optional(),
   status: z.enum(["trial", "active", "overdue", "cancelled", "inactive"]).optional(),
   billingDay: z.number().int().optional(),
   marketplaceAddon: z.boolean().optional(),
@@ -54,11 +43,12 @@ const UpdateSubBody = z.object({
   notes: z.string().optional(),
 });
 
-function getPlanPrice(planId: string): number {
-  const tier = PLAN_TIERS[planId as keyof typeof PLAN_TIERS];
-  if (tier) return tier.priceMonthly;
-  // Legacy fallback (assinaturas criadas antes da nova estrutura de planos —
-  // mantém o preço histórico para não distorcer cobranças/MRR de assinaturas antigas)
+async function getPlanPrice(planId: string): Promise<number> {
+  const [plan] = await db.select().from(plansTable)
+    .where(eq(plansTable.id, planId)).limit(1);
+  if (plan) return plan.priceMonthly;
+
+  // Fallback para planos legados que não foram migrados para a tabela plans
   const legacy: Record<string, number> = {
     client: 29.90,
     corretor_50: 199.00, corretor_200: 499.00, corretor_enterprise: 0,
@@ -94,7 +84,7 @@ router.post("/", requireAuth, async (req, res) => {
   const nextDue = new Date();
   nextDue.setMonth(nextDue.getMonth() + 1);
 
-  let priceMonthly = getPlanPrice(parsed.data.plan);
+  let priceMonthly = await getPlanPrice(parsed.data.plan);
   if (parsed.data.marketplaceAddon && parsed.data.marketplaceAddonPrice) {
     priceMonthly += parsed.data.marketplaceAddonPrice;
   }
@@ -122,12 +112,12 @@ router.patch("/:id", requireAuth, async (req, res) => {
 
   const updateData: any = { ...parsed.data, updatedAt: new Date() };
 
-  // Recalcular o valor mensal (priceMonthly) considerando o plano final e o status final do add-on do marketplace
+  // Recalcular priceMonthly consultando o banco para o plano final
   const finalPlan = parsed.data.plan !== undefined ? parsed.data.plan : existing.plan;
   const finalMarketplaceAddon = parsed.data.marketplaceAddon !== undefined ? parsed.data.marketplaceAddon : existing.marketplaceAddon;
   const finalMarketplaceAddonPrice = parsed.data.marketplaceAddonPrice !== undefined ? parsed.data.marketplaceAddonPrice : (existing.marketplaceAddonPrice ?? 0);
 
-  let priceMonthly = getPlanPrice(finalPlan);
+  let priceMonthly = await getPlanPrice(finalPlan);
   if (finalMarketplaceAddon && finalMarketplaceAddonPrice) {
     priceMonthly += finalMarketplaceAddonPrice;
   }

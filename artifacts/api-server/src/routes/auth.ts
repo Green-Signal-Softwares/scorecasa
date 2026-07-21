@@ -1,15 +1,15 @@
 import { Router } from "express";
-import { db, usersTable, leadsTable, subscriptionsTable, passwordResetsTable, PLAN_TIERS, type PlanTierId, brokersTable, correspondentsTable } from "@workspace/db";
+import { db, usersTable, leadsTable, subscriptionsTable, passwordResetsTable, plansTable, brokersTable, correspondentsTable } from "@workspace/db";
 import { and, eq, isNull, gt, or } from "drizzle-orm";
 import { LoginBody } from "@workspace/api-zod";
 import crypto from "crypto";
 import { z } from "zod";
 
-const PLAN_IDS = Object.keys(PLAN_TIERS) as [PlanTierId, ...PlanTierId[]];
+
 
 const RegisterBody = z.object({
   role: z.enum(["client", "broker", "correspondent"]).default("client"),
-  plan: z.enum(PLAN_IDS).optional(),
+  plan: z.string().min(1).optional(),
   name: z.string().min(2),
   email: z.string().email(),
   phone: z.string().min(8),
@@ -55,10 +55,14 @@ router.post("/register", async (req, res) => {
 
   const { role, plan, name, email, phone, password, cpf, cnpj, creci, ccaCode, income, propertyValue } = parsed.data;
 
-  // Resolve and validate plan against role
-  const planId: PlanTierId = (plan ??
-    (role === "client" ? "free" : role === "broker" ? "corretor" : "bank_connect")) as PlanTierId;
-  const planTier = PLAN_TIERS[planId];
+  // Resolve e valida o plano contra o role — busca no banco
+  const defaultPlanId =
+    role === "client" ? "free" : role === "broker" ? "corretor" : "bank_connect";
+  const planId = plan ?? defaultPlanId;
+
+  const [planTier] = await db.select().from(plansTable)
+    .where(eq(plansTable.id, planId)).limit(1);
+
   if (!planTier || planTier.role !== role) {
     res.status(400).json({ error: "Plan does not match the selected profile" });
     return;
