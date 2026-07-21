@@ -1,0 +1,6 @@
+{
+  "appId": "com.scorecasa.mobile",
+  "appName": "ScoreCasa Mobile",
+  "webDir": "dist/public",
+  "bundledWebRuntime": false
+}
