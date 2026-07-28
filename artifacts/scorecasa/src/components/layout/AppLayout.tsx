@@ -29,6 +29,10 @@ function getNavItems(role: string, hasMarketplaceAccess: boolean) {
     base.push({ href: "/imoveis", label: "Imóveis", icon: Building2 });
   }
 
+  if (["broker", "correspondent", "admin", "analyst"].includes(role)) {
+    base.push({ href: "/equipe", label: "Equipe", icon: Users });
+  }
+
   if (["admin", "analyst"].includes(role)) {
     base.push(
       { href: "/brokers", label: "Corretores", icon: UserCheck },

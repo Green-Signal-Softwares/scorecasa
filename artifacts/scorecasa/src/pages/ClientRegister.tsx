@@ -3,11 +3,12 @@ import { useLocation, Link } from "wouter";
 import {
   Eye, EyeOff, ArrowRight, ArrowLeft, Building2, User, Briefcase,
   Landmark, ShieldCheck, Check, Lock, Sparkles, Search,
+  CreditCard, Calendar, Shield,
 } from "lucide-react";
 import { ScoreCasaLogo, ScoreCasaWordmark } from "@/components/ScoreCasaLogo";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
-import { getGetMeQueryKey } from "@workspace/api-client-react";
+import { useGetPlans, getGetMeQueryKey, type Plan } from "@workspace/api-client-react";
 
 // ── Profiles ────────────────────────────────────────────────────────────────
 type ProfileId = "client" | "broker" | "correspondent" | "admin";
@@ -74,6 +75,8 @@ type PlanInfo = {
   features: string[];
   enterprise: boolean;
   highlight?: boolean;
+  userLimit?: number | null;
+  leadLimit?: number | null;
 };
 
 const PLANS: PlanInfo[] = [
@@ -221,6 +224,36 @@ const PLANS: PlanInfo[] = [
 ];
 
 // ── Masks ───────────────────────────────────────────────────────────────────
+function maskCEP(value: string) {
+  const d = value.replace(/\D/g, "").slice(0, 8);
+  if (d.length <= 5) return d;
+  return `${d.slice(0, 5)}-${d.slice(5)}`;
+}
+
+function isValidCPF(cpf: string): boolean {
+  const clean = cpf.replace(/\D/g, "");
+  if (clean.length !== 11) return false;
+  if (/^(\d)\1{10}$/.test(clean)) return false;
+
+  let sum = 0;
+  for (let i = 0; i < 9; i++) {
+    sum += parseInt(clean.charAt(i)) * (10 - i);
+  }
+  let rev = 11 - (sum % 11);
+  if (rev === 10 || rev === 11) rev = 0;
+  if (rev !== parseInt(clean.charAt(9))) return false;
+
+  sum = 0;
+  for (let i = 0; i < 10; i++) {
+    sum += parseInt(clean.charAt(i)) * (11 - i);
+  }
+  rev = 11 - (sum % 11);
+  if (rev === 10 || rev === 11) rev = 0;
+  if (rev !== parseInt(clean.charAt(10))) return false;
+
+  return true;
+}
+
 function maskCPF(value: string) {
   const d = value.replace(/\D/g, "").slice(0, 11);
   if (d.length <= 3) return d;
@@ -236,6 +269,11 @@ function maskCNPJ(value: string) {
   if (d.length <= 12) return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8)}`;
   return `${d.slice(0, 2)}.${d.slice(2, 5)}.${d.slice(5, 8)}/${d.slice(8, 12)}-${d.slice(12)}`;
 }
+function maskCardNumber(value: string) {
+  const d = value.replace(/\D/g, "").slice(0, 16);
+  return d.replace(/(\d{4})(?=\d)/g, "$1 ").trim();
+}
+
 function maskPhone(value: string) {
   const d = value.replace(/\D/g, "").slice(0, 11);
   if (d.length <= 2) return `(${d}`;
@@ -262,9 +300,23 @@ export function ClientRegister() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
 
-  const [step, setStep] = useState<1 | 2 | 3>(1);
+  const [step, setStep] = useState<1 | 2 | 3 | 4>(1);
   const [profile, setProfile] = useState<ProfileId | null>(null);
   const [planId, setPlanId] = useState<string | null>(null);
+  const [paymentError, setPaymentError] = useState<string | null>(null);
+
+  // ── Card form ───────────────────────────────────────────────────────────────
+  const [cardForm, setCardForm] = useState({
+    holderName: "",
+    number: "",
+    expiryMonth: "",
+    expiryYear: "",
+    ccv: "",
+    cpfCnpj: "",
+    postalCode: "",
+    addressNumber: "",
+  });
+  const [cardErrors, setCardErrors] = useState<Record<string, string>>({});
 
   const [form, setForm] = useState({
     name: "",
@@ -340,7 +392,36 @@ export function ClientRegister() {
     }
   };
 
-  const profilePlans = profile ? PLANS.filter((p) => p.role === profile) : [];
+  const { data: dbPlans = [] } = useGetPlans({
+    includeInactive: "false",
+    includeLegacy: "false",
+  } as any);
+
+  const activeDbPlans = (dbPlans as Plan[]).filter((p) => p.isActive !== false && !p.isLegacy);
+
+  const availablePlans = activeDbPlans.length > 0
+    ? activeDbPlans.map((p) => {
+        const catRole: ProfileId = (p.role === "correspondent" || p.group === "correspondent")
+          ? "correspondent"
+          : (p.role === "broker" || p.group === "corretor")
+          ? "broker"
+          : "client";
+        return {
+          id: p.id,
+          label: p.label,
+          role: catRole,
+          priceMonthly: p.priceMonthly,
+          description: p.description ?? "",
+          features: p.features ?? [],
+          enterprise: !!p.enterprise,
+          highlight: !!(p as any).highlight,
+          userLimit: (p as any).userLimit,
+          leadLimit: p.leadLimit,
+        };
+      })
+    : PLANS;
+
+  const profilePlans = profile ? availablePlans.filter((p) => p.role === profile) : [];
 
   // ── Step 1: choose profile ────────────────────────────────────────────────
   const selectProfile = (p: ProfileId) => {
@@ -352,15 +433,78 @@ export function ClientRegister() {
       return;
     }
     setProfile(p);
-    // Default plan suggestion
-    const defaults: Record<Exclude<ProfileId, "admin">, string> = {
-      client: "free",
-      broker: "corretor",
-      correspondent: "bank_connect",
-    };
-    setPlanId(defaults[p]);
+    const pPlans = availablePlans.filter((item) => item.role === p);
+    const highlighted = pPlans.find((item) => item.highlight);
+    const defaultPlanId = highlighted?.id ?? pPlans[0]?.id ?? (p === "client" ? "free" : p === "broker" ? "corretor" : "correspondent_individual");
+    setPlanId(defaultPlanId);
     setStep(2);
   };
+
+  // ── Helpers ───────────────────────────────────────────────────────────────
+  /** Plans that do NOT need a payment step (free or enterprise) */
+  const needsPayment = (plan: PlanInfo | undefined) => {
+    if (!plan) return false;
+    if (plan.priceMonthly === 0) return false;  // Free
+    if (plan.enterprise) return false;           // Enterprise / sob consulta
+    return true;
+  };
+
+  // ── Card validation ──────────────────────────────────────────────────────
+  const validateCard = () => {
+    const errs: Record<string, string> = {};
+    if (!cardForm.holderName.trim() || cardForm.holderName.trim().length < 2)
+      errs.holderName = "Nome do titular obrigatório";
+    const cardDigits = cardForm.number.replace(/\D/g, "");
+    if (cardDigits.length < 13 || cardDigits.length > 19)
+      errs.number = "Número do cartão inválido";
+    if (!/^\d{2}$/.test(cardForm.expiryMonth) || Number(cardForm.expiryMonth) < 1 || Number(cardForm.expiryMonth) > 12)
+      errs.expiryMonth = "Mês inválido";
+    const year = Number(cardForm.expiryYear);
+    const currentYear = new Date().getFullYear();
+    if (!/^\d{4}$/.test(cardForm.expiryYear) || year < currentYear || year > currentYear + 20)
+      errs.expiryYear = "Ano inválido";
+    if (!/^\d{3,4}$/.test(cardForm.ccv))
+      errs.ccv = "CVV inválido";
+    const cpfDigits = cardForm.cpfCnpj.replace(/\D/g, "");
+    if (cpfDigits.length === 11 && !isValidCPF(cpfDigits)) {
+      errs.cpfCnpj = "CPF inválido (dígitos verificadores incorretos)";
+    } else if (cpfDigits.length !== 11 && cpfDigits.length !== 14) {
+      errs.cpfCnpj = "CPF ou CNPJ inválido";
+    }
+    const cepDigits = cardForm.postalCode.replace(/\D/g, "");
+    if (cepDigits.length !== 8) {
+      errs.postalCode = "CEP inválido (deve ter 8 dígitos)";
+    }
+    if (!cardForm.addressNumber.trim()) {
+      errs.addressNumber = "Número obrigatório";
+    }
+    return errs;
+  };
+
+  const setCard = (key: keyof typeof cardForm) => (e: React.ChangeEvent<HTMLInputElement>) => {
+    let val = e.target.value;
+    if (key === "number") val = maskCardNumber(val);
+    else if (key === "cpfCnpj") {
+      const d = val.replace(/\D/g, "");
+      val = d.length <= 11 ? maskCPF(val) : maskCNPJ(val);
+    } else if (key === "postalCode") {
+      val = maskCEP(val);
+    }
+    setCardForm((f) => ({ ...f, [key]: val }));
+    setCardErrors((e) => ({ ...e, [key]: "" }));
+  };
+
+  const handleExpiryChange = (e: React.ChangeEvent<HTMLInputElement>) => {
+    const raw = e.target.value.replace(/\D/g, "").slice(0, 4);
+    setCardForm((f) => ({
+      ...f,
+      expiryMonth: raw.slice(0, 2),
+      expiryYear: raw.length >= 3 ? `20${raw.slice(2, 4)}` : "",
+    }));
+    setCardErrors((e) => ({ ...e, expiryMonth: "", expiryYear: "" }));
+  };
+
+  const expiryDisplay = `${cardForm.expiryMonth}${cardForm.expiryYear ? `/${cardForm.expiryYear.slice(2)}` : ""}`;
 
   // ── Step 3: validation ────────────────────────────────────────────────────
   const validate = () => {
@@ -373,12 +517,12 @@ export function ClientRegister() {
 
     if (profile === "client") {
       const cpfDigits = form.cpf.replace(/\D/g, "");
-      if (cpfDigits.length !== 11) errs.cpf = "CPF inválido";
+      if (!isValidCPF(cpfDigits)) errs.cpf = "CPF inválido (dígitos verificadores incorretos)";
       if (parseCurrency(form.income) <= 0) errs.income = "Informe sua renda mensal";
       if (parseCurrency(form.propertyValue) <= 0) errs.propertyValue = "Informe o valor do imóvel";
     } else if (profile === "broker") {
       const cpfDigits = form.cpf.replace(/\D/g, "");
-      if (cpfDigits.length !== 11) errs.cpf = "CPF inválido";
+      if (!isValidCPF(cpfDigits)) errs.cpf = "CPF inválido (dígitos verificadores incorretos)";
       if (!form.creci.trim()) errs.creci = "CRECI obrigatório";
     } else if (profile === "correspondent") {
       // Correspondente: identidade jurídica (CNPJ) + CCA são suficientes.
@@ -469,7 +613,9 @@ export function ClientRegister() {
       await queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
       toast({
         title: "Conta criada com sucesso!",
-        description: "Você ganhou 14 dias de avaliação gratuita.",
+        description: selectedPlan && needsPayment(selectedPlan)
+          ? "Conta criada! Processando pagamento..."
+          : "Você ganhou 14 dias de avaliação gratuita.",
       });
       setLocation(profile === "client" ? "/portal" : "/dashboard");
     } catch {
@@ -479,7 +625,109 @@ export function ClientRegister() {
     }
   };
 
-  const selectedPlan = PLANS.find((p) => p.id === planId);
+  // ── Step 4: card submit ──────────────────────────────────────────────────
+  const handleCardSubmit = async (e: React.FormEvent) => {
+    e.preventDefault();
+    setPaymentError(null);
+    const errs = validateCard();
+    if (Object.keys(errs).length > 0) {
+      setCardErrors(errs);
+      return;
+    }
+    // Re-use the account creation + charge together
+    const accountErrs = validate();
+    if (Object.keys(accountErrs).length > 0) {
+      setErrors(accountErrs);
+      setStep(3);
+      toast({ title: "Corrija os dados da conta", description: "Volte ao passo anterior." });
+      return;
+    }
+    if (!profile || !planId || !selectedPlan) {
+      setStep(1);
+      return;
+    }
+
+    setLoading(true);
+    try {
+      const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+
+      const cardDigits = cardForm.number.replace(/\D/g, "");
+      const cpfDigits = cardForm.cpfCnpj.replace(/\D/g, "");
+
+      // Create unified body including user info and credit card info
+      const body: Record<string, unknown> = {
+        role: profile,
+        plan: planId,
+        billingInterval: "monthly",
+        name: form.name.trim(),
+        email: form.email.trim().toLowerCase(),
+        phone: form.phone.replace(/\D/g, ""),
+        password: form.password,
+        cpf: form.cpf.replace(/\D/g, "") || undefined,
+        creditCard: {
+          holderName: cardForm.holderName.trim(),
+          number: cardDigits,
+          expiryMonth: cardForm.expiryMonth,
+          expiryYear: cardForm.expiryYear,
+          ccv: cardForm.ccv,
+        },
+        creditCardHolderInfo: {
+          name: cardForm.holderName.trim(),
+          email: form.email.trim().toLowerCase(),
+          cpfCnpj: cpfDigits,
+          mobilePhone: form.phone.replace(/\D/g, ""),
+          postalCode: cardForm.postalCode.replace(/\D/g, ""),
+          addressNumber: cardForm.addressNumber.trim(),
+        },
+      };
+
+      if (form.cnpj) body.cnpj = form.cnpj.replace(/\D/g, "");
+      if (form.creci) body.creci = form.creci.trim();
+      if (form.ccaCode) body.ccaCode = form.ccaCode.trim();
+      if (profile === "client") {
+        body.income = parseCurrency(form.income);
+        body.propertyValue = parseCurrency(form.propertyValue);
+      }
+
+      const regResp = await fetch(`${BASE}/api/auth/register`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify(body),
+      });
+
+      if (regResp.status === 409) {
+        setErrors({ email: "Este email já está cadastrado" });
+        setStep(3);
+        return;
+      }
+
+      const data = await regResp.json().catch(() => ({}));
+      if (!regResp.ok) {
+        const msg = (data as { error?: string }).error ?? "Erro ao cadastrar e processar pagamento.";
+        setPaymentError(msg);
+        toast({ title: "Não foi possível criar a conta", description: msg });
+        return;
+      }
+
+      toast({
+        title: "Conta criada e pagamento confirmado!",
+        description: `Plano ${selectedPlan.label} ativado com sucesso.`,
+      });
+
+      await queryClient.invalidateQueries({ queryKey: getGetMeQueryKey() });
+      setLocation(profile === "client" ? "/portal" : "/dashboard");
+    } catch {
+      const genericMsg = "Erro de conexão ao criar conta. Tente novamente.";
+      setPaymentError(genericMsg);
+      toast({ title: "Erro ao criar conta", description: genericMsg });
+    } finally {
+      setLoading(false);
+    }
+  };
+
+
+  const selectedPlan = availablePlans.find((p) => p.id === planId);
   const selectedProfile = PROFILES.find((p) => p.id === profile);
 
   return (
@@ -499,22 +747,23 @@ export function ClientRegister() {
 
           {/* Steps indicator */}
           <div className="space-y-3">
-            {[
+            {([
               { n: 1, label: "Escolha seu perfil" },
               { n: 2, label: "Selecione o plano" },
               { n: 3, label: "Crie sua conta" },
-            ].map((s) => (
+              ...(selectedPlan && needsPayment(selectedPlan) ? [{ n: 4, label: "Dados de pagamento" }] : []),
+            ] as { n: number; label: string }[]).map((s) => (
               <div key={s.n} className="flex items-center gap-3 text-sm">
                 <div
                   className="w-7 h-7 rounded-full flex items-center justify-center text-xs font-semibold flex-shrink-0"
                   style={{
-                    background: step >= (s.n as 1 | 2 | 3) ? "#10A65A" : "rgba(255,255,255,0.1)",
-                    color: step >= (s.n as 1 | 2 | 3) ? "white" : "#94A3B8",
+                    background: step >= s.n ? "#10A65A" : "rgba(255,255,255,0.1)",
+                    color: step >= s.n ? "white" : "#94A3B8",
                   }}
                 >
-                  {step > (s.n as 1 | 2 | 3) ? <Check className="w-4 h-4" /> : s.n}
+                  {step > s.n ? <Check className="w-4 h-4" /> : s.n}
                 </div>
-                <span className={step >= (s.n as 1 | 2 | 3) ? "text-white font-medium" : "text-blue-300"}>
+                <span className={step >= s.n ? "text-white font-medium" : "text-blue-300"}>
                   {s.label}
                 </span>
               </div>
@@ -540,23 +789,29 @@ export function ClientRegister() {
             <div className="flex items-center justify-between mb-6">
               <div>
                 <p className="text-xs font-semibold uppercase tracking-wider mb-1" style={{ color: "#10A65A" }}>
-                  Passo {step} de 3
+                  Passo {step} de {selectedPlan && needsPayment(selectedPlan) ? 4 : 3}
                 </p>
                 <h2 className="text-2xl font-bold" style={{ color: "#07113A" }}>
                   {step === 1 && "Qual o seu perfil?"}
                   {step === 2 && "Escolha seu plano"}
                   {step === 3 && "Quase lá! Seus dados"}
+                  {step === 4 && "Dados de pagamento"}
                 </h2>
                 <p className="text-gray-500 text-sm mt-1">
                   {step === 1 && "Selecione como deseja usar a ScoreCasa."}
                   {step === 2 && "Você terá 14 dias de avaliação gratuita em qualquer plano."}
                   {step === 3 && "Preencha os dados para criar sua conta."}
+                  {step === 4 && "Informe os dados do cartão de crédito para a assinatura."}
                 </p>
               </div>
               {step > 1 && (
                 <button
                   type="button"
-                  onClick={() => setStep((s) => (s === 3 ? 2 : 1) as 1 | 2)}
+                  onClick={() => {
+                    if (step === 4) setStep(3);
+                    else if (step === 3) setStep(2);
+                    else setStep(1);
+                  }}
                   className="text-xs text-gray-500 hover:text-gray-700 flex items-center gap-1"
                   data-testid="button-back"
                 >
@@ -661,6 +916,12 @@ export function ClientRegister() {
                         </div>
                       </div>
                       <div className="grid grid-cols-2 gap-x-3 gap-y-1 mt-3">
+                        {p.userLimit != null && (
+                          <div className="flex items-start gap-1.5 text-[11px] font-semibold text-indigo-700 col-span-2">
+                            <Check className="w-3 h-3 flex-shrink-0 mt-0.5" style={{ color: selectedProfile.color }} />
+                            <span>Equipe: até {p.userLimit} usuário(s)</span>
+                          </div>
+                        )}
                         {p.features.map((f) => (
                           <div key={f} className="flex items-start gap-1.5 text-[11px] text-gray-600">
                             <Check className="w-3 h-3 flex-shrink-0 mt-0.5" style={{ color: selectedProfile.color }} />
@@ -683,7 +944,9 @@ export function ClientRegister() {
                   Continuar com {selectedPlan?.label} <ArrowRight className="w-4 h-4" />
                 </button>
                 <p className="text-center text-[11px] text-gray-500">
-                  Sem compromisso · 14 dias grátis · Cancele quando quiser
+                  {selectedPlan && needsPayment(selectedPlan)
+                    ? "14 dias grátis · Cartão cobrado só após o trial · Cancele quando quiser"
+                    : "Sem compromisso · 14 dias grátis · Cancele quando quiser"}
                 </p>
               </div>
             )}
@@ -944,13 +1207,224 @@ export function ClientRegister() {
                     className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white font-semibold text-sm transition-all disabled:opacity-60"
                     style={{ background: selectedProfile.color }}
                     data-testid="button-submit"
+                    onClick={needsPayment(selectedPlan) ? (e) => {
+                      e.preventDefault();
+                      const errs = validate();
+                      if (Object.keys(errs).length > 0) {
+                        setErrors(errs);
+                        const labels: Record<string, string> = {
+                          name: "Nome completo", cpf: "CPF", cnpj: "CNPJ", creci: "CRECI",
+                          ccaCode: "Código CCA", email: "Email", phone: "Telefone",
+                          password: "Senha", income: "Renda mensal", propertyValue: "Valor do imóvel",
+                          terms: "Aceite dos Termos de Uso",
+                        };
+                        const missing = Object.keys(errs).map((k) => labels[k] ?? k).join(", ");
+                        toast({ title: "Preencha os campos obrigatórios", description: missing });
+                        return;
+                      }
+                      setStep(4);
+                    } : undefined}
                   >
                     {loading
                       ? "Criando sua conta..."
                       : selectedPlan.enterprise
                       ? "Solicitar contato comercial"
+                      : needsPayment(selectedPlan)
+                      ? "Continuar para pagamento"
                       : "Criar conta e iniciar trial de 14 dias"}
                     {!loading && <ArrowRight className="w-4 h-4" />}
+                  </button>
+                </form>
+              </>
+            )}
+
+            {/* ── Step 4: credit card ──────────────────────────────────── */}
+            {step === 4 && selectedProfile && selectedPlan && (
+              <>
+                {/* Plan summary */}
+                <div
+                  className="rounded-lg border p-3 mb-5 flex items-center gap-3"
+                  style={{ background: selectedProfile.bgLight, borderColor: `${selectedProfile.color}33` }}
+                >
+                  <div
+                    className="w-9 h-9 rounded-md flex items-center justify-center flex-shrink-0"
+                    style={{ background: selectedProfile.color }}
+                  >
+                    <selectedProfile.icon className="w-5 h-5 text-white" />
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="text-xs font-semibold" style={{ color: "#07113A" }}>
+                      {selectedProfile.short} · {selectedPlan.label}
+                    </div>
+                    <div className="text-[11px] text-gray-600">
+                      {brl(selectedPlan.priceMonthly)}/mês após os 14 dias gratuitos
+                    </div>
+                  </div>
+                  <button
+                    type="button"
+                    onClick={() => setStep(2)}
+                    className="text-[11px] font-semibold underline"
+                    style={{ color: selectedProfile.color }}
+                  >
+                    Trocar
+                  </button>
+                </div>
+
+                {/* Trial notice */}
+                <div
+                  className="flex items-start gap-3 p-3 rounded-xl mb-5"
+                  style={{ background: "#F0FDF4", border: "1px solid #BBF7D0" }}
+                >
+                  <Shield className="w-5 h-5 flex-shrink-0 mt-0.5" style={{ color: "#10A65A" }} />
+                  <div className="text-xs leading-relaxed" style={{ color: "#166534" }}>
+                    <div className="font-bold mb-0.5">Seu trial de 14 dias é gratuito</div>
+                    O cartão <strong>só será cobrado após o período de avaliação</strong>. Cancele
+                    a qualquer momento antes disso sem custo.
+                  </div>
+                </div>
+
+                <form onSubmit={handleCardSubmit} className="space-y-4">
+                  {/* Card number */}
+                  <FieldRow label="Número do cartão" error={cardErrors.number}>
+                    <div className="relative">
+                      <CreditCard className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#9CA3AF" }} />
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={cardForm.number}
+                        onChange={setCard("number")}
+                        placeholder="0000 0000 0000 0000"
+                        maxLength={19}
+                        className={`pl-10 ${inputCls(!!cardErrors.number)}`}
+                        data-testid="input-card-number"
+                      />
+                    </div>
+                  </FieldRow>
+
+                  {/* Holder name */}
+                  <FieldRow label="Nome do titular (como no cartão)" error={cardErrors.holderName}>
+                    <input
+                      type="text"
+                      value={cardForm.holderName}
+                      onChange={setCard("holderName")}
+                      placeholder="NOME SOBRENOME"
+                      className={inputCls(!!cardErrors.holderName)}
+                      style={{ textTransform: "uppercase" }}
+                      data-testid="input-card-holder"
+                    />
+                  </FieldRow>
+
+                  {/* Expiry + CVV */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <FieldRow label="Validade" error={cardErrors.expiryMonth || cardErrors.expiryYear}>
+                      <div className="relative">
+                        <Calendar className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#9CA3AF" }} />
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={expiryDisplay}
+                          onChange={handleExpiryChange}
+                          placeholder="MM/AA"
+                          maxLength={5}
+                          className={`pl-10 ${inputCls(!!(cardErrors.expiryMonth || cardErrors.expiryYear))}`}
+                          data-testid="input-card-expiry"
+                        />
+                      </div>
+                    </FieldRow>
+                    <FieldRow label="CVV" error={cardErrors.ccv}>
+                      <div className="relative">
+                        <Lock className="absolute left-3 top-1/2 -translate-y-1/2 w-4 h-4" style={{ color: "#9CA3AF" }} />
+                        <input
+                          type="text"
+                          inputMode="numeric"
+                          value={cardForm.ccv}
+                          onChange={(e) => {
+                            const v = e.target.value.replace(/\D/g, "").slice(0, 4);
+                            setCardForm((f) => ({ ...f, ccv: v }));
+                            setCardErrors((err) => ({ ...err, ccv: "" }));
+                          }}
+                          placeholder="123"
+                          maxLength={4}
+                          className={`pl-10 ${inputCls(!!cardErrors.ccv)}`}
+                          data-testid="input-card-cvv"
+                        />
+                      </div>
+                    </FieldRow>
+                  </div>
+
+                  {/* CPF/CNPJ do titular */}
+                  <FieldRow label="CPF do titular" error={cardErrors.cpfCnpj}>
+                    <input
+                      type="text"
+                      inputMode="numeric"
+                      value={cardForm.cpfCnpj}
+                      onChange={setCard("cpfCnpj")}
+                      placeholder="000.000.000-00"
+                      className={inputCls(!!cardErrors.cpfCnpj)}
+                      data-testid="input-card-cpf"
+                    />
+                  </FieldRow>
+
+                  {/* CEP + Número do endereço */}
+                  <div className="grid grid-cols-2 gap-3">
+                    <FieldRow label="CEP" error={cardErrors.postalCode}>
+                      <input
+                        type="text"
+                        inputMode="numeric"
+                        value={cardForm.postalCode}
+                        onChange={setCard("postalCode")}
+                        placeholder="00000-000"
+                        maxLength={9}
+                        className={inputCls(!!cardErrors.postalCode)}
+                        data-testid="input-card-cep"
+                      />
+                    </FieldRow>
+                    <FieldRow label="Número" error={cardErrors.addressNumber}>
+                      <input
+                        type="text"
+                        value={cardForm.addressNumber}
+                        onChange={setCard("addressNumber")}
+                        placeholder="123"
+                        className={inputCls(!!cardErrors.addressNumber)}
+                        data-testid="input-card-number"
+                      />
+                    </FieldRow>
+                  </div>
+
+                  {/* Security badges */}
+                  <div className="flex items-center gap-4 pt-1">
+                    <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
+                      <Shield className="w-3.5 h-3.5" style={{ color: "#10A65A" }} />
+                      SSL 256-bit
+                    </div>
+                    <div className="flex items-center gap-1.5 text-[10px] text-gray-500">
+                      <Lock className="w-3.5 h-3.5" style={{ color: "#0D1B8C" }} />
+                      Dados protegidos pela Asaas
+                    </div>
+                  </div>
+
+                  {paymentError && (
+                    <div className="p-3 rounded-xl border border-red-200 bg-red-50 flex items-start gap-2.5 mt-3">
+                      <Shield className="w-5 h-5 flex-shrink-0 text-red-500 mt-0.5" />
+                      <div className="text-xs leading-relaxed text-red-800">
+                        <div className="font-bold mb-0.5">Erro no pagamento</div>
+                        {paymentError}
+                      </div>
+                    </div>
+                  )}
+
+                  <button
+                    type="submit"
+                    disabled={loading}
+                    className="w-full flex items-center justify-center gap-2 py-3 rounded-xl text-white font-semibold text-sm mt-4 transition-all disabled:opacity-60"
+                    style={{ background: selectedProfile.color }}
+                    data-testid="button-submit-card"
+                  >
+                    {loading ? (
+                      <><span className="w-4 h-4 border-2 border-white/40 border-t-white rounded-full animate-spin" />Criando conta...</>
+                    ) : (
+                      <>Criar conta e ativar plano <ArrowRight className="w-4 h-4" /></>
+                    )}
                   </button>
                 </form>
               </>

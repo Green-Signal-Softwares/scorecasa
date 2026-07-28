@@ -1,6 +1,7 @@
 import { Router, type IRouter } from "express";
 import healthRouter from "./health";
 import authRouter from "./auth";
+import { requirePaid } from "../middlewares/requirePaid";
 import leadsRouter from "./leads";
 import brokersRouter from "./brokers";
 import dashboardRouter from "./dashboard";
@@ -23,11 +24,23 @@ import calcRouter from "./calc";
 import clientDocumentsRouter from "./client-documents";
 import ratesRouter from "./rates";
 import plansRouter from "./plans";
+import teamRouter from "./team";
+import asaasRouter from "./asaas";
 
 const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use("/auth", authRouter);
+
+router.use((req, res, next) => {
+  const isAuthRoute = req.path.startsWith("/auth") || req.path === "/auth";
+  if (isAuthRoute) {
+    next();
+    return;
+  }
+  requirePaid(req as any, res as any, next as any);
+});
+
 router.use("/leads", leadsRouter);
 router.use("/brokers", brokersRouter);
 router.use("/dashboard", dashboardRouter);
@@ -50,5 +63,7 @@ router.use("/caixa-ltv", caixaLtvRouter);
 router.use("/calc", calcRouter);
 router.use("/rates", ratesRouter);
 router.use("/plans", plansRouter);
+router.use("/team", teamRouter);
+router.use("/asaas", asaasRouter);
 
 export default router;

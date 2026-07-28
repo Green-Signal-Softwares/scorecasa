@@ -97,6 +97,7 @@ export * from "./ratingToUserRole";
 export * from "./registerDocumentRequest";
 export * from "./registerDocumentRequestStage";
 export * from "./registerRequest";
+export * from "./registerRequestBillingInterval";
 export * from "./registerRequestRole";
 export * from "./saleHistory";
 export * from "./saleHistoryStage";

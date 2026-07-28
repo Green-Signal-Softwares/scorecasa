@@ -151,9 +151,18 @@ export const RegisterRequestRole = {
   correspondent: "correspondent",
 } as const;
 
+export type RegisterRequestBillingInterval =
+  (typeof RegisterRequestBillingInterval)[keyof typeof RegisterRequestBillingInterval];
+
+export const RegisterRequestBillingInterval = {
+  monthly: "monthly",
+  yearly: "yearly",
+} as const;
+
 export interface RegisterRequest {
   role?: RegisterRequestRole;
   plan?: string;
+  billingInterval?: RegisterRequestBillingInterval;
   name: string;
   /** Apenas dígitos. Obrigatório para client e broker. */
   cpf?: string;
@@ -1370,6 +1379,8 @@ export interface Plan {
   role: PlanRole;
   group: PlanGroup;
   priceMonthly: number;
+  priceYearly: number;
+  highlight: boolean;
   leadLimit?: number | null;
   enterprise: boolean;
   color: string;
@@ -1407,6 +1418,8 @@ export interface CreatePlanRequest {
   role: CreatePlanRequestRole;
   group: CreatePlanRequestGroup;
   priceMonthly: number;
+  priceYearly?: number;
+  highlight?: boolean;
   leadLimit?: number | null;
   enterprise?: boolean;
   color?: string;
@@ -1419,6 +1432,8 @@ export interface CreatePlanRequest {
 export interface UpdatePlanRequest {
   label?: string;
   priceMonthly?: number;
+  priceYearly?: number;
+  highlight?: boolean;
   leadLimit?: number | null;
   enterprise?: boolean;
   color?: string;

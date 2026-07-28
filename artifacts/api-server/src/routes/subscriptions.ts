@@ -2,6 +2,7 @@ import { Router } from "express";
 import { db, subscriptionsTable, plansTable } from "@workspace/db";
 import { eq, sql, and } from "drizzle-orm";
 import { z } from "zod";
+import { getNextDueDate } from "../lib/billing";
 
 const router = Router();
 
@@ -81,8 +82,7 @@ router.post("/", requireAuth, async (req, res) => {
 
   const trialEnd = new Date();
   trialEnd.setDate(trialEnd.getDate() + 30);
-  const nextDue = new Date();
-  nextDue.setMonth(nextDue.getMonth() + 1);
+  const nextDue = getNextDueDate("monthly");
 
   let priceMonthly = await getPlanPrice(parsed.data.plan);
   if (parsed.data.marketplaceAddon && parsed.data.marketplaceAddonPrice) {

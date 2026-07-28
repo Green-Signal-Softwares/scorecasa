@@ -1,6 +1,7 @@
 import { Router } from "express";
 import { db, leadsTable, brokersTable, notificationsTable, usersTable, propertiesTable, correspondentsTable } from "@workspace/db";
 import { eq, sql, ilike, or, and, desc, inArray } from "drizzle-orm";
+import { getAccountPlanLimits } from "./team";
 
 async function getSessionUser(req: any) {
   const userId = req.session?.userId as number | undefined;
@@ -642,12 +643,25 @@ router.get("/", async (req, res) => {
   }
 
   if (sessionUser?.role === "broker") {
+    const mainOwnerId = (sessionUser as any).ownerId ?? sessionUser.id;
+    const ownerCol = (usersTable as any).ownerId ?? usersTable.id;
+    const teamMembers = await db.select().from(usersTable)
+      .where(or(eq(usersTable.id, mainOwnerId), eq(ownerCol, mainOwnerId)));
+
+    const teamEmails = teamMembers.map((m) => m.email.toLowerCase());
+    const linkedBrokers = await db.select({ id: brokersTable.id })
+      .from(brokersTable)
+      .where(inArray(sql`lower(${brokersTable.email})`, teamEmails));
+
+    const brokerIds = linkedBrokers.map((b) => b.id);
     const { brokerId } = await getUserBrokerOrCorrespondentId(sessionUser);
-    if (!brokerId) {
-      res.json({ data: [], total: 0, page, limit });
-      return;
+    if (brokerId && !brokerIds.includes(brokerId)) brokerIds.push(brokerId);
+
+    if (brokerIds.length > 0) {
+      conditions.push(inArray(leadsTable.brokerId, brokerIds));
+    } else if (brokerId) {
+      conditions.push(eq(leadsTable.brokerId, brokerId));
     }
-    conditions.push(eq(leadsTable.brokerId, brokerId));
   } else if (sessionUser?.role === "correspondent") {
     const { correspondentId } = await getUserBrokerOrCorrespondentId(sessionUser);
     if (!correspondentId) {
@@ -702,6 +716,36 @@ router.post("/", async (req, res) => {
     res.status(403).json({ error: "Clientes não podem criar leads de terceiros." });
     return;
   }
+
+  // Validação do Limite Mensal de Leads do Plano (leadLimit)
+  if (sessionUser) {
+    const limits = await getAccountPlanLimits(sessionUser.id);
+    if (limits.leadLimit != null) {
+      const startOfMonth = new Date();
+      startOfMonth.setDate(1);
+      startOfMonth.setHours(0, 0, 0, 0);
+
+      const [monthlyLeadsCount] = await db
+        .select({ count: sql<number>`count(*)` })
+        .from(leadsTable)
+        .where(and(
+          eq(leadsTable.brokerId, limits.mainOwnerId),
+          sql`${leadsTable.createdAt} >= ${startOfMonth}`
+        ));
+
+      const count = Number(monthlyLeadsCount?.count ?? 0);
+      if (count >= limits.leadLimit) {
+        res.status(403).json({
+          error: `Limite mensal de ${limits.leadLimit} leads do seu plano (${limits.plan?.label ?? "Atual"}) atingido. Faça um upgrade do seu plano para captar mais leads.`,
+          leadLimit: limits.leadLimit,
+          usedCount: count,
+          upgradeRequired: true,
+        });
+        return;
+      }
+    }
+  }
+
   const parsed = CreateLeadBody.safeParse(req.body);
   if (!parsed.success) {
     res.status(400).json({ error: "Invalid request body" });

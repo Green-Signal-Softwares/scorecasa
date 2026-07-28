@@ -20,6 +20,7 @@ export const subscriptionsTable = pgTable("subscriptions", {
   }).notNull().default("trial"),
 
   priceMonthly: real("price_monthly").notNull(),
+  billingInterval: text("billing_interval", { enum: ["monthly", "yearly"] }).notNull().default("monthly"),
   billingDay: integer("billing_day").notNull().default(1),
 
   // Marketplace add-on

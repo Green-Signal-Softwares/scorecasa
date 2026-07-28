@@ -1388,6 +1388,9 @@ components:
           enum: [client, broker, correspondent]
         plan:
           type: string
+        billingInterval:
+          type: string
+          enum: [monthly, yearly]
         name:
           type: string
         cpf:
@@ -2950,7 +2953,7 @@ components:
 
     Plan:
       type: object
-      required: [id, label, role, group, priceMonthly, enterprise, color, bgLight, description, features, isActive, isLegacy, sortOrder]
+      required: [id, label, role, group, priceMonthly, priceYearly, highlight, enterprise, color, bgLight, description, features, isActive, isLegacy, sortOrder]
       properties:
         id: { type: string }
         label: { type: string }
@@ -2961,7 +2964,10 @@ components:
           type: string
           enum: [individual, corretor, correspondent]
         priceMonthly: { type: number }
+        priceYearly: { type: number }
+        highlight: { type: boolean }
         leadLimit: { type: integer, nullable: true }
+        userLimit: { type: integer, nullable: true }
         enterprise: { type: boolean }
         color: { type: string }
         bgLight: { type: string }
@@ -2988,7 +2994,10 @@ components:
           type: string
           enum: [individual, corretor, correspondent]
         priceMonthly: { type: number }
+        priceYearly: { type: number }
+        highlight: { type: boolean }
         leadLimit: { type: integer, nullable: true }
+        userLimit: { type: integer, nullable: true }
         enterprise: { type: boolean }
         color: { type: string }
         bgLight: { type: string }
@@ -3003,7 +3012,10 @@ components:
       properties:
         label: { type: string }
         priceMonthly: { type: number }
+        priceYearly: { type: number }
+        highlight: { type: boolean }
         leadLimit: { type: integer, nullable: true }
+        userLimit: { type: integer, nullable: true }
         enterprise: { type: boolean }
         color: { type: string }
         bgLight: { type: string }

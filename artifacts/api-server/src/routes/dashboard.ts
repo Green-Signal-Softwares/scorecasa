@@ -1,8 +1,10 @@
 import { Router } from "express";
 import { db, leadsTable, brokersTable, usersTable, correspondentsTable } from "@workspace/db";
 import { eq, sql, desc, and, or } from "drizzle-orm";
+import { requirePaid } from "../middlewares/requirePaid";
 
 const router = Router();
+router.use(requirePaid);
 
 async function getSessionUser(req: any) {
   const userId = req.session?.userId as number | undefined;

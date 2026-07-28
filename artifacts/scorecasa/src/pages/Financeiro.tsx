@@ -5,7 +5,7 @@ import {
   useCreatePlan, useUpdatePlan, useDeletePlan,
   type Plan,
 } from "@workspace/api-client-react";
-import { useLocation } from "wouter";
+import { useLocation, Link } from "wouter";
 import { getGetAllSubscriptionsQueryKey, getGetMySubscriptionQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
@@ -421,7 +421,20 @@ function IndividualView({ role }: { role: string }) {
     </div>
   );
 }
-
+const CLIENT_MODULES = [
+  "Simulação básica de financiamento",
+  "Score básico ScoreCasa",
+  "Até 3 análises por mês",
+  "Marketplace limitado",
+  "IA completa de previsão de aprovação",
+  "Monitoramento contínuo do score",
+  "Imóveis ilimitados",
+  "Open Finance integrado",
+  "Tudo do Individual",
+  "Consultoria com IA dedicada",
+  "Plano de aprovação personalizado",
+  "Alertas de crédito em tempo real"
+];
 // ── View admin ─────────────────────────────────────────────────────────────────
 function AdminView() {
   const { data: subs = [], isLoading } = useGetAllSubscriptions({});
@@ -429,29 +442,9 @@ function AdminView() {
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const updateSub = useUpdateSubscription();
-  const createPlan = useCreatePlan();
-  const updatePlan = useUpdatePlan();
-  const deletePlan = useDeletePlan();
   const [search, setSearch] = useState("");
   const [filterStatus, setFilterStatus] = useState("");
   const [filterGroup, setFilterGroup] = useState("");
-  const [editingPlanId, setEditingPlanId] = useState<string | null>(null);
-  const [formMode, setFormMode] = useState<"create" | "edit">("create");
-  const [planForm, setPlanForm] = useState({
-    id: "",
-    label: "",
-    role: "client",
-    group: "individual",
-    priceMonthly: "0",
-    leadLimit: "",
-    enterprise: false,
-    color: "#10A65A",
-    bgLight: "#F0FDF4",
-    description: "",
-    featuresText: "",
-    sortOrder: "0",
-    isActive: true,
-  });
 
   const plansById = new Map((plans as Plan[]).map((p) => [p.id, p]));
   const inferGroupFromRole = (role?: string) => {
@@ -508,170 +501,7 @@ function AdminView() {
     queryClient.invalidateQueries({ queryKey: getGetAllSubscriptionsQueryKey() });
   };
 
-  const resetPlanForm = () => {
-    setFormMode("create");
-    setEditingPlanId(null);
-    setPlanForm({
-      id: "",
-      label: "",
-      role: "client",
-      group: "individual",
-      priceMonthly: "0",
-      leadLimit: "",
-      enterprise: false,
-      color: "#10A65A",
-      bgLight: "#F0FDF4",
-      description: "",
-      featuresText: "",
-      sortOrder: "0",
-      isActive: true,
-    });
-  };
 
-  const startEditPlan = (plan: Plan) => {
-    setFormMode("edit");
-    setEditingPlanId(plan.id);
-    setPlanForm({
-      id: plan.id,
-      label: plan.label,
-      role: plan.role,
-      group: plan.group,
-      priceMonthly: String(plan.priceMonthly),
-      leadLimit: plan.leadLimit == null ? "" : String(plan.leadLimit),
-      enterprise: !!plan.enterprise,
-      color: plan.color,
-      bgLight: plan.bgLight,
-      description: plan.description ?? "",
-      featuresText: (plan.features ?? []).join("\n"),
-      sortOrder: String(plan.sortOrder ?? 0),
-      isActive: !!plan.isActive,
-    });
-  };
-
-  const featuresArray = planForm.featuresText
-    .split(/\n|,/)
-    .map((s) => s.trim())
-    .filter(Boolean);
-
-  const submitPlan = () => {
-    const payload = {
-      label: planForm.label.trim(),
-      role: planForm.role as any,
-      group: planForm.group as any,
-      priceMonthly: Number(planForm.priceMonthly),
-      leadLimit: planForm.leadLimit === "" ? null : Number(planForm.leadLimit),
-      enterprise: planForm.enterprise,
-      color: planForm.color,
-      bgLight: planForm.bgLight,
-      description: planForm.description.trim(),
-      features: featuresArray,
-      sortOrder: Number(planForm.sortOrder),
-      isActive: planForm.isActive,
-    } as const;
-
-    if (!planForm.label.trim()) {
-      toast({ title: "Nome do plano é obrigatório", variant: "destructive" });
-      return;
-    }
-    if (!Number.isFinite(payload.priceMonthly) || payload.priceMonthly < 0) {
-      toast({ title: "Preço mensal inválido", variant: "destructive" });
-      return;
-    }
-    if (!Number.isFinite(payload.sortOrder)) {
-      toast({ title: "Ordem inválida", variant: "destructive" });
-      return;
-    }
-    if (!/^#[0-9A-Fa-f]{6}$/.test(payload.color) || !/^#[0-9A-Fa-f]{6}$/.test(payload.bgLight)) {
-      toast({ title: "Cores devem estar no formato #RRGGBB", variant: "destructive" });
-      return;
-    }
-    if (planForm.leadLimit !== "" && (!Number.isInteger(payload.leadLimit) || (payload.leadLimit as number) <= 0)) {
-      toast({ title: "Limite de leads deve ser inteiro positivo", variant: "destructive" });
-      return;
-    }
-
-    if (formMode === "create") {
-      const id = planForm.id.trim();
-      if (!/^[a-z0-9_]+$/.test(id) || id.length < 2) {
-        toast({ title: "ID deve ser snake_case com ao menos 2 caracteres", variant: "destructive" });
-        return;
-      }
-      createPlan.mutate({
-        data: {
-          id,
-          ...payload,
-        },
-      }, {
-        onSuccess: () => {
-          invalidatePlans();
-          resetPlanForm();
-          toast({ title: "Plano criado com sucesso" });
-        },
-        onError: (err: any) => {
-          const msg = err?.message ?? "Não foi possível criar o plano";
-          toast({ title: msg, variant: "destructive" });
-        },
-      });
-      return;
-    }
-
-    if (!editingPlanId) return;
-    updatePlan.mutate({
-      id: editingPlanId,
-      data: {
-        label: payload.label,
-        priceMonthly: payload.priceMonthly,
-        leadLimit: payload.leadLimit,
-        enterprise: payload.enterprise,
-        color: payload.color,
-        bgLight: payload.bgLight,
-        description: payload.description,
-        features: payload.features,
-        sortOrder: payload.sortOrder,
-        isActive: payload.isActive,
-      },
-    }, {
-      onSuccess: () => {
-        invalidatePlans();
-        resetPlanForm();
-        toast({ title: "Plano atualizado com sucesso" });
-      },
-      onError: (err: any) => {
-        const msg = err?.message ?? "Não foi possível atualizar o plano";
-        toast({ title: msg, variant: "destructive" });
-      },
-    });
-  };
-
-  const togglePlanActive = (plan: Plan) => {
-    if (plan.isActive) {
-      if (!confirm(`Desativar o plano ${plan.label}?`)) return;
-      deletePlan.mutate({ id: plan.id }, {
-        onSuccess: () => {
-          invalidatePlans();
-          toast({ title: "Plano desativado" });
-        },
-        onError: (err: any) => {
-          const msg = err?.message ?? "Não foi possível desativar o plano";
-          toast({ title: msg, variant: "destructive" });
-        },
-      });
-      return;
-    }
-
-    updatePlan.mutate({ id: plan.id, data: { isActive: true } }, {
-      onSuccess: () => {
-        invalidatePlans();
-        toast({ title: "Plano ativado" });
-      },
-      onError: (err: any) => {
-        const msg = err?.message ?? "Não foi possível ativar o plano";
-        toast({ title: msg, variant: "destructive" });
-      },
-    });
-  };
-
-  const isPlanMutating = createPlan.isPending || updatePlan.isPending || deletePlan.isPending;
 
   return (
     <div className="space-y-6">
@@ -844,242 +674,20 @@ function AdminView() {
         )}
       </div>
 
-      {/* Gestão de planos */}
-      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 space-y-4">
-        <div className="flex items-center justify-between gap-3">
-          <div>
-            <h2 className="text-lg font-bold text-[#07113A]">Gestão de Planos</h2>
-            <p className="text-xs text-gray-500">Criar, editar e ativar/desativar planos dinâmicos.</p>
-          </div>
-          {formMode === "edit" && (
-            <button
-              onClick={resetPlanForm}
-              className="px-3 py-1.5 text-xs rounded-lg border border-gray-200 hover:bg-gray-50"
-            >
-              Novo plano
-            </button>
-          )}
+      {/* Redirecionamento para Gestão de Planos por Categoria */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-base font-bold text-[#07113A]">Catálogo & Gestão de Planos</h2>
+          <p className="text-xs text-gray-500 mt-0.5">
+            Acesse a área de gerenciamento para criar e editar pacotes divididos por categorias (Clientes, Correspondentes e Corretores).
+          </p>
         </div>
-
-        <div className="grid lg:grid-cols-2 gap-3">
-          <div>
-            <label className="text-xs text-gray-500">ID (slug)</label>
-            <input
-              value={planForm.id}
-              onChange={(e) => setPlanForm((prev) => ({ ...prev, id: e.target.value.toLowerCase() }))}
-              disabled={formMode === "edit"}
-              placeholder="ex: premium_plus"
-              className="w-full mt-1 px-3 h-10 rounded-lg border border-input text-sm disabled:bg-gray-100"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-gray-500">Nome</label>
-            <input
-              value={planForm.label}
-              onChange={(e) => setPlanForm((prev) => ({ ...prev, label: e.target.value }))}
-              placeholder="Nome exibido do plano"
-              className="w-full mt-1 px-3 h-10 rounded-lg border border-input text-sm"
-            />
-          </div>
-        </div>
-
-        <div className="grid lg:grid-cols-4 gap-3">
-          <div>
-            <label className="text-xs text-gray-500">Perfil</label>
-            <Select value={planForm.role} onValueChange={(v) => setPlanForm((prev) => ({ ...prev, role: v }))}>
-              <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="client">Cliente</SelectItem>
-                <SelectItem value="broker">Corretor</SelectItem>
-                <SelectItem value="correspondent">Correspondente</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <label className="text-xs text-gray-500">Grupo</label>
-            <Select value={planForm.group} onValueChange={(v) => setPlanForm((prev) => ({ ...prev, group: v }))}>
-              <SelectTrigger className="mt-1"><SelectValue /></SelectTrigger>
-              <SelectContent>
-                <SelectItem value="individual">Individual</SelectItem>
-                <SelectItem value="corretor">Corretor</SelectItem>
-                <SelectItem value="correspondent">Correspondente</SelectItem>
-              </SelectContent>
-            </Select>
-          </div>
-          <div>
-            <label className="text-xs text-gray-500">Preço mensal (R$)</label>
-            <input
-              type="number"
-              step="0.01"
-              min="0"
-              value={planForm.priceMonthly}
-              onChange={(e) => setPlanForm((prev) => ({ ...prev, priceMonthly: e.target.value }))}
-              className="w-full mt-1 px-3 h-10 rounded-lg border border-input text-sm"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-gray-500">Ordem</label>
-            <input
-              type="number"
-              step="1"
-              value={planForm.sortOrder}
-              onChange={(e) => setPlanForm((prev) => ({ ...prev, sortOrder: e.target.value }))}
-              className="w-full mt-1 px-3 h-10 rounded-lg border border-input text-sm"
-            />
-          </div>
-        </div>
-
-        <div className="grid lg:grid-cols-4 gap-3">
-          <div>
-            <label className="text-xs text-gray-500">Limite de leads</label>
-            <input
-              type="number"
-              step="1"
-              min="1"
-              value={planForm.leadLimit}
-              onChange={(e) => setPlanForm((prev) => ({ ...prev, leadLimit: e.target.value }))}
-              placeholder="vazio = ilimitado"
-              className="w-full mt-1 px-3 h-10 rounded-lg border border-input text-sm"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-gray-500">Cor (#RRGGBB)</label>
-            <input
-              value={planForm.color}
-              onChange={(e) => setPlanForm((prev) => ({ ...prev, color: e.target.value }))}
-              className="w-full mt-1 px-3 h-10 rounded-lg border border-input text-sm"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-gray-500">Fundo claro (#RRGGBB)</label>
-            <input
-              value={planForm.bgLight}
-              onChange={(e) => setPlanForm((prev) => ({ ...prev, bgLight: e.target.value }))}
-              className="w-full mt-1 px-3 h-10 rounded-lg border border-input text-sm"
-            />
-          </div>
-          <div className="flex items-end gap-5 pb-2">
-            <label className="inline-flex items-center gap-2 text-xs text-gray-600">
-              <input
-                type="checkbox"
-                checked={planForm.enterprise}
-                onChange={(e) => setPlanForm((prev) => ({ ...prev, enterprise: e.target.checked }))}
-              />
-              Enterprise
-            </label>
-            <label className="inline-flex items-center gap-2 text-xs text-gray-600">
-              <input
-                type="checkbox"
-                checked={planForm.isActive}
-                onChange={(e) => setPlanForm((prev) => ({ ...prev, isActive: e.target.checked }))}
-              />
-              Ativo
-            </label>
-          </div>
-        </div>
-
-        <div className="grid lg:grid-cols-2 gap-3">
-          <div>
-            <label className="text-xs text-gray-500">Descrição</label>
-            <textarea
-              value={planForm.description}
-              onChange={(e) => setPlanForm((prev) => ({ ...prev, description: e.target.value }))}
-              rows={3}
-              className="w-full mt-1 px-3 py-2 rounded-lg border border-input text-sm"
-              placeholder="Resumo comercial do plano"
-            />
-          </div>
-          <div>
-            <label className="text-xs text-gray-500">Features (1 por linha)</label>
-            <textarea
-              value={planForm.featuresText}
-              onChange={(e) => setPlanForm((prev) => ({ ...prev, featuresText: e.target.value }))}
-              rows={3}
-              className="w-full mt-1 px-3 py-2 rounded-lg border border-input text-sm"
-              placeholder="Ex.:\nAcompanhamento em tempo real\nSuporte prioritário"
-            />
-          </div>
-        </div>
-
-        <div className="flex justify-end gap-2">
-          {formMode === "edit" && (
-            <button
-              onClick={resetPlanForm}
-              className="px-4 py-2 text-sm rounded-lg border border-gray-200 hover:bg-gray-50"
-            >
-              Cancelar edição
-            </button>
-          )}
-          <button
-            onClick={submitPlan}
-            disabled={isPlanMutating}
-            className="px-4 py-2 text-sm rounded-lg text-white bg-[#0D1B8C] hover:bg-[#0B1770] disabled:opacity-60"
-          >
-            {isPlanMutating ? "Salvando..." : formMode === "create" ? "Criar plano" : "Salvar alterações"}
-          </button>
-        </div>
-
-        <div className="overflow-x-auto border border-gray-100 rounded-lg">
-          <table className="w-full text-sm">
-            <thead>
-              <tr className="bg-gray-50 border-b border-gray-100">
-                <th className="text-left px-3 py-2 text-xs font-semibold text-gray-400 uppercase">Plano</th>
-                <th className="text-left px-3 py-2 text-xs font-semibold text-gray-400 uppercase">Perfil/Grupo</th>
-                <th className="text-right px-3 py-2 text-xs font-semibold text-gray-400 uppercase">Preço</th>
-                <th className="text-left px-3 py-2 text-xs font-semibold text-gray-400 uppercase">Status</th>
-                <th className="text-left px-3 py-2 text-xs font-semibold text-gray-400 uppercase">Ações</th>
-              </tr>
-            </thead>
-            <tbody className="divide-y divide-gray-50">
-              {sortedPlans.map((plan) => (
-                <tr key={plan.id}>
-                  <td className="px-3 py-2">
-                    <div className="font-medium text-[#07113A]">{plan.label}</div>
-                    <div className="text-xs text-gray-400">{plan.id}</div>
-                  </td>
-                  <td className="px-3 py-2">
-                    <div className="text-xs text-gray-600">{plan.role} · {plan.group}</div>
-                    <div className="text-xs text-gray-400">ordem {plan.sortOrder}</div>
-                  </td>
-                  <td className="px-3 py-2 text-right font-semibold text-[#07113A]">{formatBRL(plan.priceMonthly)}</td>
-                  <td className="px-3 py-2">
-                    <div className="flex gap-1.5 flex-wrap">
-                      <span className={`text-[11px] px-2 py-1 rounded-full font-semibold ${plan.isActive ? "bg-green-50 text-green-700" : "bg-gray-100 text-gray-500"}`}>
-                        {plan.isActive ? "ativo" : "inativo"}
-                      </span>
-                      {plan.isLegacy && (
-                        <span className="text-[11px] px-2 py-1 rounded-full font-semibold bg-amber-50 text-amber-700">
-                          legado
-                        </span>
-                      )}
-                    </div>
-                  </td>
-                  <td className="px-3 py-2">
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => startEditPlan(plan)}
-                        className="px-2.5 py-1 text-xs rounded-md border border-gray-200 hover:bg-gray-50"
-                      >
-                        Editar
-                      </button>
-                      <button
-                        onClick={() => togglePlanActive(plan)}
-                        className={`px-2.5 py-1 text-xs rounded-md border ${plan.isActive ? "border-red-200 text-red-600 hover:bg-red-50" : "border-green-200 text-green-700 hover:bg-green-50"}`}
-                      >
-                        {plan.isActive ? "Desativar" : "Ativar"}
-                      </button>
-                    </div>
-                  </td>
-                </tr>
-              ))}
-              {sortedPlans.length === 0 && (
-                <tr>
-                  <td className="px-3 py-5 text-center text-gray-400" colSpan={5}>Nenhum plano encontrado</td>
-                </tr>
-              )}
-            </tbody>
-          </table>
-        </div>
+        <Link
+          href="/admin/planos"
+          className="inline-flex items-center justify-center px-4 py-2.5 text-xs font-semibold rounded-xl text-white bg-[#0D1B8C] hover:bg-[#0B1770] transition-colors whitespace-nowrap"
+        >
+          Gerenciar Planos por Categoria →
+        </Link>
       </div>
     </div>
   );

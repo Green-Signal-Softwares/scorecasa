@@ -5,32 +5,53 @@ import {
   useUpdateBroker,
   getGetBrokersQueryKey,
 } from "@workspace/api-client-react";
-import { useQueryClient } from "@tanstack/react-query";
+import { useQueryClient, useQuery } from "@tanstack/react-query";
 import { useForm } from "react-hook-form";
 import { zodResolver } from "@hookform/resolvers/zod";
 import { z } from "zod";
-import { Search, Plus, UserCheck, ToggleLeft, ToggleRight } from "lucide-react";
+import { Search, Plus, UserCheck, ToggleLeft, ToggleRight, Users, AlertTriangle, ArrowUpRight } from "lucide-react";
 import { Button } from "@/components/ui/button";
 import { Input } from "@/components/ui/input";
 import { Skeleton } from "@/components/ui/skeleton";
 import { Dialog, DialogContent, DialogHeader, DialogTitle, DialogTrigger } from "@/components/ui/dialog";
 import { Form, FormControl, FormField, FormItem, FormLabel, FormMessage } from "@/components/ui/form";
 import { useToast } from "@/hooks/use-toast";
+import { Link } from "wouter";
 
 const createBrokerSchema = z.object({
-  name: z.string().min(3, "Nome obrigatorio"),
-  email: z.string().email("Email invalido"),
-  phone: z.string().min(10, "Telefone invalido"),
-  creci: z.string().min(3, "CRECI obrigatorio"),
+  name: z.string().min(3, "Nome obrigatório"),
+  email: z.string().email("E-mail inválido"),
+  phone: z.string().min(10, "Telefone inválido"),
+  creci: z.string().min(3, "CRECI obrigatório"),
 });
 
 type CreateBrokerForm = z.infer<typeof createBrokerSchema>;
+
+type TeamStatus = {
+  userRole: string;
+  userLimit: number | null;
+  usedCount: number;
+  canInvite: boolean;
+  planLabel: string;
+  members: Array<{ id: number; name: string; email: string; isOwner: boolean }>;
+};
 
 export function Brokers() {
   const [search, setSearch] = useState("");
   const [createOpen, setCreateOpen] = useState(false);
   const queryClient = useQueryClient();
   const { toast } = useToast();
+
+  // Busca cota da equipe e limite de usuários do plano
+  const { data: teamData } = useQuery<TeamStatus>({
+    queryKey: ["/api/team"],
+    queryFn: async () => {
+      const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const res = await fetch(`${BASE}/api/team`, { credentials: "include" });
+      if (!res.ok) return null as any;
+      return res.json();
+    },
+  });
 
   const { data: brokers, isLoading } = useGetBrokers(
     { search: search || undefined },
@@ -45,18 +66,64 @@ export function Brokers() {
     defaultValues: { name: "", email: "", phone: "", creci: "" },
   });
 
-  const onSubmit = (data: CreateBrokerForm) => {
-    createBroker.mutate(
-      { data },
-      {
-        onSuccess: () => {
-          queryClient.invalidateQueries({ queryKey: ["getBrokers"] });
-          setCreateOpen(false);
-          form.reset();
-          toast({ title: "Corretor cadastrado com sucesso" });
-        },
+  const onSubmit = async (data: CreateBrokerForm) => {
+    // 1. Tentar enviar convite/membro via /api/team/invite para validar cota estrita
+    try {
+      const BASE = import.meta.env.BASE_URL.replace(/\/$/, "");
+      const res = await fetch(`${BASE}/api/team/invite`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        credentials: "include",
+        body: JSON.stringify({
+          name: data.name,
+          email: data.email,
+          password: "SenhaTemp123!",
+          creci: data.creci,
+        }),
+      });
+
+      if (res.status === 403) {
+        const errData = await res.json();
+        toast({
+          title: "Limite do plano atingido",
+          description: errData.error ?? "Seu plano atingiu o limite de usuários.",
+          variant: "destructive",
+        });
+        return;
       }
-    );
+
+      if (!res.ok) {
+        // Fallback para rota de corretores genérica
+        createBroker.mutate(
+          { data },
+          {
+            onSuccess: () => {
+              queryClient.invalidateQueries({ queryKey: ["getBrokers"] });
+              queryClient.invalidateQueries({ queryKey: ["/api/team"] });
+              setCreateOpen(false);
+              form.reset();
+              toast({ title: "Corretor cadastrado com sucesso" });
+            },
+            onError: (err: any) => {
+              toast({
+                title: "Erro ao cadastrar",
+                description: err?.message ?? "Não foi possível cadastrar.",
+                variant: "destructive",
+              });
+            },
+          }
+        );
+        return;
+      }
+
+      queryClient.invalidateQueries({ queryKey: ["getBrokers"] });
+      queryClient.invalidateQueries({ queryKey: ["/api/team"] });
+      setCreateOpen(false);
+      form.reset();
+      toast({ title: "Membro da equipe cadastrado com sucesso" });
+    } catch {
+      toast({ title: "Erro de conexão", variant: "destructive" });
+    }
   };
 
   const toggleStatus = (id: number, currentStatus: string) => {
@@ -72,16 +139,88 @@ export function Brokers() {
     );
   };
 
+  const userLimit = teamData?.userLimit;
+  const usedCount = teamData?.usedCount ?? brokers?.length ?? 0;
+  const canInvite = teamData?.canInvite ?? (userLimit == null || usedCount < userLimit);
+  const percentUsed = userLimit ? Math.min(100, Math.round((usedCount / userLimit) * 100)) : 0;
+
   return (
     <div className="space-y-5">
+      {/* Banner de Cota de Usuários do Plano */}
+      <div className="bg-white rounded-2xl border border-gray-100 p-4 shadow-sm flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div className="flex items-center gap-3.5">
+          <div className="w-10 h-10 rounded-xl bg-indigo-50 text-indigo-600 flex items-center justify-center flex-shrink-0">
+            <Users className="w-5 h-5" />
+          </div>
+          <div>
+            <div className="flex items-center gap-2">
+              <h2 className="text-sm font-semibold text-gray-900">
+                Vagas da Equipe ({teamData?.planLabel ?? "Plano Ativo"})
+              </h2>
+              {userLimit != null && (
+                <span className={`text-[11px] font-bold px-2 py-0.5 rounded-full ${canInvite ? "bg-emerald-50 text-emerald-700" : "bg-amber-100 text-amber-800"}`}>
+                  {usedCount} de {userLimit} usuários
+                </span>
+              )}
+              {userLimit == null && (
+                <span className="text-[11px] font-bold px-2 py-0.5 rounded-full bg-emerald-50 text-emerald-700">
+                  Ilimitado
+                </span>
+              )}
+            </div>
+            <p className="text-xs text-gray-500 mt-0.5">
+              {userLimit != null
+                ? `${usedCount} usuário(s) ativos no momento de um limite total de ${userLimit}.`
+                : "Seu plano permite adicionar membros ilimitados à equipe."}
+            </p>
+          </div>
+        </div>
+
+        {userLimit != null && (
+          <div className="w-full md:w-48 flex-shrink-0 space-y-1">
+            <div className="flex justify-between text-[11px] font-medium text-gray-600">
+              <span>Uso da cota</span>
+              <span>{percentUsed}%</span>
+            </div>
+            <div className="h-2 bg-gray-100 rounded-full overflow-hidden">
+              <div
+                className={`h-full transition-all rounded-full ${percentUsed >= 100 ? "bg-amber-500" : "bg-emerald-500"}`}
+                style={{ width: `${percentUsed}%` }}
+              />
+            </div>
+          </div>
+        )}
+      </div>
+
+      {/* Alerta quando o limite do plano é atingido */}
+      {!canInvite && (
+        <div className="bg-amber-50 border border-amber-200 rounded-xl p-3.5 flex items-center justify-between gap-3 text-amber-900">
+          <div className="flex items-center gap-2.5 text-xs">
+            <AlertTriangle className="w-4 h-4 text-amber-600 flex-shrink-0" />
+            <span>
+              <strong>Limite do plano atingido ({usedCount}/{userLimit}):</strong> Você utilizou todas as vagas de usuário inclusas no seu plano atual.
+            </span>
+          </div>
+          <Link href="/financeiro">
+            <Button size="sm" variant="outline" className="text-xs border-amber-300 bg-white hover:bg-amber-100 gap-1 flex-shrink-0">
+              Fazer Upgrade <ArrowUpRight className="w-3 h-3" />
+            </Button>
+          </Link>
+        </div>
+      )}
+
       <div className="flex items-center justify-between">
         <div>
-          <h1 className="text-xl font-bold text-foreground">Corretores</h1>
+          <h1 className="text-xl font-bold text-foreground">Corretores e Equipe</h1>
           <p className="text-sm text-muted-foreground">{brokers?.length ?? 0} corretores cadastrados</p>
         </div>
         <Dialog open={createOpen} onOpenChange={setCreateOpen}>
           <DialogTrigger asChild>
-            <Button className="text-white gap-2" style={{ background: "#0D1B8C" }} data-testid="button-add-broker">
+            <Button
+              className="text-white gap-2"
+              style={{ background: "#0D1B8C" }}
+              data-testid="button-add-broker"
+            >
               <Plus className="w-4 h-4" />
               Novo Corretor
             </Button>

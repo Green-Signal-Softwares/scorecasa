@@ -11,8 +11,10 @@ globalThis.require = createRequire(import.meta.url);
 const artifactDir = path.dirname(fileURLToPath(import.meta.url));
 
 async function buildAll() {
-  const distDir = path.resolve(artifactDir, "dist");
-  await rm(distDir, { recursive: true, force: true });
+  const distDir = path.resolve(artifactDir, "dist-v3");
+  try {
+    await rm(distDir, { recursive: true, force: true });
+  } catch {}
 
   await esbuild({
     entryPoints: [path.resolve(artifactDir, "src/index.ts")],
