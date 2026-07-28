@@ -1,15 +1,16 @@
 import { Router } from "express";
-import { db, usersTable, leadsTable, subscriptionsTable, passwordResetsTable, PLAN_TIERS, type PlanTierId, brokersTable, correspondentsTable } from "@workspace/db";
+import { db, usersTable, leadsTable, subscriptionsTable, passwordResetsTable, plansTable, brokersTable, correspondentsTable } from "@workspace/db";
 import { and, eq, isNull, gt, or } from "drizzle-orm";
 import { LoginBody } from "@workspace/api-zod";
 import crypto from "crypto";
 import { z } from "zod";
-
-const PLAN_IDS = Object.keys(PLAN_TIERS) as [PlanTierId, ...PlanTierId[]];
+import { createAsaasCustomer, createAsaasPayment } from "../lib/asaas";
+import { getBillingAmount, getNextDueDate } from "../lib/billing";
 
 const RegisterBody = z.object({
   role: z.enum(["client", "broker", "correspondent"]).default("client"),
-  plan: z.enum(PLAN_IDS).optional(),
+  plan: z.string().min(1).optional(),
+  billingInterval: z.enum(["monthly", "yearly"]).default("monthly"),
   name: z.string().min(2),
   email: z.string().email(),
   phone: z.string().min(8),
@@ -20,12 +21,52 @@ const RegisterBody = z.object({
   ccaCode: z.string().optional(),
   income: z.number().positive().optional(),
   propertyValue: z.number().positive().optional(),
+  creditCard: z.object({
+    holderName: z.string().min(2),
+    number: z.string().min(13).max(19),
+    expiryMonth: z.string().length(2),
+    expiryYear: z.string().length(4),
+    ccv: z.string().min(3).max(4),
+  }).optional(),
+  creditCardHolderInfo: z.object({
+    name: z.string().min(2),
+    email: z.string().email().optional(),
+    cpfCnpj: z.string().min(11),
+    postalCode: z.string().min(8),
+    addressNumber: z.string().min(1),
+    phone: z.string().optional(),
+    mobilePhone: z.string().optional(),
+  }).optional(),
 });
 
 const router = Router();
 
 function hashPassword(password: string): string {
   return crypto.createHash("sha256").update(password + "scorecasa_salt").digest("hex");
+}
+
+function isValidCPF(cpf: string): boolean {
+  const clean = cpf.replace(/\D/g, "");
+  if (clean.length !== 11) return false;
+  if (/^(\d)\1{10}$/.test(clean)) return false;
+
+  let sum = 0;
+  for (let i = 0; i < 9; i++) {
+    sum += parseInt(clean.charAt(i)) * (10 - i);
+  }
+  let rev = 11 - (sum % 11);
+  if (rev === 10 || rev === 11) rev = 0;
+  if (rev !== parseInt(clean.charAt(9))) return false;
+
+  sum = 0;
+  for (let i = 0; i < 10; i++) {
+    sum += parseInt(clean.charAt(i)) * (11 - i);
+  }
+  rev = 11 - (sum % 11);
+  if (rev === 10 || rev === 11) rev = 0;
+  if (rev !== parseInt(clean.charAt(10))) return false;
+
+  return true;
 }
 
 function establishSession(req: any, userId: number) {
@@ -52,13 +93,15 @@ router.post("/register", async (req, res) => {
     res.status(400).json({ error: "Invalid request body", details: parsed.error.issues });
     return;
   }
+  const { role, plan, billingInterval, name, email, phone, password, cpf, cnpj, creci, ccaCode, income, propertyValue, creditCard, creditCardHolderInfo } = parsed.data;
+  // Resolve e valida o plano contra o role — busca no banco
+  const defaultPlanId =
+    role === "client" ? "free" : role === "broker" ? "corretor" : "bank_connect";
+  const planId = plan ?? defaultPlanId;
 
-  const { role, plan, name, email, phone, password, cpf, cnpj, creci, ccaCode, income, propertyValue } = parsed.data;
+  const [planTier] = await db.select().from(plansTable)
+    .where(eq(plansTable.id, planId)).limit(1);
 
-  // Resolve and validate plan against role
-  const planId: PlanTierId = (plan ??
-    (role === "client" ? "free" : role === "broker" ? "corretor" : "bank_connect")) as PlanTierId;
-  const planTier = PLAN_TIERS[planId];
   if (!planTier || planTier.role !== role) {
     res.status(400).json({ error: "Plan does not match the selected profile" });
     return;
@@ -66,8 +109,8 @@ router.post("/register", async (req, res) => {
 
   // Profile-specific validation
   if (role === "client") {
-    if (!cpf || cpf.length !== 11) {
-      res.status(400).json({ error: "CPF é obrigatório (11 dígitos) para conta cliente." });
+    if (!cpf || !isValidCPF(cpf)) {
+      res.status(400).json({ error: "CPF informado para a conta do cliente é inválido." });
       return;
     }
     if (!income || !propertyValue) {
@@ -76,8 +119,8 @@ router.post("/register", async (req, res) => {
     }
   } else if (role === "broker") {
     // Corretor precisa de CPF + CRECI para o login multi-perfil funcionar.
-    if (!cpf || cpf.replace(/\D/g, "").length !== 11) {
-      res.status(400).json({ error: "CPF é obrigatório (11 dígitos) para conta corretor." });
+    if (!cpf || !isValidCPF(cpf)) {
+      res.status(400).json({ error: "CPF informado para a conta do corretor é inválido." });
       return;
     }
     if (!creci || !creci.trim()) {
@@ -94,8 +137,8 @@ router.post("/register", async (req, res) => {
       res.status(400).json({ error: "Código CCA é obrigatório para conta correspondente." });
       return;
     }
-  } else if (cpf && cpf.length !== 11) {
-    res.status(400).json({ error: "CPF inválido (deve ter 11 dígitos)." });
+  } else if (cpf && !isValidCPF(cpf)) {
+    res.status(400).json({ error: "CPF do cadastro informado é inválido." });
     return;
   }
 
@@ -117,6 +160,65 @@ router.post("/register", async (req, res) => {
     }
   }
 
+  // Processamento do pagamento antes da transação de banco de dados
+  const needsPayment = planTier.priceMonthly > 0 && !planTier.enterprise;
+  let paymentResult: any = null;
+
+  if (needsPayment) {
+    if (!creditCard || !creditCardHolderInfo) {
+      res.status(400).json({ error: "Dados do cartão são obrigatórios para este plano pago." });
+      return;
+    }
+
+    if (!isValidCPF(creditCardHolderInfo.cpfCnpj)) {
+      res.status(400).json({ error: "O CPF do titular do cartão informado é inválido." });
+      return;
+    }
+
+    try {
+      // 1. Criar cliente no Asaas
+      const customer = await createAsaasCustomer({
+        name,
+        email,
+        cpfCnpj: cpf ? cpf.replace(/\D/g, "") : creditCardHolderInfo.cpfCnpj.replace(/\D/g, ""),
+        phone: phone.replace(/\D/g, ""),
+        mobilePhone: phone.replace(/\D/g, ""),
+      });
+
+      // 2. Processar pagamento
+      const value = getBillingAmount(planTier, billingInterval);
+      const dueDate = new Date().toISOString().slice(0, 10);
+
+      paymentResult = await createAsaasPayment({
+        customer: customer.id,
+        billingType: "CREDIT_CARD",
+        value,
+        dueDate,
+        description: `ScoreCasa — Plano ${planTier.label}`,
+        creditCard: {
+          holderName: creditCard.holderName.trim().toUpperCase(),
+          number: creditCard.number.replace(/\D/g, ""),
+          expiryMonth: creditCard.expiryMonth,
+          expiryYear: creditCard.expiryYear,
+          ccv: creditCard.ccv,
+        },
+        creditCardHolderInfo: {
+          name: creditCardHolderInfo.name.trim().toUpperCase(),
+          email: creditCardHolderInfo.email || email,
+          cpfCnpj: creditCardHolderInfo.cpfCnpj.replace(/\D/g, ""),
+          mobilePhone: creditCardHolderInfo.mobilePhone || phone.replace(/\D/g, ""),
+          postalCode: creditCardHolderInfo.postalCode,
+          addressNumber: creditCardHolderInfo.addressNumber,
+        },
+        remoteIp: req.ip || "0.0.0.0",
+      });
+    } catch (payErr: any) {
+      req.log.error({ err: payErr }, "Asaas payment registration failed");
+      res.status(400).json({ error: payErr?.message ?? "Falha ao processar pagamento com cartão de crédito." });
+      return;
+    }
+  }
+
   // Build pro-account metadata note
   const noteParts: string[] = [];
   if (planTier.enterprise) noteParts.push("Plano empresarial — equipe comercial entrará em contato.");
@@ -128,8 +230,7 @@ router.post("/register", async (req, res) => {
   let user: typeof usersTable.$inferSelect;
   let trialEnd = new Date();
   trialEnd.setDate(trialEnd.getDate() + 14);
-  const nextDue = new Date();
-  nextDue.setDate(nextDue.getDate() + 14);
+  const nextDue = getNextDueDate(billingInterval);
 
   try {
     user = await db.transaction(async (tx) => {
@@ -227,20 +328,30 @@ router.post("/register", async (req, res) => {
         cnpj: userCnpj,
         ccaCode: userCcaCode,
       }).returning();
-
       await tx.insert(subscriptionsTable).values({
         userId: createdUser.id,
         userName: createdUser.name,
         userEmail: createdUser.email,
         userRole: createdUser.role,
         plan: planId,
-        status: "trial",
-        priceMonthly: planTier.priceMonthly,
+        status: needsPayment ? "active" : "trial",
+        priceMonthly: getBillingAmount(planTier, billingInterval),
+        billingInterval: billingInterval,
         billingDay: 1,
         trialEndsAt: trialEnd,
         nextDueAt: nextDue,
+        lastPaymentAt: needsPayment ? new Date() : null,
         notes: noteParts.length > 0 ? noteParts.join(" | ") : null,
       });
+
+      if (needsPayment && paymentResult) {
+        await tx.update(subscriptionsTable)
+          .set({
+            lastPaymentAt: new Date(),
+            nextDueAt: getNextDueDate(billingInterval),
+          })
+          .where(eq(subscriptionsTable.userId, createdUser.id));
+      }
 
       if (role === "broker") {
         await tx.insert(brokersTable).values({
@@ -399,6 +510,20 @@ router.post("/login", async (req, res) => {
 
     if (!user || user.passwordHash !== hashPassword(password)) return denyGeneric();
 
+    // Check payment/subscription status
+    const [sub] = await db
+      .select()
+      .from(subscriptionsTable)
+      .where(eq(subscriptionsTable.userId, user.id))
+      .limit(1);
+
+    if (sub && sub.plan !== "free" && sub.plan !== "enterprise") {
+      if (sub.status !== "active" && sub.status !== "trial") {
+        res.status(403).json({ error: "Assinatura pendente ou vencida", code: "PAYMENT_REQUIRED" });
+        return;
+      }
+    }
+
     establishSession(req, user.id);
     res.json({
       user: {
@@ -438,6 +563,22 @@ router.post("/login", async (req, res) => {
   } else {
     if (user.role === "broker" && user.creci) return denyGeneric();
     if (user.role === "correspondent" && (user.cnpj || user.ccaCode)) return denyGeneric();
+  }
+
+  // Check payment/subscription status
+  if (user.role !== "admin") {
+    const [sub] = await db
+      .select()
+      .from(subscriptionsTable)
+      .where(eq(subscriptionsTable.userId, user.id))
+      .limit(1);
+
+    if (sub && sub.plan !== "free" && sub.plan !== "enterprise") {
+      if (sub.status !== "active" && sub.status !== "trial") {
+        res.status(403).json({ error: "Assinatura pendente ou vencida", code: "PAYMENT_REQUIRED" });
+        return;
+      }
+    }
   }
 
   establishSession(req, user.id);

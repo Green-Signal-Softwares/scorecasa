@@ -14,6 +14,16 @@ import {
   normalizeCity,
   type UF,
 } from "@workspace/cities-br";
+import {
+  User,
+  Building2,
+  Users,
+  Briefcase,
+  DollarSign,
+  Calendar,
+  Wallet,
+  FileText,
+} from "lucide-react";
 import { ClientLayout } from "@/components/layout/ClientLayout";
 import { CityTierChip } from "@/components/CityTierChip";
 import { ClientDocumentosTab } from "@/components/ClientDocumentosTab";
@@ -65,83 +75,96 @@ const OUTRA_CIDADE = "__outra__";
 const Field = FormField;
 
 function SelectField({
-  label, value, onChange, options, placeholder, invalid, disabled,
+  label, value, onChange, options, placeholder, error, invalid, disabled,
 }: {
   label: string; value: string; onChange: (v: string) => void;
   options: { value: string; label: string }[]; placeholder?: string;
-  invalid?: boolean; disabled?: boolean;
+  error?: string; invalid?: boolean; disabled?: boolean;
 }) {
-  const labelCls = invalid ? "text-red-600" : "text-gray-700";
-  const baseCls = "w-full px-3 py-2.5 rounded-lg border text-sm outline-none";
-  const selectCls = invalid
-    ? `${baseCls} border-red-500 bg-red-50 text-red-700 focus:ring-2 focus:ring-red-300 focus:border-red-500`
+  const isInvalid = !!(invalid || error);
+  const labelCls = isInvalid ? "text-red-600" : "text-gray-700";
+  const labelText = label.endsWith(" *") ? label.slice(0, -2) : label;
+  const isRequired = label.endsWith(" *");
+  const selectCls = isInvalid
+    ? "w-full h-11 px-3 rounded-xl border-2 border-red-400 bg-red-50 text-red-700 text-sm outline-none focus:ring-2 focus:ring-red-200"
     : disabled
-    ? `${baseCls} border-gray-200 bg-gray-50 text-gray-400 cursor-not-allowed`
-    : `${baseCls} border-gray-200 bg-white focus:border-[#0D1B8C] focus:ring-1 focus:ring-[#0D1B8C]/20 text-gray-700`;
+    ? "w-full h-11 px-3 rounded-xl border border-gray-200 bg-gray-50 text-gray-400 text-sm cursor-not-allowed"
+    : "w-full h-11 px-3 rounded-xl border border-gray-200 bg-white text-sm text-gray-700 outline-none transition-all focus:border-[#0D1B8C] focus:ring-2 focus:ring-[#0D1B8C]/10 hover:border-gray-300";
   return (
     <div>
-      <label className={`block text-sm font-medium mb-1 ${labelCls}`}>{label}</label>
+      <label className={`block text-sm font-medium mb-1.5 ${labelCls}`}>
+        {labelText}{isRequired && <span className="text-red-500 ml-0.5">*</span>}
+      </label>
       <select
         value={value}
         onChange={(e) => onChange(e.target.value)}
-        aria-invalid={invalid || undefined}
+        aria-invalid={isInvalid || undefined}
         disabled={disabled}
         className={selectCls}
       >
         <option value="">{placeholder ?? "Selecione..."}</option>
         {options.map((o) => <option key={o.value} value={o.value}>{o.label}</option>)}
       </select>
+      {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
     </div>
   );
 }
 
 function RadioGroup({
-  label, value, onChange, options, invalid, hint,
+  label, value, onChange, options, error, invalid, hint,
 }: {
   label: string; value: string; onChange: (v: string) => void;
-  options: { value: string; label: string }[]; invalid?: boolean; hint?: string;
+  options: { value: string; label: string }[]; error?: string; invalid?: boolean; hint?: string;
 }) {
-  const labelCls = invalid ? "text-red-600" : "text-gray-700";
-  const wrapperCls = invalid
-    ? "flex gap-4 rounded-lg border border-red-500 bg-red-50 px-3 py-2"
-    : "flex gap-4";
+  const isInvalid = !!(invalid || error);
+  const labelCls = isInvalid ? "text-red-600" : "text-gray-700";
+  const labelTextR = label.endsWith(" *") ? label.slice(0, -2) : label;
+  const isRequiredR = label.endsWith(" *");
   return (
     <div>
-      <label className={`block text-sm font-medium mb-2 ${labelCls}`}>{label}</label>
-      <div className={wrapperCls} role="radiogroup" aria-invalid={invalid || undefined}>
+      <label className={`block text-sm font-medium mb-2 ${labelCls}`}>
+        {labelTextR}{isRequiredR && <span className="text-red-500 ml-0.5">*</span>}
+      </label>
+      <div
+        className={`flex flex-wrap gap-2 ${ isInvalid ? "p-2 rounded-xl border border-red-300 bg-red-50" : ""}`}
+        role="radiogroup"
+        aria-invalid={isInvalid || undefined}
+      >
         {options.map((o) => (
-          <label key={o.value} className="flex items-center gap-2 cursor-pointer">
-            <input
-              type="radio"
-              value={o.value}
-              checked={value === o.value}
-              onChange={() => onChange(o.value)}
-              className="w-4 h-4 accent-[#0D1B8C]"
-            />
-            <span className={`text-sm ${invalid ? "text-red-700" : "text-gray-700"}`}>{o.label}</span>
-          </label>
+          <button
+            key={o.value}
+            type="button"
+            onClick={() => onChange(o.value)}
+            className={`px-4 py-2 rounded-lg text-sm font-medium border transition-all ${
+              value === o.value
+                ? "bg-[#0D1B8C] text-white border-[#0D1B8C] shadow-sm"
+                : isInvalid
+                ? "bg-white text-red-700 border-red-300 hover:border-red-400"
+                : "bg-white text-gray-700 border-gray-200 hover:border-[#0D1B8C]/40 hover:bg-[#F7F8FF]"
+            }`}
+          >
+            {o.label}
+          </button>
         ))}
       </div>
-      {hint && <p className="text-xs text-gray-500 mt-1">{hint}</p>}
+      {hint && <p className="text-xs text-gray-500 mt-1.5 leading-relaxed">{hint}</p>}
+      {error && <p className="text-xs text-red-500 mt-1">{error}</p>}
     </div>
   );
 }
 
-/** Combobox UF + Cidade lado a lado, com lista filtrada por UF do dataset
- *  `@workspace/cities-br`. Quando o cliente escolhe "Outro município" mostramos
- *  input livre — a cidade ainda é salva, mas cai automaticamente na
- *  classificação D do MCMV (teto mais restrito). */
 function CityStateRow({
-  cityLabel, uf, city, freeCity, onUf, onCity, onFreeCity, ufInvalid, cityInvalid,
+  cityLabel, uf, city, freeCity, onUf, onCity, onFreeCity, ufError, cityError, ufInvalid, cityInvalid,
 }: {
   cityLabel: string;
   uf: string;
   city: string;
-  /** Texto livre quando city === OUTRA_CIDADE. */
   freeCity: string;
   onUf: (v: string) => void;
   onCity: (v: string) => void;
   onFreeCity: (v: string) => void;
+  ufError?: string;
+  cityError?: string;
   ufInvalid?: boolean;
   cityInvalid?: boolean;
 }) {
@@ -155,11 +178,12 @@ function CityStateRow({
     <div className="grid sm:grid-cols-3 gap-4">
       <div className="sm:col-span-1">
         <SelectField
-          label="Estado"
+          label="Estado *"
           value={uf}
           onChange={onUf}
           options={UF_OPTIONS}
           placeholder="UF"
+          error={ufError}
           invalid={ufInvalid}
         />
       </div>
@@ -170,6 +194,7 @@ function CityStateRow({
           onChange={onCity}
           options={options}
           placeholder={uf ? "Selecione a cidade..." : "Escolha primeiro a UF"}
+          error={cityError}
           invalid={cityInvalid}
           disabled={!uf}
         />
@@ -255,6 +280,11 @@ export function ClientMeusDados() {
   }
 
   function clearFieldError(formKey: keyof typeof form) {
+    setErrors((prev) => {
+      const next = { ...prev };
+      delete next[formKey];
+      return next;
+    });
     setErrFields((prev) => {
       let next: Set<string> | null = null;
       for (const [api, local] of Object.entries(FIELD_TO_FORM)) {
@@ -367,17 +397,29 @@ export function ClientMeusDados() {
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [profile]);
 
+  const needsSpouse = form.maritalStatus === "casado" || form.maritalStatus === "uniao_estavel";
+
   const setField = (key: keyof typeof form) => (val: string) => {
     setForm((f) => ({ ...f, [key]: val }));
     clearFieldError(key);
+
+    const errText = validateField(key, val, key.startsWith("spouse") ? true : needsSpouse);
+    if (errText) {
+      setErrors((prev) => ({ ...prev, [key]: errText }));
+    }
   };
 
   const setBRL = (key: keyof typeof form) => (raw: string) => {
-    setForm((f) => ({ ...f, [key]: maskBRL(raw) }));
+    const masked = maskBRL(raw);
+    setForm((f) => ({ ...f, [key]: masked }));
     clearFieldError(key);
+
+    const errText = validateField(key, masked, key.startsWith("spouse") ? true : needsSpouse);
+    if (errText) {
+      setErrors((prev) => ({ ...prev, [key]: errText }));
+    }
   };
 
-  const needsSpouse = form.maritalStatus === "casado" || form.maritalStatus === "uniao_estavel";
 
   // Resolve cidade efetiva (dropdown | livre) para o cônjuge/moradia/imóvel.
   function effectiveCity(dropdown: string, free: string): string {
@@ -439,16 +481,47 @@ export function ClientMeusDados() {
 
   const validate = () => {
     const e: Record<string, string> = {};
-    if (!form.name.trim() || form.name.trim().length < 2) e.name = "Nome obrigatório";
-    if (form.cidadeImovel === OUTRA_CIDADE && !form.cidadeImovelFree.trim()) {
-      e.cidadeImovel = "Digite o nome do município do imóvel";
+    for (const key of Object.keys(form) as Array<keyof typeof form>) {
+      const errText = validateField(key, form[key], key.startsWith("spouse") ? true : needsSpouse);
+      if (errText) {
+        e[key] = errText;
+      }
     }
-    if (form.cidadeMoradia === OUTRA_CIDADE && !form.cidadeMoradiaFree.trim()) {
-      e.cidadeMoradia = "Digite o nome do município de moradia";
+
+    if (!form.ufMoradia) {
+      e.ufMoradia = "Selecione o estado de moradia.";
     }
+    if (!form.cidadeMoradia) {
+      e.cidadeMoradia = "Selecione a cidade de moradia.";
+    } else if (form.cidadeMoradia === OUTRA_CIDADE) {
+      if (!form.cidadeMoradiaFree.trim()) {
+        e.cidadeMoradia = "Digite o nome do município de moradia.";
+      } else if (form.cidadeMoradiaFree.trim().length < 2) {
+        e.cidadeMoradia = "O nome do município deve ter pelo menos 2 caracteres.";
+      } else if (form.cidadeMoradiaFree.trim().length > 80) {
+        e.cidadeMoradia = "O nome do município deve ter no máximo 80 caracteres.";
+      }
+    }
+
+    if (!form.ufImovel) {
+      e.ufImovel = "Selecione o estado do imóvel.";
+    }
+    if (!form.cidadeImovel) {
+      e.cidadeImovel = "Selecione a cidade do imóvel.";
+    } else if (form.cidadeImovel === OUTRA_CIDADE) {
+      if (!form.cidadeImovelFree.trim()) {
+        e.cidadeImovel = "Digite o nome do município do imóvel.";
+      } else if (form.cidadeImovelFree.trim().length < 2) {
+        e.cidadeImovel = "O nome do município deve ter pelo menos 2 caracteres.";
+      } else if (form.cidadeImovelFree.trim().length > 80) {
+        e.cidadeImovel = "O nome do município deve ter no máximo 80 caracteres.";
+      }
+    }
+
     if (form.propertyInScorecasa === "sim" && !form.linkedPropertyId) {
-      e.linkedPropertyId = "Escolha o imóvel do ScoreCasa Imóveis";
+      e.linkedPropertyId = "Selecione o imóvel pretendido do catálogo.";
     }
+
     return e;
   };
 
@@ -520,9 +593,33 @@ export function ClientMeusDados() {
           .json()
           .catch(() => ({}));
         if (Array.isArray(j.fields)) {
-          setErrFields(
-            new Set(j.fields.filter((f): f is string => typeof f === "string")),
-          );
+          const apiFields = j.fields.filter((f): f is string => typeof f === "string");
+          setErrFields(new Set(apiFields));
+
+          const newErrors: Record<string, string> = {};
+          for (const apiField of apiFields) {
+            const formKey = FIELD_TO_FORM[apiField];
+            if (formKey) {
+              if (apiField === "birthDate" || apiField === "spouseBirthDate") {
+                newErrors[formKey] = "A data deve ser válida e ter pelo menos 18 anos.";
+              } else if (apiField === "spouseCpf") {
+                newErrors[formKey] = "O CPF deve ter 11 dígitos e ser válido.";
+              } else if (apiField === "income" || apiField === "propertyValue" || apiField === "informalIncome" || apiField === "spouseIncome") {
+                newErrors[formKey] = "Insira um valor válido e não negativo.";
+              } else if (apiField === "phone") {
+                newErrors[formKey] = "Insira um telefone válido com DDD.";
+              } else if (apiField === "name" || apiField === "spouseName") {
+                newErrors[formKey] = "O nome deve ter entre 2 e 120 caracteres.";
+              } else if (apiField === "profession" || apiField === "spouseProfession") {
+                newErrors[formKey] = "A profissão deve ter entre 2 e 80 caracteres.";
+              } else if (apiField === "residentCity" || apiField === "propertyCity") {
+                newErrors[formKey] = "O nome do município deve ter entre 2 e 80 caracteres.";
+              } else {
+                newErrors[formKey] = "Dado inválido.";
+              }
+            }
+          }
+          setErrors((prev) => ({ ...prev, ...newErrors }));
         }
         toast({
           title: "Verifique os campos destacados",
@@ -611,277 +708,300 @@ export function ClientMeusDados() {
       )}
 
       {tab === "dados" && (
-        <div className="bg-white rounded-2xl shadow-sm border border-gray-100 p-6 space-y-5">
-          {/* Row 1: CPF + Nome Receita Federal */}
-          <div className="grid sm:grid-cols-2 gap-4">
-            <Field label="CPF / CNPJ" value={form.cpf} readOnly />
-            <div>
-              <label className="block text-sm font-medium text-gray-700 mb-1">Nome (Receita Federal)</label>
-              <input
-                type="text"
-                readOnly
-                placeholder="Preenchido automaticamente após consulta à base da Receita Federal"
-                className="w-full px-3 py-2.5 rounded-lg border border-gray-200 bg-gray-50 text-xs text-gray-400 outline-none cursor-default"
-              />
-              <p className="text-xs text-gray-400 mt-1">Este campo será preenchido quando a integração com a Receita Federal estiver disponível.</p>
-            </div>
-          </div>
+        <div className="space-y-6">
+          {/* Required legend */}
+          <p className="text-xs text-gray-500 flex items-center gap-1">
+            <span className="text-red-500 font-bold">*</span>
+            Campos obrigatórios
+          </p>
 
-          {/* Row 2: Nome completo + Data de nascimento */}
-          <div className="grid sm:grid-cols-2 gap-4">
-            <Field
-              label="Nome completo *"
-              value={form.name}
-              onChange={setField("name")}
-              placeholder="Seu nome completo"
-              error={errors.name}
-              invalid={isInvalid("name")}
-            />
-            <Field
-              label="Data de nascimento"
-              value={form.birthDate}
-              onChange={setField("birthDate")}
-              type="date"
-              hint="Opcional. Mínimo 18 anos se informada."
-              invalid={isInvalid("birthDate")}
-            />
-          </div>
-
-          {/* Row 3: Estado + Cidade de moradia */}
-          <CityStateRow
-            cityLabel="Cidade de moradia"
-            uf={form.ufMoradia}
-            city={form.cidadeMoradia}
-            freeCity={form.cidadeMoradiaFree}
-            onUf={(v) => {
-              setForm((f) => ({ ...f, ufMoradia: v, cidadeMoradia: "", cidadeMoradiaFree: "" }));
-              clearFieldError("ufMoradia");
-            }}
-            onCity={(v) => setForm((f) => ({ ...f, cidadeMoradia: v, cidadeMoradiaFree: "" }))}
-            onFreeCity={(v) => setForm((f) => ({ ...f, cidadeMoradiaFree: v }))}
-            ufInvalid={isInvalid("ufMoradia")}
-            cityInvalid={isInvalid("cidadeMoradia") || !!errors.cidadeMoradia}
-          />
-
-          {/* Row 4: Profissão + Carteira assinada */}
-          <div className="grid sm:grid-cols-2 gap-4">
-            <Field
-              label="Profissão"
-              value={form.profissao}
-              onChange={setField("profissao")}
-              placeholder="Sua profissão"
-              invalid={isInvalid("profissao")}
-            />
-            <RadioGroup
-              label="Tem ou já teve mais de 3 anos de carteira assinada?"
-              value={form.carteiraAssinada}
-              onChange={setField("carteiraAssinada")}
-              options={[{ value: "sim", label: "Sim" }, { value: "nao", label: "Não" }]}
-              invalid={isInvalid("carteiraAssinada")}
-            />
-          </div>
-
-          {/* Row 5: Renda formal + Renda informal */}
-          <div className="grid sm:grid-cols-2 gap-4">
-            <Field
-              label="Renda formal (R$)"
-              value={form.income}
-              onChange={setBRL("income")}
-              placeholder="0,00"
-              invalid={isInvalid("income")}
-            />
-            <Field
-              label="Renda informal (R$)"
-              value={form.informalIncome}
-              onChange={setBRL("informalIncome")}
-              placeholder="0,00"
-              invalid={isInvalid("informalIncome")}
-            />
-          </div>
-
-          {/* Row 6: Estado civil */}
-          <div className="grid sm:grid-cols-2 gap-4">
-            <SelectField
-              label="Estado civil"
-              value={form.maritalStatus}
-              onChange={setField("maritalStatus")}
-              options={MARITAL_OPTIONS}
-              invalid={isInvalid("maritalStatus")}
-            />
-            <Field
-              label="Valor do imóvel pretendido (R$)"
-              value={form.propertyValue}
-              onChange={setBRL("propertyValue")}
-              placeholder="0,00"
-              invalid={isInvalid("propertyValue")}
-            />
-          </div>
-
-          {/* ── Imóvel pretendido ──────────────────────────────────── */}
-          <div className="rounded-xl border border-gray-200 bg-[#F7F8FF] p-5 space-y-4">
-            <p className="text-sm font-semibold text-[#0D1B8C]">Imóvel pretendido</p>
-
-            <CityStateRow
-              cityLabel="Cidade do imóvel"
-              uf={form.ufImovel}
-              city={form.cidadeImovel}
-              freeCity={form.cidadeImovelFree}
-              onUf={(v) => {
-                setForm((f) => ({
-                  ...f, ufImovel: v, cidadeImovel: "", cidadeImovelFree: "",
-                  // Trocar UF invalida o imóvel vinculado.
-                  linkedPropertyId: "",
-                }));
-                clearFieldError("ufImovel");
-              }}
-              onCity={(v) => setForm((f) => ({ ...f, cidadeImovel: v, cidadeImovelFree: "", linkedPropertyId: "" }))}
-              onFreeCity={(v) => setForm((f) => ({ ...f, cidadeImovelFree: v }))}
-              ufInvalid={isInvalid("ufImovel")}
-              cityInvalid={isInvalid("cidadeImovel") || !!errors.cidadeImovel}
-            />
-
-            <RadioGroup
-              label="Você já tem outro imóvel neste município?"
-              value={form.alreadyOwnsProperty}
-              onChange={(v) => setForm((f) => ({ ...f, alreadyOwnsProperty: v as any }))}
-              options={[{ value: "nao", label: "Não" }, { value: "sim", label: "Sim" }]}
-              invalid={isInvalid("alreadyOwnsProperty")}
-              hint="Pelo regulamento do MCMV (FAR/PMCMV), titulares que já possuem imóvel no mesmo município ficam impedidos de participar."
-            />
-
-            {form.alreadyOwnsProperty === "sim" && (
-              <div className="rounded-lg border border-amber-300 bg-amber-50 p-3">
-                <p className="text-xs text-amber-800">
-                  <strong>Atenção:</strong> Você não atende a um dos requisitos do
-                  MCMV. Vamos analisar o seu financiamento como SBPE / Caixa
-                  tradicional — sem o subsídio.
-                </p>
+          {/* CARD 1: Informações Pessoais */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-[#F7F8FF] to-white">
+              <div className="w-8 h-8 rounded-lg bg-[#0D1B8C]/10 flex items-center justify-center flex-shrink-0">
+                <User className="w-4 h-4 text-[#0D1B8C]" />
               </div>
-            )}
+              <h2 className="text-sm font-bold text-gray-900">Informações Pessoais</h2>
+            </div>
+            <div className="p-6 space-y-5">
+            
+            {/* CPF / Receita */}
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Field label="CPF / CNPJ" value={form.cpf} readOnly icon={FileText} />
+              <div>
+                <label className="block text-sm font-medium text-gray-700 mb-1">Nome (Receita Federal)</label>
+                <input
+                  type="text"
+                  readOnly
+                  placeholder="Preenchido automaticamente após consulta à base da Receita Federal"
+                  className="w-full px-3 py-2.5 rounded-lg border border-gray-200 bg-gray-50 text-xs text-gray-400 outline-none cursor-default"
+                />
+                <p className="text-xs text-gray-400 mt-1">Este campo será preenchido quando a integração com a Receita Federal estiver disponível.</p>
+              </div>
+            </div>
 
-            <RadioGroup
-              label="O imóvel está no ScoreCasa Imóveis?"
-              value={form.propertyInScorecasa}
-              onChange={(v) => setForm((f) => ({
-                ...f,
-                propertyInScorecasa: v as any,
-                linkedPropertyId: v === "nao" ? "" : f.linkedPropertyId,
-              }))}
-              options={[{ value: "nao", label: "Não" }, { value: "sim", label: "Sim" }]}
-              hint="Vincular ao catálogo agiliza a análise e abre acesso a fotos, condições e contato com o corretor."
+            {/* Nome / Nascimento */}
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Field
+                label="Nome completo *"
+                value={form.name}
+                onChange={setField("name")}
+                placeholder="Seu nome completo"
+                error={errors.name}
+                invalid={isInvalid("name") || !!errors.name}
+                icon={User}
+              />
+              <Field
+                label="Data de nascimento"
+                value={form.birthDate}
+                onChange={setField("birthDate")}
+                type="date"
+                hint="Opcional. Mínimo 18 anos se informada."
+                error={errors.birthDate}
+                invalid={isInvalid("birthDate") || !!errors.birthDate}
+                icon={Calendar}
+              />
+            </div>
+
+            {/* Cidade / UF Moradia */}
+            <CityStateRow
+              cityLabel="Cidade de moradia *"
+              uf={form.ufMoradia}
+              city={form.cidadeMoradia}
+              freeCity={form.cidadeMoradiaFree}
+              onUf={(v) => {
+                setForm((f) => ({ ...f, ufMoradia: v, cidadeMoradia: "", cidadeMoradiaFree: "" }));
+                clearFieldError("ufMoradia");
+              }}
+              onCity={(v) => setForm((f) => ({ ...f, cidadeMoradia: v, cidadeMoradiaFree: "" }))}
+              onFreeCity={(v) => setForm((f) => ({ ...f, cidadeMoradiaFree: v }))}
+              ufError={errors.ufMoradia}
+              cityError={errors.cidadeMoradia}
+              ufInvalid={isInvalid("ufMoradia") || !!errors.ufMoradia}
+              cityInvalid={isInvalid("cidadeMoradia") || !!errors.cidadeMoradia}
             />
 
-            {form.propertyInScorecasa === "sim" && (() => {
-              const selected = propertyOptions.find((o) => o.value === form.linkedPropertyId);
-              // Imóvel já escolhido → card resumido com Trocar/Remover.
-              if (selected) {
+            {/* Profissão / CLT */}
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Field
+                label="Profissão *"
+                value={form.profissao}
+                onChange={setField("profissao")}
+                placeholder="Sua profissão"
+                error={errors.profissao}
+                invalid={isInvalid("profissao") || !!errors.profissao}
+                icon={Briefcase}
+              />
+              <RadioGroup
+                label="Tem ou já teve mais de 3 anos de carteira assinada? *"
+                value={form.carteiraAssinada}
+                onChange={setField("carteiraAssinada")}
+                options={[{ value: "sim", label: "Sim" }, { value: "nao", label: "Não" }]}
+                error={errors.carteiraAssinada}
+                invalid={isInvalid("carteiraAssinada") || !!errors.carteiraAssinada}
+              />
+            </div>
+
+            {/* Rendas */}
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Field
+                label="Renda formal (R$) *"
+                value={form.income}
+                onChange={setBRL("income")}
+                placeholder="0,00"
+                error={errors.income}
+                invalid={isInvalid("income") || !!errors.income}
+                icon={DollarSign}
+              />
+              <Field
+                label="Renda informal (R$)"
+                value={form.informalIncome}
+                onChange={setBRL("informalIncome")}
+                placeholder="0,00"
+                error={errors.informalIncome}
+                invalid={isInvalid("informalIncome") || !!errors.informalIncome}
+                icon={DollarSign}
+              />
+            </div>
+
+            {/* Estado civil */}
+            <div className="grid sm:grid-cols-2 gap-4">
+              <SelectField
+                label="Estado civil *"
+                value={form.maritalStatus}
+                onChange={setField("maritalStatus")}
+                options={MARITAL_OPTIONS}
+                error={errors.maritalStatus}
+                invalid={isInvalid("maritalStatus") || !!errors.maritalStatus}
+              />
+            </div>
+          </div>{/* end card 1 content */}
+          </div>{/* end card 1 */}
+
+          {/* CARD 2: Imóvel Pretendido e Financiamento */}
+          <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+            <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-[#F7F8FF] to-white">
+              <div className="w-8 h-8 rounded-lg bg-[#0D1B8C]/10 flex items-center justify-center flex-shrink-0">
+                <Building2 className="w-4 h-4 text-[#0D1B8C]" />
+              </div>
+              <h2 className="text-sm font-bold text-gray-900">Imóvel Pretendido e Renda</h2>
+            </div>
+            <div className="p-6 space-y-5">
+
+            <div className="grid sm:grid-cols-2 gap-4">
+              <Field
+                label="Valor do imóvel pretendido (R$) *"
+                value={form.propertyValue}
+                onChange={setBRL("propertyValue")}
+                placeholder="0,00"
+                error={errors.propertyValue}
+                invalid={isInvalid("propertyValue") || !!errors.propertyValue}
+                icon={DollarSign}
+              />
+            </div>
+
+            <div className="rounded-xl border border-gray-100 bg-[#F7F8FF] p-5 space-y-4">
+              <p className="text-sm font-semibold text-[#0D1B8C]">Localização e Vínculo</p>
+
+              <CityStateRow
+                cityLabel="Cidade do imóvel *"
+                uf={form.ufImovel}
+                city={form.cidadeImovel}
+                freeCity={form.cidadeImovelFree}
+                onUf={(v) => {
+                  setForm((f) => ({
+                    ...f, ufImovel: v, cidadeImovel: "", cidadeImovelFree: "",
+                    linkedPropertyId: "",
+                  }));
+                  clearFieldError("ufImovel");
+                }}
+                onCity={(v) => setForm((f) => ({ ...f, cidadeImovel: v, cidadeImovelFree: "", linkedPropertyId: "" }))}
+                onFreeCity={(v) => setForm((f) => ({ ...f, cidadeImovelFree: v }))}
+                ufError={errors.ufImovel}
+                cityError={errors.cidadeImovel}
+                ufInvalid={isInvalid("ufImovel") || !!errors.ufImovel}
+                cityInvalid={isInvalid("cidadeImovel") || !!errors.cidadeImovel}
+              />
+
+              <RadioGroup
+                label="Você já tem outro imóvel neste município? *"
+                value={form.alreadyOwnsProperty}
+                onChange={(v) => setForm((f) => ({ ...f, alreadyOwnsProperty: v as any }))}
+                options={[{ value: "nao", label: "Não" }, { value: "sim", label: "Sim" }]}
+                error={errors.alreadyOwnsProperty}
+                invalid={isInvalid("alreadyOwnsProperty") || !!errors.alreadyOwnsProperty}
+                hint="Pelo regulamento do MCMV (FAR/PMCMV), titulares que já possuem imóvel no mesmo município ficam impedidos de participar."
+              />
+
+              {form.alreadyOwnsProperty === "sim" && (
+                <div className="rounded-lg border border-amber-300 bg-amber-50 p-3">
+                  <p className="text-xs text-amber-800">
+                    <strong>Atenção:</strong> Você não atende a um dos requisitos do MCMV. Vamos analisar o seu financiamento como SBPE / Caixa tradicional — sem o subsídio.
+                  </p>
+                </div>
+              )}
+
+              <RadioGroup
+                label="O imóvel está no ScoreCasa Imóveis? *"
+                value={form.propertyInScorecasa}
+                onChange={(v) => setForm((f) => ({
+                  ...f,
+                  propertyInScorecasa: v as any,
+                  linkedPropertyId: v === "nao" ? "" : f.linkedPropertyId,
+                }))}
+                options={[{ value: "nao", label: "Não" }, { value: "sim", label: "Sim" }]}
+                error={errors.propertyInScorecasa}
+                invalid={isInvalid("propertyInScorecasa") || !!errors.propertyInScorecasa}
+                hint="Vincular ao catálogo agiliza a análise e abre acesso a fotos, condições e contato com o corretor."
+              />
+
+              {form.propertyInScorecasa === "sim" && (() => {
+                const selected = propertyOptions.find((o) => o.value === form.linkedPropertyId);
+                if (selected) {
+                  return (
+                    <div className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 flex gap-3 items-center" data-testid="selected-property-card">
+                      {selected.imageUrl ? (
+                        <img src={selected.imageUrl} alt={selected.title} className="w-20 h-20 rounded-lg object-cover flex-shrink-0" />
+                      ) : (
+                        <div className="w-20 h-20 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-600 text-xs flex-shrink-0">Sem foto</div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <p className="text-sm font-semibold text-gray-900 truncate">{selected.title}</p>
+                        <p className="text-xs text-gray-600">{selected.city}/{selected.state}</p>
+                        <p className="text-sm font-semibold text-emerald-700 mt-0.5">R$ {Number(selected.price).toLocaleString("pt-BR")}</p>
+                      </div>
+                      <div className="flex flex-col gap-1.5 flex-shrink-0">
+                        <button
+                          type="button"
+                          onClick={() => setForm((f) => ({ ...f, linkedPropertyId: "" }))}
+                          className="text-xs px-2.5 py-1 rounded border border-emerald-300 bg-white text-emerald-700 hover:bg-emerald-100"
+                          data-testid="button-trocar-imovel"
+                        >
+                          Trocar
+                        </button>
+                        <button
+                          type="button"
+                          onClick={() => setForm((f) => ({ ...f, linkedPropertyId: "", propertyInScorecasa: "nao" }))}
+                          className="text-xs px-2.5 py-1 rounded border border-red-200 bg-white text-red-600 hover:bg-red-50"
+                          data-testid="button-remover-imovel"
+                        >
+                          Remover
+                        </button>
+                      </div>
+                    </div>
+                  );
+                }
                 return (
-                  <div
-                    className="rounded-xl border border-emerald-200 bg-emerald-50 p-3 flex gap-3 items-center"
-                    data-testid="selected-property-card"
-                  >
-                    {selected.imageUrl ? (
-                      <img
-                        src={selected.imageUrl}
-                        alt={selected.title}
-                        className="w-20 h-20 rounded-lg object-cover flex-shrink-0"
-                      />
+                  <div>
+                    <p className="text-sm font-medium text-gray-700 mb-2">Escolha o imóvel</p>
+                    {!form.ufImovel ? (
+                      <p className="text-sm text-gray-500 italic">Escolha a UF do imóvel acima para listar os disponíveis.</p>
+                    ) : propertyOptions.length === 0 ? (
+                      <p className="text-sm text-gray-500 italic">Nenhum imóvel disponível para essa cidade/UF no momento.</p>
                     ) : (
-                      <div className="w-20 h-20 rounded-lg bg-emerald-100 flex items-center justify-center text-emerald-600 text-xs flex-shrink-0">
-                        Sem foto
+                      <div className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-96 overflow-y-auto pr-1" data-testid="property-catalog">
+                        {propertyOptions.map((opt) => (
+                          <button
+                            key={opt.value}
+                            type="button"
+                            onClick={() => setForm((f) => ({ ...f, linkedPropertyId: opt.value }))}
+                            className="text-left rounded-lg border border-gray-200 bg-white hover:border-emerald-400 hover:shadow-sm transition p-2 flex gap-3 items-center"
+                            data-testid={`property-option-${opt.value}`}
+                          >
+                            {opt.imageUrl ? (
+                              <img src={opt.imageUrl} alt={opt.title} className="w-16 h-16 rounded object-cover flex-shrink-0" />
+                            ) : (
+                              <div className="w-16 h-16 rounded bg-gray-100 flex items-center justify-center text-gray-400 text-[10px] flex-shrink-0">Sem foto</div>
+                            )}
+                            <div className="flex-1 min-w-0">
+                              <p className="text-sm font-semibold text-gray-900 truncate">{opt.title}</p>
+                              <p className="text-xs text-gray-600 truncate">{opt.city}/{opt.state}</p>
+                              <p className="text-sm font-semibold text-emerald-700">R$ {Number(opt.price).toLocaleString("pt-BR")}</p>
+                            </div>
+                          </button>
+                        ))}
                       </div>
                     )}
-                    <div className="flex-1 min-w-0">
-                      <p className="text-sm font-semibold text-gray-900 truncate">{selected.title}</p>
-                      <p className="text-xs text-gray-600">{selected.city}/{selected.state}</p>
-                      <p className="text-sm font-semibold text-emerald-700 mt-0.5">
-                        R$ {Number(selected.price).toLocaleString("pt-BR")}
-                      </p>
-                    </div>
-                    <div className="flex flex-col gap-1.5 flex-shrink-0">
-                      <button
-                        type="button"
-                        onClick={() => setForm((f) => ({ ...f, linkedPropertyId: "" }))}
-                        className="text-xs px-2.5 py-1 rounded border border-emerald-300 bg-white text-emerald-700 hover:bg-emerald-100"
-                        data-testid="button-trocar-imovel"
-                      >
-                        Trocar
-                      </button>
-                      <button
-                        type="button"
-                        onClick={() => setForm((f) => ({
-                          ...f,
-                          linkedPropertyId: "",
-                          propertyInScorecasa: "nao",
-                        }))}
-                        className="text-xs px-2.5 py-1 rounded border border-red-200 bg-white text-red-600 hover:bg-red-50"
-                        data-testid="button-remover-imovel"
-                      >
-                        Remover
-                      </button>
-                    </div>
+                    {errors.linkedPropertyId && (
+                      <p className="text-xs text-red-600 mt-1">{errors.linkedPropertyId}</p>
+                    )}
                   </div>
                 );
-              }
-              // Nenhum escolhido ainda → grid de cards selecionáveis (catálogo).
-              return (
-                <div>
-                  <p className="text-sm font-medium text-gray-700 mb-2">Escolha o imóvel</p>
-                  {!form.ufImovel ? (
-                    <p className="text-sm text-gray-500 italic">
-                      Escolha a UF do imóvel acima para listar os disponíveis.
-                    </p>
-                  ) : propertyOptions.length === 0 ? (
-                    <p className="text-sm text-gray-500 italic">
-                      Nenhum imóvel disponível para essa cidade/UF no momento.
-                    </p>
-                  ) : (
-                    <div
-                      className="grid grid-cols-1 sm:grid-cols-2 gap-3 max-h-96 overflow-y-auto pr-1"
-                      data-testid="property-catalog"
-                    >
-                      {propertyOptions.map((opt) => (
-                        <button
-                          key={opt.value}
-                          type="button"
-                          onClick={() => setForm((f) => ({ ...f, linkedPropertyId: opt.value }))}
-                          className="text-left rounded-lg border border-gray-200 bg-white hover:border-emerald-400 hover:shadow-sm transition p-2 flex gap-3 items-center"
-                          data-testid={`property-option-${opt.value}`}
-                        >
-                          {opt.imageUrl ? (
-                            <img
-                              src={opt.imageUrl}
-                              alt={opt.title}
-                              className="w-16 h-16 rounded object-cover flex-shrink-0"
-                            />
-                          ) : (
-                            <div className="w-16 h-16 rounded bg-gray-100 flex items-center justify-center text-gray-400 text-[10px] flex-shrink-0">
-                              Sem foto
-                            </div>
-                          )}
-                          <div className="flex-1 min-w-0">
-                            <p className="text-sm font-semibold text-gray-900 truncate">{opt.title}</p>
-                            <p className="text-xs text-gray-600 truncate">{opt.city}/{opt.state}</p>
-                            <p className="text-sm font-semibold text-emerald-700">
-                              R$ {Number(opt.price).toLocaleString("pt-BR")}
-                            </p>
-                          </div>
-                        </button>
-                      ))}
-                    </div>
-                  )}
-                  {errors.linkedPropertyId && (
-                    <p className="text-xs text-red-600 mt-1">{errors.linkedPropertyId}</p>
-                  )}
-                </div>
-              );
-            })()}
-          </div>
+              })()}
+            </div>
+            </div>{/* end card 2 content */}
+          </div>{/* end card 2 */}
 
-          {/* ── Dados do cônjuge ─────────────────────────────────────── */}
+          {/* CARD 3: Dados do Cônjuge */}
           {needsSpouse && (
-            <div className="rounded-xl border border-gray-200 bg-gray-50 p-5 space-y-4">
-              <p className="text-sm font-semibold text-gray-700">Dados do cônjuge</p>
+            <div className="bg-white rounded-2xl shadow-sm border border-gray-100 overflow-hidden">
+              <div className="flex items-center gap-3 px-6 py-4 border-b border-gray-100 bg-gradient-to-r from-rose-50 to-white">
+                <div className="w-8 h-8 rounded-lg bg-rose-100 flex items-center justify-center flex-shrink-0">
+                  <Users className="w-4 h-4 text-rose-600" />
+                </div>
+                <h2 className="text-sm font-bold text-gray-900">Dados do Cônjuge / Companheiro</h2>
+              </div>
+              <div className="p-6 space-y-5">
 
               <div className="grid sm:grid-cols-2 gap-4">
                 <Field
@@ -890,16 +1010,22 @@ export function ClientMeusDados() {
                   onChange={(v) => {
                     setForm((f) => ({ ...f, spouseCpf: maskCPF(v) }));
                     clearFieldError("spouseCpf");
+                    const errText = validateField("spouseCpf", maskCPF(v), true);
+                    if (errText) setErrors((prev) => ({ ...prev, spouseCpf: errText }));
                   }}
                   placeholder="000.000.000-00"
-                  invalid={isInvalid("spouseCpf")}
+                  error={errors.spouseCpf}
+                  invalid={isInvalid("spouseCpf") || !!errors.spouseCpf}
+                  icon={FileText}
                 />
                 <Field
                   label="Nome do cônjuge *"
                   value={form.spouseName}
                   onChange={setField("spouseName")}
                   placeholder="Nome completo"
-                  invalid={isInvalid("spouseName")}
+                  error={errors.spouseName}
+                  invalid={isInvalid("spouseName") || !!errors.spouseName}
+                  icon={User}
                 />
               </div>
 
@@ -909,14 +1035,18 @@ export function ClientMeusDados() {
                   value={form.spouseBirthDate}
                   onChange={setField("spouseBirthDate")}
                   type="date"
-                  invalid={isInvalid("spouseBirthDate")}
+                  error={errors.spouseBirthDate}
+                  invalid={isInvalid("spouseBirthDate") || !!errors.spouseBirthDate}
+                  icon={Calendar}
                 />
                 <Field
                   label="Profissão *"
                   value={form.spouseProfissao}
                   onChange={setField("spouseProfissao")}
                   placeholder="Profissão do cônjuge"
-                  invalid={isInvalid("spouseProfissao")}
+                  error={errors.spouseProfissao}
+                  invalid={isInvalid("spouseProfissao") || !!errors.spouseProfissao}
+                  icon={Briefcase}
                 />
               </div>
 
@@ -936,14 +1066,15 @@ export function ClientMeusDados() {
                 />
               </div>
             </div>
+            </div>
           )}
 
           {/* Actions */}
-          <div className="flex gap-3 pt-2 border-t border-gray-100">
+          <div className="flex gap-3 pt-2">
             <button
               type="button"
               onClick={() => setLocation("/portal")}
-              className="px-5 py-2.5 rounded-xl text-sm font-medium border border-gray-200 text-gray-700 hover:bg-gray-50 transition-colors"
+              className="px-5 py-2.5 rounded-xl text-sm font-medium border border-gray-200 text-gray-600 hover:bg-gray-50 hover:border-gray-300 transition-all"
             >
               Voltar
             </button>
@@ -951,8 +1082,8 @@ export function ClientMeusDados() {
               type="button"
               onClick={guard.sessionExpired ? () => guard.goToLogin(form) : handleSave}
               disabled={saving}
-              className="px-6 py-2.5 rounded-xl text-sm font-semibold text-white transition-colors disabled:opacity-60"
-              style={{ background: "#0D1B8C" }}
+              className="flex-1 py-2.5 rounded-xl text-sm font-semibold text-white transition-all disabled:opacity-60 shadow-md shadow-[#0D1B8C]/20 hover:shadow-lg hover:shadow-[#0D1B8C]/30 active:scale-[0.99]"
+              style={{ background: "linear-gradient(135deg, #0D1B8C 0%, #1A2FB0 100%)" }}
             >
               {guard.sessionExpired
                 ? "Fazer login para salvar"
@@ -965,4 +1096,103 @@ export function ClientMeusDados() {
       )}
     </ClientLayout>
   );
+}
+
+function validateField(name: string, value: string, needsSpouse?: boolean): string | null {
+  const v = value.trim();
+  if (name === "name") {
+    if (!v) return "Por favor, insira seu nome completo.";
+    if (v.length < 2) return "O nome completo deve ter pelo menos 2 caracteres.";
+    if (v.length > 120) return "O nome completo deve ter no máximo 120 caracteres.";
+  }
+  if (name === "birthDate") {
+    if (v) {
+      const d = new Date(v);
+      if (Number.isNaN(d.getTime())) return "Por favor, insira uma data de nascimento válida.";
+      const year = d.getUTCFullYear();
+      if (year < 1900 || year > new Date().getUTCFullYear()) {
+        return "Por favor, insira um ano plausível (a partir de 1900).";
+      }
+      const today = new Date();
+      let age = today.getUTCFullYear() - d.getUTCFullYear();
+      const m = today.getUTCMonth() - d.getUTCMonth();
+      if (m < 0 || (m === 0 && today.getUTCDate() < d.getUTCDate())) age--;
+      if (age < 18) return "Ops! Você precisa ter pelo menos 18 anos.";
+      if (age > 120) return "Por favor, insira uma idade válida.";
+    }
+  }
+  if (name === "profissao") {
+    if (!v) return "Por favor, insira sua profissão.";
+    if (v.length < 2) return "A profissão deve ter pelo menos 2 caracteres.";
+    if (v.length > 80) return "A profissão deve ter no máximo 80 caracteres.";
+  }
+  if (name === "carteiraAssinada") {
+    if (!v) return "Por favor, responda se possui ou já possuiu 3 anos ou mais de carteira assinada.";
+  }
+  if (name === "maritalStatus") {
+    if (!v) return "Por favor, selecione seu estado civil.";
+  }
+  if (name === "propertyValue") {
+    if (!v) return "Por favor, insira o valor do imóvel pretendido.";
+    const num = parseBRL(value);
+    if (num <= 0) return "O valor do imóvel deve ser maior que R$ 0,00.";
+  }
+  if (name === "income") {
+    if (!v) return "Por favor, insira sua renda formal.";
+    const num = parseBRL(value);
+    if (num < 0) return "A renda formal não pode ser menor que R$ 0,00.";
+  }
+  if (name === "informalIncome") {
+    if (v) {
+      const num = parseBRL(value);
+      if (num < 0) return "A renda informal não pode ser menor que R$ 0,00.";
+    }
+  }
+  if (name === "alreadyOwnsProperty") {
+    if (!v) return "Por favor, responda se já possui outro imóvel residencial no mesmo município.";
+  }
+  if (name === "propertyInScorecasa") {
+    if (!v) return "Por favor, responda se o imóvel está anunciado no ScoreCasa Imóveis.";
+  }
+  if (needsSpouse) {
+    if (name === "spouseName") {
+      if (!v) return "Por favor, insira o nome completo do cônjuge.";
+      if (v.length < 2) return "O nome completo do cônjuge deve ter pelo menos 2 caracteres.";
+      if (v.length > 120) return "O nome completo do cônjuge deve ter no máximo 120 caracteres.";
+    }
+    if (name === "spouseCpf") {
+      if (!v) return "Por favor, insira o CPF do cônjuge.";
+      const digits = v.replace(/\D/g, "");
+      if (digits.length !== 11 || /^(\d)\1{10}$/.test(digits)) {
+        return "Por favor, insira um CPF válido com 11 dígitos.";
+      }
+    }
+    if (name === "spouseBirthDate") {
+      if (!v) return "Por favor, insira a data de nascimento do cônjuge.";
+      const d = new Date(v);
+      if (Number.isNaN(d.getTime())) return "Por favor, insira uma data válida.";
+      const year = d.getUTCFullYear();
+      if (year < 1900 || year > new Date().getUTCFullYear()) {
+        return "Por favor, insira um ano plausível (a partir de 1900).";
+      }
+      const today = new Date();
+      let age = today.getUTCFullYear() - d.getUTCFullYear();
+      const m = today.getUTCMonth() - d.getUTCMonth();
+      if (m < 0 || (m === 0 && today.getUTCDate() < d.getUTCDate())) age--;
+      if (age < 18) return "Ops! O cônjuge precisa ter pelo menos 18 anos.";
+      if (age > 120) return "Por favor, insira uma idade válida para o cônjuge.";
+    }
+    if (name === "spouseProfissao") {
+      if (!v) return "Por favor, insira a profissão do cônjuge.";
+      if (v.length < 2) return "A profissão do cônjuge deve ter pelo menos 2 caracteres.";
+      if (v.length > 80) return "A profissão do cônjuge deve ter no máximo 80 caracteres.";
+    }
+    if (name === "spouseIncome") {
+      if (v) {
+        const num = parseBRL(value);
+        if (num < 0) return "A renda do cônjuge não pode ser menor que R$ 0,00.";
+      }
+    }
+  }
+  return null;
 }

@@ -4,11 +4,13 @@
  * Api
  * OpenAPI spec version: 1.0.0
  */
+import type { RegisterRequestBillingInterval } from "./registerRequestBillingInterval";
 import type { RegisterRequestRole } from "./registerRequestRole";
 
 export interface RegisterRequest {
   role?: RegisterRequestRole;
   plan?: string;
+  billingInterval?: RegisterRequestBillingInterval;
   name: string;
   /** Apenas dígitos. Obrigatório para client e broker. */
   cpf?: string;
