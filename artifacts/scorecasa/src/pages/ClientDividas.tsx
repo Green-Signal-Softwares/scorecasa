@@ -17,7 +17,8 @@ interface OpenFinanceState {
   cardUsage: number | null;
   noLatePayments: boolean | null;
   cpfClear: boolean | null;
-  availableBanks: string[];
+  connectedBanks: string[];
+  availableBanks?: string[];
 }
 
 interface ClientProfile {
@@ -63,6 +64,7 @@ export function ClientDividas() {
   const [saved, setSaved] = useState(false);
   const [err, setErr] = useState<string | null>(null);
   const [errFields, setErrFields] = useState<Set<string>>(new Set());
+  const [fieldErrors, setFieldErrors] = useState<Record<string, string>>({});
   const [sessionExpired, setSessionExpired] = useState(false);
   const [draftRestored, setDraftRestored] = useState(false);
 
@@ -90,9 +92,109 @@ export function ClientDividas() {
     setLocation("/login");
   }
 
+  function sanitizeNumeric(val: string): string {
+    return val.replace(/\D/g, "");
+  }
+
+  function validateField(name: string, value: string): string | null {
+    if (value === "") return null;
+
+    const moneyFields = [
+      "vehicleLoanMonthly",
+      "otherLoansMonthly",
+      "creditCardLimit",
+      "bcbTotalDebt",
+      "bcbMonthlyCommitment"
+    ];
+
+    if (moneyFields.includes(name)) {
+      const cleanVal = value.trim();
+      if (/\D/.test(cleanVal)) {
+        return "Por favor, digite apenas números, sem pontos, vírgulas ou símbolos.";
+      }
+      const num = Number(cleanVal);
+      if (Number.isNaN(num)) {
+        return "Ops! O valor digitado não parece um número válido. Tente novamente.";
+      }
+      if (num < 0) {
+        return "O valor não pode ser menor que zero.";
+      }
+      if (num > 1000000000) {
+        return "O valor digitado está muito alto. Por favor, verifique se o número está correto.";
+      }
+    }
+
+    if (name === "creditCardUsage") {
+      const cleanVal = value.trim();
+      if (/\D/.test(cleanVal)) {
+        return "Por favor, digite apenas números inteiros de 0 a 100.";
+      }
+      const num = Number(cleanVal);
+      if (Number.isNaN(num)) {
+        return "Ops! O percentual digitado não é válido. Tente novamente.";
+      }
+      if (num < 0) {
+        return "A utilização do cartão não pode ser menor que 0%.";
+      }
+      if (num > 100) {
+        return "O percentual de utilização não pode ser maior que 100%.";
+      }
+    }
+
+    if (name === "bcbOperationsCount") {
+      const cleanVal = value.trim();
+      if (/\D/.test(cleanVal)) {
+        return "Por favor, digite apenas números inteiros para a quantidade.";
+      }
+      const num = Number(cleanVal);
+      if (num < 0) {
+        return "A quantidade não pode ser menor que zero.";
+      }
+      if (num > 1000) {
+        return "A quantidade máxima permitida é de 1000 operações.";
+      }
+    }
+
+    if (name === "bcbQueryDate") {
+      const val = value.trim();
+      if (val && !/^\d{2}\/\d{4}$/.test(val) && !/^\d{4}-\d{2}-\d{2}$/.test(val)) {
+        return "Por favor, insira a data no formato MM/AAAA (ex: 05/2026).";
+      }
+      if (val && /^\d{2}\/\d{4}$/.test(val)) {
+        const [m, y] = val.split("/").map(Number);
+        if (m < 1 || m > 12) {
+          return "O mês digitado é inválido. Escolha um mês entre 01 e 12.";
+        }
+        if (y < 1900 || y > 2100) {
+          return "O ano digitado é inválido. Digite um ano entre 1900 e 2100.";
+        }
+      }
+    }
+
+    return null;
+  }
+
   function updateField(name: keyof typeof form, value: string) {
-    setForm((f) => ({ ...f, [name]: value }));
+    let cleaned = value;
+    if (name !== "bcbQueryDate") {
+      cleaned = sanitizeNumeric(value);
+    }
+
+    setForm((f) => ({ ...f, [name]: cleaned }));
     if (draftRestored) setDraftRestored(false);
+
+    // Validação em tempo real
+    const errorText = validateField(name, cleaned);
+    setFieldErrors((prev) => {
+      const next = { ...prev };
+      if (errorText) {
+        next[name] = errorText;
+      } else {
+        delete next[name];
+      }
+      return next;
+    });
+
     setErrFields((prev) => {
       if (!prev.has(name)) return prev;
       const next = new Set(prev);
@@ -173,7 +275,82 @@ export function ClientDividas() {
     })();
   }, [BASE]);
 
-  async function handleConnectOF(bank: string) {
+  function loadPluggySDK(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if ((window as any).PluggyConnect) {
+        resolve();
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = "https://cdn.pluggy.ai/pluggy-connect/v2.5.0/pluggy-connect.js";
+      script.async = true;
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error("Não foi possível carregar o widget da Pluggy."));
+      document.body.appendChild(script);
+    });
+  }
+
+  async function handleOpenPluggyConnect() {
+    setOfLoading(true);
+    setErr(null);
+    try {
+      const tokenRes = await fetch(`${BASE}/api/client/open-finance/connect-token`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (tokenRes.status === 401) {
+        handleAuthFailure(form);
+        return;
+      }
+      if (!tokenRes.ok) throw new Error("Não foi possível iniciar a sessão do Pluggy Open Finance.");
+
+      const { accessToken } = await tokenRes.json();
+      await loadPluggySDK();
+
+      const PluggyConnect = (window as any).PluggyConnect;
+      if (!PluggyConnect) {
+        throw new Error("SDK da Pluggy indisponível no navegador.");
+      }
+
+      const pluggyConnect = new PluggyConnect({
+        connectToken: accessToken,
+        includeSandbox: true,
+        onSuccess: (itemData: any) => {
+          const resolvedItemId =
+            typeof itemData?.id === "string"
+              ? itemData.id
+              : typeof itemData?.item?.id === "string"
+                ? itemData.item.id
+                : typeof itemData?.itemId === "string"
+                  ? itemData.itemId
+                  : null;
+          const institution =
+            itemData?.connector?.name ||
+            itemData?.item?.connector?.name ||
+            undefined;
+
+          if (!resolvedItemId) {
+            setErr("Conexão concluída, mas a Pluggy não retornou itemId.");
+            return;
+          }
+          handleConnectOF(resolvedItemId, institution);
+        },
+        onError: (error: any) => {
+          const message = error?.message || "Não foi possível iniciar o fluxo da Pluggy.";
+          setErr(message);
+          setOfLoading(false);
+        },
+      });
+
+      pluggyConnect.init();
+    } catch (e: any) {
+      setErr(e.message ?? "Erro ao abrir o Pluggy Open Finance.");
+    } finally {
+      setOfLoading(false);
+    }
+  }
+
+  async function handleConnectOF(itemId: string, institution?: string) {
     setOfLoading(true);
     setErr(null);
     try {
@@ -181,13 +358,13 @@ export function ClientDividas() {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bank }),
+        body: JSON.stringify({ itemId, institution }),
       });
       if (r.status === 401) {
         handleAuthFailure(form);
         return;
       }
-      if (!r.ok) throw new Error("Falha ao conectar.");
+      if (!r.ok) throw new Error("Falha ao sincronizar com a Pluggy.");
       const data = await r.json();
       setOf((prev) => ({
         ...(prev ?? { availableBanks: [] }),
@@ -197,7 +374,7 @@ export function ClientDividas() {
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (e: any) {
-      setErr(e.message ?? "Não foi possível conectar ao Open Finance.");
+      setErr(e.message ?? "Não foi possível conectar ao Pluggy Open Finance.");
     } finally {
       setOfLoading(false);
     }
@@ -215,7 +392,7 @@ export function ClientDividas() {
         handleAuthFailure(form);
         return;
       }
-      setOf((prev) => prev ? { ...prev, connected: false, connectedAt: null, bank: null, avgBalance: null, recurringIncome: null, cardUsage: null, noLatePayments: null, cpfClear: null } : prev);
+      setOf((prev) => prev ? { ...prev, connected: false, connectedAt: null, bank: null, avgBalance: null, recurringIncome: null, cardUsage: null, noLatePayments: null, cpfClear: null, connectedBanks: [] } : prev);
     } finally {
       setOfLoading(false);
     }
@@ -226,6 +403,25 @@ export function ClientDividas() {
     setErr(null);
     setErrFields(new Set());
     setSaved(false);
+
+    // Validar localmente antes de enviar
+    const errorsMap: Record<string, string> = {};
+    for (const [k, v] of Object.entries(form)) {
+      const errText = validateField(k, v);
+      if (errText) {
+        errorsMap[k] = errText;
+      }
+    }
+
+    if (Object.keys(errorsMap).length > 0) {
+      setFieldErrors(errorsMap);
+      setErr("Por favor, corrija os erros nos campos destacados antes de salvar.");
+      setSaving(false);
+      return;
+    }
+
+    setFieldErrors({});
+
     try {
       const payload: Record<string, any> = {};
       for (const [k, v] of Object.entries(form)) {
@@ -280,6 +476,8 @@ export function ClientDividas() {
   }
 
   const income = profile?.lead.income ?? 0;
+  const connectedBanksList = (of?.connectedBanks ?? []).filter((name): name is string => !!name && name.trim().length > 0);
+  const primaryBankName = connectedBanksList[0] || of?.bank || "banco conectado";
   const vehNum = Number(form.vehicleLoanMonthly || 0);
   const othNum = Number(form.otherLoansMonthly || 0);
   const totalParcelas = vehNum + othNum;
@@ -340,7 +538,8 @@ export function ClientDividas() {
                 value={form.vehicleLoanMonthly}
                 onChange={(v) => updateField("vehicleLoanMonthly", v)}
                 testId="input-vehicle-loan"
-                invalid={errFields.has("vehicleLoanMonthly")}
+                invalid={errFields.has("vehicleLoanMonthly") || !!fieldErrors.vehicleLoanMonthly}
+                error={fieldErrors.vehicleLoanMonthly}
               />
               <Field
                 icon={Wallet}
@@ -349,7 +548,8 @@ export function ClientDividas() {
                 value={form.otherLoansMonthly}
                 onChange={(v) => updateField("otherLoansMonthly", v)}
                 testId="input-other-loans"
-                invalid={errFields.has("otherLoansMonthly")}
+                invalid={errFields.has("otherLoansMonthly") || !!fieldErrors.otherLoansMonthly}
+                error={fieldErrors.otherLoansMonthly}
               />
               <Field
                 icon={CreditCard}
@@ -358,7 +558,8 @@ export function ClientDividas() {
                 value={form.creditCardLimit}
                 onChange={(v) => updateField("creditCardLimit", v)}
                 testId="input-credit-card-limit"
-                invalid={errFields.has("creditCardLimit")}
+                invalid={errFields.has("creditCardLimit") || !!fieldErrors.creditCardLimit}
+                error={fieldErrors.creditCardLimit}
               />
               <Field
                 icon={CreditCard}
@@ -368,7 +569,8 @@ export function ClientDividas() {
                 onChange={(v) => updateField("creditCardUsage", v)}
                 max={100}
                 testId="input-credit-card-usage"
-                invalid={errFields.has("creditCardUsage")}
+                invalid={errFields.has("creditCardUsage") || !!fieldErrors.creditCardUsage}
+                error={fieldErrors.creditCardUsage}
               />
             </div>
 
@@ -431,7 +633,8 @@ export function ClientDividas() {
                 value={form.bcbTotalDebt}
                 onChange={(v) => updateField("bcbTotalDebt", v)}
                 testId="input-bcb-total-debt"
-                invalid={errFields.has("bcbTotalDebt")}
+                invalid={errFields.has("bcbTotalDebt") || !!fieldErrors.bcbTotalDebt}
+                error={fieldErrors.bcbTotalDebt}
               />
               <Field
                 label="Parcelas mensais BCB (R$/mês)"
@@ -439,7 +642,8 @@ export function ClientDividas() {
                 value={form.bcbMonthlyCommitment}
                 onChange={(v) => updateField("bcbMonthlyCommitment", v)}
                 testId="input-bcb-monthly"
-                invalid={errFields.has("bcbMonthlyCommitment")}
+                invalid={errFields.has("bcbMonthlyCommitment") || !!fieldErrors.bcbMonthlyCommitment}
+                error={fieldErrors.bcbMonthlyCommitment}
               />
               <Field
                 label="Qtd. operações ativas"
@@ -447,7 +651,8 @@ export function ClientDividas() {
                 value={form.bcbOperationsCount}
                 onChange={(v) => updateField("bcbOperationsCount", v)}
                 testId="input-bcb-ops"
-                invalid={errFields.has("bcbOperationsCount")}
+                invalid={errFields.has("bcbOperationsCount") || !!fieldErrors.bcbOperationsCount}
+                error={fieldErrors.bcbOperationsCount}
               />
               <Field
                 type="text"
@@ -456,7 +661,8 @@ export function ClientDividas() {
                 value={form.bcbQueryDate}
                 onChange={(v) => updateField("bcbQueryDate", v)}
                 testId="input-bcb-date"
-                invalid={errFields.has("bcbQueryDate")}
+                invalid={errFields.has("bcbQueryDate") || !!fieldErrors.bcbQueryDate}
+                error={fieldErrors.bcbQueryDate}
               />
             </div>
 
@@ -515,7 +721,9 @@ export function ClientDividas() {
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4" style={{ color: "#065F46" }} />
                     <span className="text-sm font-semibold" style={{ color: "#065F46" }}>
-                      Conectado a {of.bank}
+                      {connectedBanksList.length > 1
+                        ? `${connectedBanksList.length} bancos conectados`
+                        : `Conectado a ${primaryBankName}`}
                     </span>
                   </div>
                   <button
@@ -527,6 +735,26 @@ export function ClientDividas() {
                   >
                     <Unlink className="w-3.5 h-3.5" />
                     Desconectar
+                  </button>
+                </div>
+                {connectedBanksList.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {connectedBanksList.map((bankName) => (
+                      <span key={bankName} className="rounded-full border border-green-200 bg-white px-2.5 py-1 text-[11px] font-medium text-green-800">
+                        {bankName}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-2 mb-3">
+                  <button
+                    type="button"
+                    onClick={handleOpenPluggyConnect}
+                    disabled={ofLoading}
+                    className="flex items-center gap-2 rounded-lg border border-[#0D1B8C] px-3 py-2 text-[11px] font-semibold text-[#0D1B8C] disabled:opacity-50"
+                  >
+                    <Link2 className="w-3.5 h-3.5" />
+                    Conectar outro banco
                   </button>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
@@ -582,23 +810,24 @@ export function ClientDividas() {
               </div>
             ) : (
               <div>
-                <p className="text-xs text-gray-600 mb-2">Escolha seu banco principal:</p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {(of?.availableBanks ?? []).map((b) => (
-                    <button
-                      key={b}
-                      type="button"
-                      onClick={() => setOfConsent(b)}
-                      className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 hover:border-[#0D1B8C] hover:bg-blue-50 transition-colors"
-                      data-testid={`button-of-bank-${b.replace(/\s+/g, "-").toLowerCase()}`}
-                    >
-                      <Building2 className="w-3.5 h-3.5 text-gray-400" />
-                      <span className="truncate">{b}</span>
-                    </button>
-                  ))}
-                </div>
-                <p className="text-[11px] text-gray-400 mt-2 italic">
-                  Fluxo simulado para demonstração. Em produção, redireciona ao consentimento oficial do Open Finance Brasil.
+                <p className="text-xs text-gray-600 mb-4 leading-relaxed">
+                  Conecte com segurança sua conta bancária via <strong>Pluggy Open Finance</strong>. O sistema consulta de forma criptografada seu saldo médio, extrato e lançamentos dos próximos dias para calcular seu Índice de Aprovação.
+                </p>
+                
+                <button
+                  type="button"
+                  onClick={handleOpenPluggyConnect}
+                  disabled={ofLoading}
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl font-bold text-sm text-white transition-all shadow-md hover:shadow-lg disabled:opacity-50"
+                  style={{ background: "#0D1B8C" }}
+                  data-testid="button-[#0D1B8C]-pluggy"
+                >
+                  {ofLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
+                  Conectar Banco (Pluggy Open Finance)
+                </button>
+
+                <p className="text-[11px] text-gray-400 mt-3 italic">
+                  Integração oficial Pluggy ativa. Selecione seu banco no widget para autenticar com segurança.
                 </p>
               </div>
             )}
@@ -692,6 +921,14 @@ function OFStat({ label, value, good, bad }: { label: string; value: string; goo
   );
 }
 
-function Field(props: Omit<FormFieldProps, "size" | "type"> & { type?: "number" | "text" }) {
-  return <FormField {...props} type={props.type ?? "number"} size="compact" />;
+function Field(props: Omit<FormFieldProps, "size" | "type" | "inputMode"> & { type?: "number" | "text" }) {
+  const isDate = props.label === "Data de referência";
+  return (
+    <FormField
+      {...props}
+      type="text"
+      inputMode={isDate ? undefined : "numeric"}
+      size="compact"
+    />
+  );
 }

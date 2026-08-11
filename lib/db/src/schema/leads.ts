@@ -118,9 +118,13 @@ export const leadsTable = pgTable("leads", {
   bcbCreditLimits: real("bcb_credit_limits"),
   bcbOperationsJson: text("bcb_operations_json"),
 
-  // ── Open Finance (simulado por enquanto) ─────────────────────
+  // ── Open Finance ─────────────────────────────────────────────
   openFinanceConnected: boolean("open_finance_connected"),
   openFinanceConnectedAt: timestamp("open_finance_connected_at"),
+  openFinanceProvider: text("open_finance_provider"),
+  openFinanceItemId: text("open_finance_item_id"),
+  openFinanceConnectorId: integer("open_finance_connector_id"),
+  openFinanceLastSyncAt: timestamp("open_finance_last_sync_at"),
   openFinanceBank: text("open_finance_bank"),
   openFinanceAvgBalance: real("open_finance_avg_balance"),
   openFinanceRecurringIncome: real("open_finance_recurring_income"),

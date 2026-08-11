@@ -151,9 +151,18 @@ export const RegisterRequestRole = {
   correspondent: "correspondent",
 } as const;
 
+export type RegisterRequestBillingInterval =
+  (typeof RegisterRequestBillingInterval)[keyof typeof RegisterRequestBillingInterval];
+
+export const RegisterRequestBillingInterval = {
+  monthly: "monthly",
+  yearly: "yearly",
+} as const;
+
 export interface RegisterRequest {
   role?: RegisterRequestRole;
   plan?: string;
+  billingInterval?: RegisterRequestBillingInterval;
   name: string;
   /** Apenas dígitos. Obrigatório para client e broker. */
   cpf?: string;
@@ -1348,6 +1357,93 @@ export interface UpdateDocumentRequest {
   name?: string;
 }
 
+export type PlanRole = (typeof PlanRole)[keyof typeof PlanRole];
+
+export const PlanRole = {
+  client: "client",
+  broker: "broker",
+  correspondent: "correspondent",
+} as const;
+
+export type PlanGroup = (typeof PlanGroup)[keyof typeof PlanGroup];
+
+export const PlanGroup = {
+  individual: "individual",
+  corretor: "corretor",
+  correspondent: "correspondent",
+} as const;
+
+export interface Plan {
+  id: string;
+  label: string;
+  role: PlanRole;
+  group: PlanGroup;
+  priceMonthly: number;
+  priceYearly: number;
+  highlight: boolean;
+  leadLimit?: number | null;
+  enterprise: boolean;
+  color: string;
+  bgLight: string;
+  description: string;
+  features: string[];
+  isActive: boolean;
+  isLegacy: boolean;
+  sortOrder: number;
+  createdAt?: string;
+  updatedAt?: string;
+}
+
+export type CreatePlanRequestRole =
+  (typeof CreatePlanRequestRole)[keyof typeof CreatePlanRequestRole];
+
+export const CreatePlanRequestRole = {
+  client: "client",
+  broker: "broker",
+  correspondent: "correspondent",
+} as const;
+
+export type CreatePlanRequestGroup =
+  (typeof CreatePlanRequestGroup)[keyof typeof CreatePlanRequestGroup];
+
+export const CreatePlanRequestGroup = {
+  individual: "individual",
+  corretor: "corretor",
+  correspondent: "correspondent",
+} as const;
+
+export interface CreatePlanRequest {
+  id: string;
+  label: string;
+  role: CreatePlanRequestRole;
+  group: CreatePlanRequestGroup;
+  priceMonthly: number;
+  priceYearly?: number;
+  highlight?: boolean;
+  leadLimit?: number | null;
+  enterprise?: boolean;
+  color?: string;
+  bgLight?: string;
+  description?: string;
+  features?: string[];
+  sortOrder?: number;
+}
+
+export interface UpdatePlanRequest {
+  label?: string;
+  priceMonthly?: number;
+  priceYearly?: number;
+  highlight?: boolean;
+  leadLimit?: number | null;
+  enterprise?: boolean;
+  color?: string;
+  bgLight?: string;
+  description?: string;
+  features?: string[];
+  isActive?: boolean;
+  sortOrder?: number;
+}
+
 export type MarkAllNotificationsRead200 = {
   ok: boolean;
 };
@@ -1380,6 +1476,20 @@ export type GetRatesHistoryParams = {
    */
   days?: number;
 };
+
+export type GetPlansParams = {
+  role?: GetPlansRole;
+  includeInactive?: string;
+  includeLegacy?: string;
+};
+
+export type GetPlansRole = (typeof GetPlansRole)[keyof typeof GetPlansRole];
+
+export const GetPlansRole = {
+  client: "client",
+  broker: "broker",
+  correspondent: "correspondent",
+} as const;
 
 export type GetLeadsParams = {
   status?: GetLeadsStatus;

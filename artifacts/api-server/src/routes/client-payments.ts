@@ -109,7 +109,9 @@ router.get("/", requireClient, async (req, res) => {
   }
 
   const monthlyIncomeCents = Math.round((Number(lead.income) || 3000) * 100);
-  await ensureSeeded(lead.id, monthlyIncomeCents);
+  if (!lead.openFinanceConnected) {
+    await ensureSeeded(lead.id, monthlyIncomeCents);
+  }
 
   const rows = await db
     .select()

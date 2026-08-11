@@ -1,173 +1,32 @@
 import { useState } from "react";
-import { useGetMe, useGetAllSubscriptions, useCreateSubscription, useUpdateSubscription, useGetMySubscription } from "@workspace/api-client-react";
-import { useLocation } from "wouter";
+import {
+  useGetMe, useGetAllSubscriptions, useCreateSubscription,
+  useUpdateSubscription, useGetMySubscription, useGetPlans,
+  useCreatePlan, useUpdatePlan, useDeletePlan,
+  type Plan,
+} from "@workspace/api-client-react";
+import { useLocation, Link } from "wouter";
 import { getGetAllSubscriptionsQueryKey, getGetMySubscriptionQueryKey } from "@workspace/api-client-react";
 import { useQueryClient } from "@tanstack/react-query";
 import { useToast } from "@/hooks/use-toast";
 import { Select, SelectContent, SelectItem, SelectTrigger, SelectValue } from "@/components/ui/select";
 import {
   CreditCard, CheckCircle, Clock, AlertCircle, XCircle,
-  TrendingUp, Users, DollarSign, Crown, Shield, Zap, Store,
-  ChevronDown, ChevronUp, Phone, Sparkles, Building2, Landmark, Briefcase, User,
+  Users, DollarSign, Store,
+  ChevronDown, ChevronUp, Phone,
 } from "lucide-react";
 
-// ── Tiers de planos (estrutura oficial 2026) ──────────────────────────────────
-const PLAN_TIERS = {
-  // ── Cliente final ──
-  free: {
-    id: "free", label: "Free", group: "individual",
-    role: "client", priceMonthly: 0, leadLimit: null, enterprise: false,
-    color: "#6B7280", bg: "#F3F4F6", icon: User,
-    description: "Entrada gratuita ao ecossistema ScoreCasa",
-    features: [
-      "Simulação básica de financiamento",
-      "Score básico ScoreCasa",
-      "Até 3 análises de crédito por mês",
-      "Visualização limitada do marketplace",
-    ],
-  },
-  individual: {
-    id: "individual", label: "Individual", group: "individual",
-    role: "client", priceMonthly: 29.90, leadLimit: null, enterprise: false,
-    color: "#10A65A", bg: "#F0FDF4", icon: Shield,
-    description: "IA completa, Open Finance e marketplace ilimitado",
-    features: [
-      "IA completa de previsão de aprovação",
-      "Monitoramento contínuo do score",
-      "Imóveis ilimitados no marketplace",
-      "Open Finance integrado",
-      "Score avançado ScoreCasa",
-      "Notificações em tempo real",
-      "Prioridade na análise",
-    ],
-  },
-  plus: {
-    id: "plus", label: "Plus", group: "individual",
-    role: "client", priceMonthly: 59.90, leadLimit: null, enterprise: false,
-    color: "#0D9488", bg: "#F0FDFA", icon: Sparkles,
-    description: "Personal financeiro imobiliário — para quem quer realmente aprovar",
-    features: [
-      "Tudo do plano Individual",
-      "Consultoria com IA dedicada",
-      "Plano de aprovação personalizado",
-      "Acompanhamento da evolução do score",
-      "Metas financeiras inteligentes",
-      "Suporte prioritário",
-      "Recomendações automáticas",
-      "Alertas de crédito em tempo real",
-    ],
-  },
-  // ── Corretor / Imobiliária ──
-  corretor: {
-    id: "corretor", label: "Corretor", group: "corretor",
-    role: "broker", priceMonthly: 297.00, leadLimit: null, enterprise: false,
-    color: "#0D1B8C", bg: "#EEF2FF", icon: Briefcase,
-    description: "Gestão profissional de leads e comparativo entre bancos",
-    features: [
-      "Análise de crédito avançada",
-      "Comparativo de 8 bancos",
-      "Ranking de aprovações",
-      "Dashboard de performance",
-      "Exportação de relatórios PDF",
-      "Histórico de vendas efetivas",
-      "Avaliações de clientes ⭐",
-    ],
-  },
-  imobiliaria: {
-    id: "imobiliaria", label: "Imobiliária", group: "corretor",
-    role: "broker", priceMonthly: 697.00, leadLimit: null, enterprise: false,
-    color: "#4338CA", bg: "#EEF2FF", icon: Building2,
-    description: "Gestão multi-corretores com painel completo da imobiliária",
-    features: [
-      "Tudo do plano Corretor",
-      "Painel multi-corretores",
-      "Gestão de equipe e permissões",
-      "Relatórios consolidados da imobiliária",
-      "Vitrine de imóveis incluída",
-      "Suporte prioritário",
-      "Notificações em tempo real",
-    ],
-  },
-  enterprise: {
-    id: "enterprise", label: "Enterprise", group: "corretor",
-    role: "broker", priceMonthly: 1497.00, leadLimit: null, enterprise: false,
-    color: "#6D28D9", bg: "#F5F3FF", icon: Crown,
-    description: "Operação em escala com SLA dedicado e integração customizada",
-    features: [
-      "Tudo do plano Imobiliária",
-      "Operações ilimitadas",
-      "Gerente de conta dedicado",
-      "API e integração personalizada",
-      "Onboarding com time ScoreCasa",
-      "SLA dedicado",
-      "White-label parcial",
-    ],
-  },
-  // ── Correspondente / Banking ──
-  correspondente_individual: {
-    id: "correspondente_individual", label: "Correspondente Individual", group: "correspondent",
-    role: "correspondent", priceMonthly: 297.00, leadLimit: 30, enterprise: false,
-    color: "#7C3AED", bg: "#F5F3FF", icon: Landmark,
-    description: "Para o correspondente autônomo que opera sozinho",
-    features: [
-      "Painel individual de processos",
-      "Até 30 operações ativas por mês",
-      "Esteira CCA padrão: aprovação → contrato",
-      "Gestão de documentação bancária",
-      "Templates de contrato Caixa",
-      "Suporte por e-mail",
-    ],
-  },
-  correspondente_sucesso: {
-    id: "correspondente_sucesso", label: "Correspondente de Sucesso", group: "correspondent",
-    role: "correspondent", priceMonthly: 997.00, leadLimit: 150, enterprise: false,
-    color: "#7C3AED", bg: "#F5F3FF", icon: Crown,
-    description: "Para correspondentes que querem escalar com comissão de sucesso",
-    features: [
-      "Tudo do Correspondente Individual",
-      "Até 150 operações ativas por mês",
-      "Comissão de sucesso por contrato fechado",
-      "Painel multi-analistas (até 5 usuários)",
-      "Relatórios de performance e funil",
-      "Integração com Caixa Aqui (espelhamento)",
-      "Suporte prioritário",
-    ],
-  },
-  bank_connect: {
-    id: "bank_connect", label: "Correspondente Connect", group: "correspondent",
-    role: "correspondent", priceMonthly: 2497.00, leadLimit: null, enterprise: false,
-    color: "#7C3AED", bg: "#F5F3FF", icon: Landmark,
-    description: "Integração direta com Caixa, bancos privados e originação completa",
-    features: [
-      "Tudo do Correspondente de Sucesso",
-      "Operações ilimitadas",
-      "ScoreCasa Conectado (extensão Chrome)",
-      "Espelhamento Caixa Aqui + bancos privados",
-      "Esteira completa: aprovação → engenharia → conformidade → contrato",
-      "Originação de financiamento (múltiplos bancos)",
-      "Painel multi-correspondentes (ilimitado)",
-      "Gerente de conta bancária dedicado",
-      "Contrato sob medida",
-    ],
-  },
-  // ── Legacy (mantidos para compat com assinaturas antigas) ──
-  client: { id: "client", label: "Individual (legado)", group: "individual", role: "client", priceMonthly: 29.90, leadLimit: null, enterprise: false, color: "#10A65A", bg: "#F0FDF4", icon: Shield, description: "", features: [] },
-  corretor_50: { id: "corretor_50", label: "Corretor 50 (legado)", group: "corretor", role: "broker", priceMonthly: 199.00, leadLimit: 50, enterprise: false, color: "#0D1B8C", bg: "#EEF2FF", icon: TrendingUp, description: "", features: [] },
-  corretor_200: { id: "corretor_200", label: "Corretor 200 (legado)", group: "corretor", role: "broker", priceMonthly: 499.00, leadLimit: 200, enterprise: false, color: "#0D1B8C", bg: "#EEF2FF", icon: TrendingUp, description: "", features: [] },
-  corretor_enterprise: { id: "corretor_enterprise", label: "Corretor Emp. (legado)", group: "corretor", role: "broker", priceMonthly: 0, leadLimit: null, enterprise: true, color: "#0D1B8C", bg: "#EEF2FF", icon: TrendingUp, description: "", features: [] },
-  correspondent: { id: "correspondent", label: "Correspondente (legado)", group: "correspondent", role: "correspondent", priceMonthly: 299.00, leadLimit: 50, enterprise: false, color: "#7C3AED", bg: "#F5F3FF", icon: Crown, description: "", features: [] },
-  correspondent_50: { id: "correspondent_50", label: "Corresp. 50 (legado)", group: "correspondent", role: "correspondent", priceMonthly: 299.00, leadLimit: 50, enterprise: false, color: "#7C3AED", bg: "#F5F3FF", icon: Crown, description: "", features: [] },
-  correspondent_200: { id: "correspondent_200", label: "Corresp. 200 (legado)", group: "correspondent", role: "correspondent", priceMonthly: 599.00, leadLimit: 200, enterprise: false, color: "#7C3AED", bg: "#F5F3FF", icon: Crown, description: "", features: [] },
-  correspondent_enterprise: { id: "correspondent_enterprise", label: "Corresp. Emp. (legado)", group: "correspondent", role: "correspondent", priceMonthly: 0, leadLimit: null, enterprise: true, color: "#7C3AED", bg: "#F5F3FF", icon: Crown, description: "", features: [] },
-} as const;
-
-type PlanId = keyof typeof PLAN_TIERS;
-
-const MARKETPLACE_ADDONS = [
-  { id: "marketplace_10", label: "Até 10 imóveis", priceMonthly: 99.00, propertyLimit: 10 },
-  { id: "marketplace_50", label: "Até 50 imóveis", priceMonthly: 199.00, propertyLimit: 50 },
-];
-
+// ── Helpers de cor/ícone baseados no grupo (sem dados hard-coded) ────────────
+function groupColor(group: string) {
+  if (group === "corretor") return "#0D1B8C";
+  if (group === "correspondent") return "#7C3AED";
+  return "#10A65A";
+}
+function groupBg(group: string) {
+  if (group === "corretor") return "#EEF2FF";
+  if (group === "correspondent") return "#F5F3FF";
+  return "#F0FDF4";
+}
 const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; icon: any }> = {
   trial: { label: "Período Trial", color: "#0D1B8C", bg: "#EEF2FF", icon: Clock },
   active: { label: "Ativo", color: "#10A65A", bg: "#F0FDF4", icon: CheckCircle },
@@ -176,17 +35,24 @@ const STATUS_CONFIG: Record<string, { label: string; color: string; bg: string; 
   inactive: { label: "Inativo", color: "#6B7280", bg: "#F3F4F6", icon: XCircle },
 };
 
+const MARKETPLACE_ADDONS_STATIC = [
+  { id: "marketplace_10", label: "Até 10 imóveis", priceMonthly: 99.00, propertyLimit: 10 },
+  { id: "marketplace_50", label: "Até 50 imóveis", priceMonthly: 199.00, propertyLimit: 50 },
+];
+
 function formatBRL(v: number) { return v.toLocaleString("pt-BR", { style: "currency", currency: "BRL" }); }
 function formatDate(d?: string | null) { if (!d) return "—"; return new Date(d).toLocaleDateString("pt-BR"); }
 
 // ── Componente de plano individual ────────────────────────────────────────────
-function TierCard({ tier, isCurrent }: { tier: (typeof PLAN_TIERS)[PlanId]; isCurrent: boolean }) {
+function TierCard({ tier, isCurrent }: { tier: Plan; isCurrent: boolean }) {
   const [open, setOpen] = useState(false);
-  const Icon = tier.icon;
+  const color = tier.color ?? groupColor(tier.group);
+  const bg = tier.bgLight ?? groupBg(tier.group);
+  const features: string[] = tier.features ?? [];
   return (
     <div
       className={`relative rounded-2xl border-2 p-5 transition-all ${isCurrent ? "shadow-lg" : "opacity-75"}`}
-      style={{ borderColor: isCurrent ? tier.color : "#E5E7EB", background: isCurrent ? tier.bg : "white" }}
+      style={{ borderColor: isCurrent ? tier.color : "#E5E7EB", background: isCurrent ? bg : "white" }}
     >
       {isCurrent && (
         <div className="absolute -top-3 left-5 px-3 py-1 rounded-full text-xs font-bold text-white" style={{ background: tier.color }}>
@@ -194,8 +60,8 @@ function TierCard({ tier, isCurrent }: { tier: (typeof PLAN_TIERS)[PlanId]; isCu
         </div>
       )}
       <div className="flex items-start gap-3 mb-3">
-        <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: tier.bg }}>
-          <Icon className="w-4 h-4" style={{ color: tier.color }} />
+        <div className="w-9 h-9 rounded-xl flex items-center justify-center flex-shrink-0" style={{ background: bg }}>
+          <div className="w-4 h-4 rounded-full" style={{ background: color }} />
         </div>
         <div className="min-w-0 flex-1">
           <div className="font-bold text-[#07113A] text-sm leading-tight">{tier.label}</div>
@@ -219,11 +85,11 @@ function TierCard({ tier, isCurrent }: { tier: (typeof PLAN_TIERS)[PlanId]; isCu
         )}
       </div>
 
-      {tier.features.length > 0 && (
+      {features.length > 0 && (
         <button
           onClick={() => setOpen(!open)}
           className="flex items-center gap-1 text-xs font-semibold mb-2"
-          style={{ color: tier.color }}
+      style={{ color: color }}
         >
           {open ? <ChevronUp className="w-3.5 h-3.5" /> : <ChevronDown className="w-3.5 h-3.5" />}
           {open ? "Menos detalhes" : "Ver recursos"}
@@ -232,9 +98,9 @@ function TierCard({ tier, isCurrent }: { tier: (typeof PLAN_TIERS)[PlanId]; isCu
 
       {open && (
         <ul className="space-y-1.5">
-          {tier.features.map((f) => (
+          {features.map((f) => (
             <li key={f} className="flex items-start gap-2 text-xs text-gray-600">
-              <CheckCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" style={{ color: tier.color }} />
+              <CheckCircle className="w-3.5 h-3.5 mt-0.5 flex-shrink-0" style={{ color: color }} />
               {f}
             </li>
           ))}
@@ -334,7 +200,7 @@ function MarketplaceAddonSection({ sub }: { sub: any }) {
             Divulgue seu portfólio de imóveis para clientes verificados da plataforma. Sem o add-on, a aba <strong>Imóveis</strong> não fica disponível.
           </p>
           <div className="grid grid-cols-2 gap-3">
-            {MARKETPLACE_ADDONS.map((addon) => (
+            {MARKETPLACE_ADDONS_STATIC.map((addon) => (
               <button
                 key={addon.id}
                 onClick={() => handleContract(addon)}
@@ -363,41 +229,38 @@ const LEGACY_PLAN_IDS = new Set([
   "correspondent", "correspondent_50", "correspondent_200", "correspondent_enterprise",
 ]);
 
-function PartnerPlansTable({ group, currentPlanId }: { group: "individual" | "corretor" | "correspondent"; currentPlanId?: string }) {
-  const tiers = Object.values(PLAN_TIERS).filter((t) => t.group === group && !LEGACY_PLAN_IDS.has(t.id));
-  const color = group === "corretor" ? "#0D1B8C" : group === "correspondent" ? "#7C3AED" : "#10A65A";
-  const bgLight = group === "corretor" ? "#EEF2FF" : group === "correspondent" ? "#F5F3FF" : "#F0FDF4";
+function PartnerPlansTable({ group, currentPlanId }: { group: string; currentPlanId?: string }) {
+  const { data: allPlans = [], isLoading } = useGetPlans({ role: group === "individual" ? "client" : group === "corretor" ? "broker" : "correspondent" } as any);
+  const tiers = (allPlans as Plan[]).filter((t) => !t.isLegacy);
+  const color = groupColor(group);
+  const bgLight = groupBg(group);
   const title = group === "corretor" ? "Planos Corretor / Imobiliária" : group === "correspondent" ? "Planos Correspondente" : "Planos Individuais";
 
-  const correspondentNote = group === "correspondent" ? (
-    <div className="mt-3 p-3 rounded-xl text-xs leading-relaxed" style={{ background: bgLight, color }}>
-      <strong>Incluso no Bank Connect:</strong> gestão completa de documentação exigida pelo banco, acompanhamento de todas as etapas do financiamento habitacional (aprovação de crédito, vistoria de engenharia, análise de conformidade e assinatura de contrato) até a entrega das chaves ao cliente.
-    </div>
-  ) : null;
-
-  const corretorNote = group === "corretor" ? (
-    <div className="mt-3 p-3 rounded-xl text-xs leading-relaxed" style={{ background: bgLight, color }}>
-      <strong>Add-on opcional:</strong> marketplace de imóveis para divulgar seu portfólio — até 10 imóveis por R$ 99/mês ou até 50 imóveis por R$ 199/mês.
-    </div>
-  ) : null;
-
-  const setupFeeNote = group !== "individual" ? (
-    <div className="mt-3 p-3 rounded-xl text-xs leading-relaxed border" style={{ borderColor: color, color }}>
-      <strong>Implantação / setup do sistema</strong> a partir de <strong>R$ 590,00</strong> (obrigatório na contratação). Valores ajustados de acordo com o projeto. Consulte nossa equipe comercial.
-    </div>
-  ) : null;
+  if (isLoading) return <div className="flex justify-center py-8"><div className="w-6 h-6 border-2 border-current border-t-transparent rounded-full animate-spin" style={{ color }} /></div>;
 
   return (
     <div>
       <div className="text-sm font-bold mb-3" style={{ color }}>{title}</div>
       <div className="space-y-3">
-        {(tiers as (typeof PLAN_TIERS)[PlanId][]).map((tier) => (
+        {tiers.map((tier) => (
           <TierCard key={tier.id} tier={tier} isCurrent={tier.id === currentPlanId} />
         ))}
       </div>
-      {correspondentNote}
-      {corretorNote}
-      {setupFeeNote}
+      {group === "correspondent" && (
+        <div className="mt-3 p-3 rounded-xl text-xs leading-relaxed" style={{ background: bgLight, color }}>
+          <strong>Incluso no Bank Connect:</strong> gestão completa de documentação exigida pelo banco, acompanhamento de todas as etapas do financiamento habitacional até a entrega das chaves.
+        </div>
+      )}
+      {group === "corretor" && (
+        <div className="mt-3 p-3 rounded-xl text-xs leading-relaxed" style={{ background: bgLight, color }}>
+          <strong>Add-on opcional:</strong> marketplace de imóveis para divulgar seu portfólio.
+        </div>
+      )}
+      {group !== "individual" && (
+        <div className="mt-3 p-3 rounded-xl text-xs leading-relaxed border" style={{ borderColor: color, color }}>
+          <strong>Implantação / setup do sistema</strong> a partir de <strong>R$ 590,00</strong> (obrigatório na contratação).
+        </div>
+      )}
     </div>
   );
 }
@@ -410,13 +273,16 @@ function IndividualView({ role }: { role: string }) {
   const createSub = useCreateSubscription();
   const { data: me } = useGetMe({});
 
-  const defaultPlanMap: Record<string, PlanId> = {
+  const defaultPlanId: Record<string, string> = {
     client: "free", broker: "corretor", correspondent: "bank_connect",
   };
-  const myDefaultPlan = defaultPlanMap[role] ?? "free";
-  const currentPlanId = (sub as any)?.plan as PlanId | undefined;
-  const displayPlan = PLAN_TIERS[currentPlanId ?? myDefaultPlan] ?? PLAN_TIERS.individual;
-  const Icon = displayPlan.icon;
+  const myDefaultPlan = defaultPlanId[role] ?? "free";
+  const currentPlanId = (sub as any)?.plan as string | undefined;
+  const { data: planData } = useGetPlans({ role: role === "client" ? "client" : role === "broker" ? "broker" : "correspondent" } as any);
+  const allPlans = (planData ?? []) as Plan[];
+  const displayPlan = allPlans.find((p) => p.id === (currentPlanId ?? myDefaultPlan)) ?? allPlans[0];
+  const displayColor = displayPlan?.color ?? groupColor(role === "broker" ? "corretor" : role === "correspondent" ? "correspondent" : "individual");
+  const displayBg = displayPlan?.bgLight ?? groupBg(role === "broker" ? "corretor" : role === "correspondent" ? "correspondent" : "individual");
 
   function handleActivateTrial() {
     const user = me as any;
@@ -427,7 +293,7 @@ function IndividualView({ role }: { role: string }) {
         userName: user.name,
         userEmail: user.email,
         userRole: user.role,
-        plan: myDefaultPlan,
+        plan: myDefaultPlan as any,
         status: "trial",
       },
     }, {
@@ -471,7 +337,7 @@ function IndividualView({ role }: { role: string }) {
                       </div>
                       <div>
                         <div className="font-semibold text-[#07113A]">{sc.label}</div>
-                        <div className="text-xs text-gray-400">{displayPlan.label}</div>
+                        <div className="text-xs text-gray-400">{displayPlan?.label ?? currentPlanId ?? "—"}</div>
                       </div>
                     </div>
                   );
@@ -524,8 +390,8 @@ function IndividualView({ role }: { role: string }) {
             </>
           ) : (
             <div className="bg-white rounded-2xl border border-gray-100 shadow-sm p-6 text-center">
-              <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: displayPlan.bg }}>
-                <Icon className="w-6 h-6" style={{ color: displayPlan.color }} />
+              <div className="w-12 h-12 rounded-2xl flex items-center justify-center mx-auto mb-4" style={{ background: displayBg }}>
+                <div className="w-6 h-6 rounded-full" style={{ background: displayColor }} />
               </div>
               <div className="font-semibold text-[#07113A] mb-1">Nenhuma assinatura ativa</div>
               <div className="text-xs text-gray-400 mb-5">Ative seu trial gratuito de 30 dias</div>
@@ -533,7 +399,7 @@ function IndividualView({ role }: { role: string }) {
                 onClick={handleActivateTrial}
                 disabled={createSub.isPending}
                 className="w-full py-2.5 rounded-xl text-sm font-semibold text-white disabled:opacity-60"
-                style={{ background: displayPlan.color }}
+                style={{ background: displayColor }}
               >
                 {createSub.isPending ? "Ativando..." : "Ativar trial gratuito"}
               </button>
@@ -555,10 +421,24 @@ function IndividualView({ role }: { role: string }) {
     </div>
   );
 }
-
+const CLIENT_MODULES = [
+  "Simulação básica de financiamento",
+  "Score básico ScoreCasa",
+  "Até 3 análises por mês",
+  "Marketplace limitado",
+  "IA completa de previsão de aprovação",
+  "Monitoramento contínuo do score",
+  "Imóveis ilimitados",
+  "Open Finance integrado",
+  "Tudo do Individual",
+  "Consultoria com IA dedicada",
+  "Plano de aprovação personalizado",
+  "Alertas de crédito em tempo real"
+];
 // ── View admin ─────────────────────────────────────────────────────────────────
 function AdminView() {
   const { data: subs = [], isLoading } = useGetAllSubscriptions({});
+  const { data: plans = [] } = useGetPlans({ includeInactive: "true", includeLegacy: "true" } as any);
   const queryClient = useQueryClient();
   const { toast } = useToast();
   const updateSub = useUpdateSubscription();
@@ -566,13 +446,24 @@ function AdminView() {
   const [filterStatus, setFilterStatus] = useState("");
   const [filterGroup, setFilterGroup] = useState("");
 
+  const plansById = new Map((plans as Plan[]).map((p) => [p.id, p]));
+  const inferGroupFromRole = (role?: string) => {
+    if (role === "broker") return "corretor";
+    if (role === "correspondent") return "correspondent";
+    return "individual";
+  };
+  const getSubscriptionGroup = (s: any) => {
+    const plan = plansById.get(s.plan);
+    return plan?.group ?? inferGroupFromRole(s.userRole);
+  };
+
   const list = (subs as any[]).filter((s) => {
     if (search && !s.userName.toLowerCase().includes(search.toLowerCase()) &&
       !s.userEmail.toLowerCase().includes(search.toLowerCase())) return false;
     if (filterStatus && s.status !== filterStatus) return false;
     if (filterGroup) {
-      const tier = PLAN_TIERS[s.plan as PlanId];
-      if (tier && tier.group !== filterGroup) return false;
+      const group = getSubscriptionGroup(s);
+      if (group !== filterGroup) return false;
     }
     return true;
   });
@@ -598,6 +489,19 @@ function AdminView() {
     { key: "corretor", label: "Corretor", color: "#0D1B8C", bg: "#EEF2FF" },
     { key: "correspondent", label: "Correspondente", color: "#7C3AED", bg: "#F5F3FF" },
   ];
+
+  const planList = plans as Plan[];
+  const sortedPlans = [...planList].sort((a, b) => {
+    if (a.sortOrder !== b.sortOrder) return a.sortOrder - b.sortOrder;
+    return a.label.localeCompare(b.label, "pt-BR");
+  });
+
+  const invalidatePlans = () => {
+    queryClient.invalidateQueries({ queryKey: ["/api/plans"] });
+    queryClient.invalidateQueries({ queryKey: getGetAllSubscriptionsQueryKey() });
+  };
+
+
 
   return (
     <div className="space-y-6">
@@ -633,8 +537,7 @@ function AdminView() {
       <div className="grid lg:grid-cols-4 gap-4">
         {groups.map((g) => {
           const groupSubs = (subs as any[]).filter((s) => {
-            const t = PLAN_TIERS[s.plan as PlanId];
-            return t?.group === g.key && s.status === "active";
+            return getSubscriptionGroup(s) === g.key && s.status === "active";
           });
           const groupMRR = groupSubs.reduce((acc: number, s: any) => acc + s.priceMonthly, 0);
           return (
@@ -719,7 +622,7 @@ function AdminView() {
                 {list.map((s: any) => {
                   const sc = STATUS_CONFIG[s.status] ?? STATUS_CONFIG.inactive;
                   const SIcon = sc.icon;
-                  const tier = PLAN_TIERS[s.plan as PlanId];
+                  const tier = plansById.get(s.plan);
                   return (
                     <tr key={s.id} className="hover:bg-gray-50/50 transition-colors">
                       <td className="px-5 py-3.5">
@@ -728,7 +631,7 @@ function AdminView() {
                       </td>
                       <td className="px-5 py-3.5">
                         {tier ? (
-                          <span className="text-xs px-2 py-1 rounded-full font-semibold whitespace-nowrap" style={{ background: tier.bg, color: tier.color }}>
+                          <span className="text-xs px-2 py-1 rounded-full font-semibold whitespace-nowrap" style={{ background: tier.bgLight, color: tier.color }}>
                             {tier.label}
                           </span>
                         ) : <span className="text-gray-400 text-xs">{s.plan}</span>}
@@ -769,6 +672,22 @@ function AdminView() {
             </table>
           </div>
         )}
+      </div>
+
+      {/* Redirecionamento para Gestão de Planos por Categoria */}
+      <div className="bg-white rounded-xl border border-gray-100 shadow-sm p-5 flex flex-col md:flex-row md:items-center justify-between gap-4">
+        <div>
+          <h2 className="text-base font-bold text-[#07113A]">Catálogo & Gestão de Planos</h2>
+          <p className="text-xs text-gray-500 mt-0.5">
+            Acesse a área de gerenciamento para criar e editar pacotes divididos por categorias (Clientes, Correspondentes e Corretores).
+          </p>
+        </div>
+        <Link
+          href="/admin/planos"
+          className="inline-flex items-center justify-center px-4 py-2.5 text-xs font-semibold rounded-xl text-white bg-[#0D1B8C] hover:bg-[#0B1770] transition-colors whitespace-nowrap"
+        >
+          Gerenciar Planos por Categoria →
+        </Link>
       </div>
     </div>
   );

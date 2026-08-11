@@ -1,0 +1,115 @@
+services:
+  deps:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dev
+    container_name: scorecasa-deps
+    working_dir: /workspace
+    environment:
+      npm_config_user_agent: pnpm/10
+    command: sh -lc "pnpm install --no-frozen-lockfile"
+    volumes:
+      - ./:/workspace
+      - pnpm-store:/pnpm/store
+      - root-node-modules:/workspace/node_modules
+
+  db:
+    image: postgres:16-alpine
+    container_name: scorecasa-db
+    environment:
+      POSTGRES_DB: scorecasa
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+    ports:
+      - "5432:5432"
+    volumes:
+      - postgres-data:/var/lib/postgresql/data
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres -d scorecasa" ]
+      interval: 5s
+      timeout: 5s
+      retries: 20
+
+  api:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dev
+    container_name: scorecasa-api
+    working_dir: /workspace
+    env_file:
+      - path: .env
+        required: false
+    environment:
+      DATABASE_URL: postgresql://postgres:postgres@db:5432/scorecasa
+      PORT: "8080"
+      NODE_ENV: development
+      npm_config_user_agent: pnpm/10
+    command: >
+      sh -lc "pnpm --filter @workspace/db run push && pnpm --filter @workspace/api-server run dev"
+    volumes:
+      - ./:/workspace
+      - pnpm-store:/pnpm/store
+      - root-node-modules:/workspace/node_modules
+    depends_on:
+      deps:
+        condition: service_completed_successfully
+      db:
+        condition: service_healthy
+    ports:
+      - "8080:8080"
+
+  web:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dev
+    container_name: scorecasa-web
+    working_dir: /workspace
+    environment:
+      PORT: "19500"
+      BASE_PATH: "/"
+      API_PROXY_TARGET: http://api:8080
+      NODE_ENV: development
+      npm_config_user_agent: pnpm/10
+    command: >
+      sh -lc "pnpm --filter @workspace/scorecasa run dev"
+    volumes:
+      - ./:/workspace
+      - pnpm-store:/pnpm/store
+      - root-node-modules:/workspace/node_modules
+    depends_on:
+      deps:
+        condition: service_completed_successfully
+      api:
+        condition: service_started
+    ports:
+      - "19500:19500"
+
+  mockup:
+    build:
+      context: .
+      dockerfile: docker/Dockerfile.dev
+    container_name: scorecasa-mockup
+    working_dir: /workspace
+    environment:
+      PORT: "8081"
+      BASE_PATH: "/__mockup"
+      NODE_ENV: development
+      npm_config_user_agent: pnpm/10
+    command: >
+      sh -lc "pnpm --filter @workspace/mockup-sandbox run dev"
+    volumes:
+      - ./:/workspace
+      - pnpm-store:/pnpm/store
+      - root-node-modules:/workspace/node_modules
+    ports:
+      - "8081:8081"
+    depends_on:
+      deps:
+        condition: service_completed_successfully
+    profiles:
+      - mockup
+
+volumes:
+  postgres-data:
+  pnpm-store:
+  root-node-modules:

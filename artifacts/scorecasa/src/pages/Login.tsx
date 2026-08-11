@@ -151,6 +151,7 @@ export function Login() {
   const [showPassword, setShowPassword] = useState(false);
   const [remember, setRemember] = useState(false);
   const [profileTab, setProfileTab] = useState<ProfileTab>("client");
+  const [loginBlock, setLoginBlock] = useState<{ message: string; code: string } | null>(null);
 
   const clientForm = useForm<ClientForm>({
     resolver: zodResolver(clientSchema),
@@ -172,6 +173,7 @@ export function Login() {
   };
 
   const onClientSubmit = (data: ClientForm) => {
+    setLoginBlock(null);
     const trimmed = data.email.trim();
     const digits = trimmed.replace(/\D/g, "");
     const looksLikeCpf = /^[\d.\-\s]+$/.test(trimmed) && digits.length === 11;
@@ -180,12 +182,22 @@ export function Login() {
       { data: { email: normalized, password: data.password, profile: "client" } },
       {
         onSuccess: handleSuccess,
-        onError: () => clientForm.setError("password", { message: "Credenciais inválidas" }),
+        onError: (err: any) => {
+          if (err?.status === 403) {
+            setLoginBlock({
+              message: err.data?.error || "Assinatura pendente ou vencida. Regularize seu pagamento para acessar a plataforma.",
+              code: err.data?.code || "PAYMENT_REQUIRED",
+            });
+          } else {
+            clientForm.setError("password", { message: "Credenciais inválidas" });
+          }
+        },
       },
     );
   };
 
   const onBrokerSubmit = (data: BrokerForm) => {
+    setLoginBlock(null);
     const trimmed = data.identifier.trim();
     login.mutate(
       {
@@ -197,13 +209,22 @@ export function Login() {
       },
       {
         onSuccess: handleSuccess,
-        onError: () =>
-          brokerForm.setError("password", { message: "Credenciais inválidas" }),
+        onError: (err: any) => {
+          if (err?.status === 403) {
+            setLoginBlock({
+              message: err.data?.error || "Assinatura pendente ou vencida. Regularize seu pagamento para acessar a plataforma.",
+              code: err.data?.code || "PAYMENT_REQUIRED",
+            });
+          } else {
+            brokerForm.setError("password", { message: "Credenciais inválidas" });
+          }
+        },
       },
     );
   };
 
   const onCorrespondentSubmit = (data: CorrespondentForm) => {
+    setLoginBlock(null);
     const trimmed = data.identifier.trim();
     login.mutate(
       {
@@ -215,8 +236,16 @@ export function Login() {
       },
       {
         onSuccess: handleSuccess,
-        onError: () =>
-          correspondentForm.setError("password", { message: "Credenciais inválidas" }),
+        onError: (err: any) => {
+          if (err?.status === 403) {
+            setLoginBlock({
+              message: err.data?.error || "Assinatura pendente ou vencida. Regularize seu pagamento para acessar a plataforma.",
+              code: err.data?.code || "PAYMENT_REQUIRED",
+            });
+          } else {
+            correspondentForm.setError("password", { message: "Credenciais inválidas" });
+          }
+        },
       },
     );
   };
@@ -446,6 +475,32 @@ export function Login() {
                 );
               })}
             </div>
+
+            {loginBlock && (
+              <div className="p-3.5 rounded-xl border border-red-200 bg-red-50 flex items-start gap-2.5 mb-5">
+                <Lock className="w-5 h-5 flex-shrink-0 text-red-500 mt-0.5" />
+                <div className="text-xs leading-relaxed text-red-800">
+                  <div className="font-bold mb-0.5">Acesso Restrito</div>
+                  {loginBlock.message}
+                  <div className="mt-2.5 flex items-center gap-2">
+                    <button
+                      type="button"
+                      onClick={() => setLoginBlock(null)}
+                      className="px-2.5 py-1 rounded bg-red-100 hover:bg-red-200 text-red-800 font-bold transition-all text-[10px]"
+                    >
+                      Tentar Novamente
+                    </button>
+                    <button
+                      type="button"
+                      onClick={() => setLocation("/cadastro")}
+                      className="px-2.5 py-1 rounded bg-red-600 hover:bg-red-700 text-white font-bold transition-all text-[10px]"
+                    >
+                      Efetuar Pagamento
+                    </button>
+                  </div>
+                </div>
+              </div>
+            )}
 
             {profileTab === "client" && (
               <Form {...clientForm}>

@@ -17,6 +17,9 @@ export const usersTable = pgTable("users", {
   creci: text("creci"),
   cnpj: text("cnpj"),
   ccaCode: text("cca_code"),
+  ownerId: integer("owner_id"),
+  title: text("title"),
+  permissions: text("permissions").array(),
   createdAt: timestamp("created_at").notNull().defaultNow(),
 });
 
