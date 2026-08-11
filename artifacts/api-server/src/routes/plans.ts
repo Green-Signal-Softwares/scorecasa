@@ -36,6 +36,8 @@ const CreatePlanBody = z.object({
   description: z.string().optional(),
   features: z.array(z.string()).optional(),
   sortOrder: z.number().optional(),
+  isActive: z.boolean().optional(),
+  isLegacy: z.boolean().optional(),
 });
 
 const UpdatePlanBody = z.object({
@@ -159,7 +161,7 @@ router.post("/", requireAuth, async (req, res) => {
   const data = parsed.data;
   await pool.query(`
     INSERT INTO plans (id, label, role, "group", price_monthly, price_yearly, highlight, lead_limit, user_limit, enterprise, color, bg_light, description, features, sort_order, is_active, is_legacy)
-    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, true, false);
+    VALUES ($1, $2, $3, $4, $5, $6, $7, $8, $9, $10, $11, $12, $13, $14, $15, $16, $17);
   `, [
     data.id,
     data.label,
@@ -176,6 +178,8 @@ router.post("/", requireAuth, async (req, res) => {
     data.description ?? "",
     data.features ?? [],
     data.sortOrder ?? 0,
+    data.isActive ?? true,
+    data.isLegacy ?? false,
   ]);
 
   const rawRes = await pool.query(`
