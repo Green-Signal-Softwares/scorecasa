@@ -1,9 +1,8 @@
 import { pgTable, serial, text, integer, timestamp, boolean, index } from "drizzle-orm/pg-core";
 
-// Contas a pagar do cliente. Geradas inicialmente a partir do perfil/CPF
-// (lista sintética determinística por enquanto; futuro: Open Finance / SCR
-// puxa as obrigações reais). O cliente pode marcar como pago — isso só
-// atualiza paidAt/paidAmount, sem alterar o restante.
+// Contas a pagar do cliente. A origem pode ser manual ou sincronizada via
+// Open Finance. O cliente pode marcar como pago — isso só atualiza
+// paidAt/paidAmount, sem alterar o restante.
 export const clientPaymentsTable = pgTable(
   "client_payments",
   {
@@ -21,6 +20,9 @@ export const clientPaymentsTable = pgTable(
     // Quando paidAt != NULL, o pagamento está quitado.
     paidAt: timestamp("paid_at"),
     paidAmountCents: integer("paid_amount_cents"),
+    // ID externo da transação/fatura na origem para
+    // deduplicação em sincronizações futuras.
+    externalId: text("external_id"),
     // Origem dos dados: 'manual' (seed sintético) ou 'open_finance' (sincronizado
     // após o cliente conectar uma instituição). Quando 'open_finance', o
     // syncedAt registra o último refresh vindo da conexão.

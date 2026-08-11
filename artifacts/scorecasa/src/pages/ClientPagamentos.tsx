@@ -4,27 +4,16 @@ import { useGetMe, getGetMeQueryKey, ApiError } from "@workspace/api-client-reac
 import { ClientLayout } from "@/components/layout/ClientLayout";
 import { SessionExpiredBanner } from "@/components/SessionExpiredBanner";
 import { useSessionGuard } from "@/hooks/use-session-guard";
+import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
+import { buildPaymentsSections, filterPaymentsByView, type PaymentItem, type PaymentViewFilter } from "./payments.utils";
 import {
   CreditCard, Home, Lightbulb, Wifi, Smartphone, Tv, ShieldCheck, FileText,
   Check, AlertTriangle, Calendar, TrendingUp, RotateCcw, Bell, Link2, RefreshCw,
+  Filter, ChevronDown,
 } from "lucide-react";
 
 type Category = "cartao" | "financiamento" | "conta" | "boleto" | "emprestimo" | "assinatura";
 type Bucket = "atrasado" | "hoje" | "semana" | "proximos" | "pago";
-
-interface PaymentItem {
-  id: number;
-  category: Category;
-  description: string;
-  issuer: string | null;
-  amountCents: number;
-  dueDate: string;
-  recurring: boolean;
-  paidAt: string | null;
-  paidAmountCents: number | null;
-  bucket: Bucket;
-  daysToDue: number;
-}
 interface PaymentsResponse {
   summary: {
     next7Count: number;
@@ -78,6 +67,7 @@ export function ClientPagamentos() {
   const [data, setData] = useState<PaymentsResponse | null>(null);
   const [loading, setLoading] = useState(true);
   const [updating, setUpdating] = useState<number | null>(null);
+  const [viewFilter, setViewFilter] = useState<PaymentViewFilter>("all");
 
   const { data: me, isLoading: loadingMe, error: meError } = useGetMe({
     query: { queryKey: getGetMeQueryKey(), retry: false, staleTime: 60_000 },
@@ -133,15 +123,12 @@ export function ClientPagamentos() {
     }
   }
 
-  const grouped = useMemo(() => {
+  const filteredItems = useMemo(() => {
     if (!data) return [];
-    const map = new Map<Bucket, PaymentItem[]>();
-    for (const it of data.items) {
-      if (!map.has(it.bucket)) map.set(it.bucket, []);
-      map.get(it.bucket)!.push(it);
-    }
-    return [...map.entries()].sort((a, b) => BUCKET_META[a[0]].order - BUCKET_META[b[0]].order);
-  }, [data]);
+    return filterPaymentsByView(data.items, viewFilter);
+  }, [data, viewFilter]);
+
+  const sections = useMemo(() => buildPaymentsSections(filteredItems), [filteredItems]);
 
   if (guard.sessionExpired) {
     return (
@@ -226,89 +213,109 @@ export function ClientPagamentos() {
             </div>
           </div>
 
-          {/* ── Lista agrupada por urgência ── */}
-          {grouped.map(([bucket, items]) => {
-            const meta = BUCKET_META[bucket];
-            return (
-              <div key={bucket} className="bg-white rounded-2xl border border-gray-100 shadow-sm overflow-hidden">
-                <div className="flex items-center justify-between px-5 pt-5 pb-3">
-                  <div className="flex items-center gap-2">
-                    <span className="px-2.5 py-1 rounded-md text-xs font-semibold"
-                          style={{ background: meta.bg, color: meta.color }}>
-                      {meta.label}
-                    </span>
-                    <span className="text-xs text-gray-500">
-                      {items.length} {items.length === 1 ? "item" : "itens"}
-                    </span>
-                  </div>
-                  <div className="text-sm font-semibold" style={{ color: "#07113A" }}>
-                    {brl(items.reduce((a, b) => a + b.amountCents, 0))}
-                  </div>
-                </div>
-                <div>
-                  {items.map((p) => {
-                    const Icon = pickIcon(p);
-                    const isPaid = !!p.paidAt;
-                    const isOverdue = p.bucket === "atrasado";
-                    return (
-                      <div key={p.id}
-                           className="flex items-center gap-3 px-5 py-3.5 border-t border-gray-100"
-                           data-testid={`payment-${p.id}`}>
-                        <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
-                             style={{
-                               background: isPaid ? "#D1FAE5" : isOverdue ? "#FEE2E2" : "rgba(13,27,140,0.06)",
-                               color: isPaid ? "#10A65A" : isOverdue ? "#EF4444" : "#0D1B8C",
-                             }}>
-                          <Icon className="w-5 h-5" />
-                        </div>
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-1.5">
-                            <div className={`text-sm font-semibold truncate ${isPaid ? "line-through text-gray-400" : ""}`}
-                                 style={{ color: isPaid ? undefined : "#07113A" }}>
-                              {p.description}
+          {/* ── Filtros e lista agrupada ── */}
+          <div className="flex flex-wrap items-center gap-2 rounded-xl border border-gray-200 bg-white p-3 shadow-sm">
+            <div className="flex items-center gap-2 text-xs font-semibold text-gray-600">
+              <Filter className="w-3.5 h-3.5" />
+              Exibir
+            </div>
+            {[
+              { value: "all", label: "Todos" },
+              { value: "pending", label: "Pendentes" },
+              { value: "paid", label: "Pagos" },
+            ].map((option) => {
+              const active = viewFilter === option.value;
+              return (
+                <button
+                  key={option.value}
+                  type="button"
+                  onClick={() => setViewFilter(option.value as PaymentViewFilter)}
+                  className={`rounded-full px-3 py-1.5 text-xs font-semibold transition-all ${active ? "text-white" : "text-gray-600 bg-gray-100"}`}
+                  style={active ? { background: "#0D1B8C" } : undefined}
+                >
+                  {option.label}
+                </button>
+              );
+            })}
+          </div>
+
+          <Accordion type="multiple" defaultValue={viewFilter === "paid" ? ["paid"] : ["upcoming"]} className="space-y-3">
+            {sections.map((section) => {
+              const items = section.items;
+              if (items.length === 0) return null;
+
+              return (
+                <AccordionItem key={section.id} value={section.id} className="overflow-hidden rounded-2xl border border-gray-100 bg-white shadow-sm">
+                  <AccordionTrigger className="flex w-full items-center justify-between px-5 py-4 text-left">
+                    <div className="flex items-center gap-2">
+                      <span className="text-sm font-semibold" style={{ color: "#07113A" }}>{section.title}</span>
+                      <span className="text-xs text-gray-500">{items.length} {items.length === 1 ? "item" : "itens"}</span>
+                    </div>
+                    <ChevronDown className="h-4 w-4 text-gray-500" />
+                  </AccordionTrigger>
+                  <AccordionContent>
+                    <div className="border-t border-gray-100">
+                      {items.map((p) => {
+                        const Icon = pickIcon(p);
+                        const isPaid = !!p.paidAt;
+                        const isOverdue = p.bucket === "atrasado";
+                        return (
+                          <div key={p.id} className="flex items-center gap-3 px-5 py-3.5 border-b border-gray-100 last:border-b-0" data-testid={`payment-${p.id}`}>
+                            <div className="w-10 h-10 rounded-xl flex items-center justify-center flex-shrink-0"
+                                 style={{
+                                   background: isPaid ? "#D1FAE5" : isOverdue ? "#FEE2E2" : "rgba(13,27,140,0.06)",
+                                   color: isPaid ? "#10A65A" : isOverdue ? "#EF4444" : "#0D1B8C",
+                                 }}>
+                              <Icon className="w-5 h-5" />
                             </div>
-                            {p.recurring && (
-                              <span className="text-[10px] text-gray-400 flex items-center gap-0.5" title="Recorrente">
-                                <RotateCcw className="w-2.5 h-2.5" />
-                              </span>
-                            )}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-1.5">
+                                <div className={`text-sm font-semibold truncate ${isPaid ? "line-through text-gray-400" : ""}`} style={{ color: isPaid ? undefined : "#07113A" }}>
+                                  {p.description}
+                                </div>
+                                {p.recurring && (
+                                  <span className="text-[10px] text-gray-400 flex items-center gap-0.5" title="Recorrente">
+                                    <RotateCcw className="w-2.5 h-2.5" />
+                                  </span>
+                                )}
+                              </div>
+                              <div className="text-xs text-gray-500 mt-0.5">
+                                {p.issuer ? `${p.issuer} · ` : ""}
+                                {isPaid
+                                  ? `Pago em ${fmtDate(p.paidAt!)}`
+                                  : isOverdue
+                                    ? `Venceu há ${Math.abs(p.daysToDue)} ${Math.abs(p.daysToDue) === 1 ? "dia" : "dias"}`
+                                    : `Vence ${fmtDate(p.dueDate)}${p.daysToDue > 0 ? ` · em ${p.daysToDue}d` : ""}`}
+                              </div>
+                            </div>
+                            <div className="text-right flex-shrink-0">
+                              <div className={`text-sm font-bold ${isPaid ? "text-gray-400 line-through" : ""}`} style={{ color: isPaid ? undefined : "#07113A" }}>
+                                {brl(p.amountCents)}
+                              </div>
+                              <button
+                                type="button"
+                                onClick={() => togglePaid(p)}
+                                disabled={updating === p.id}
+                                data-testid={`button-toggle-${p.id}`}
+                                className="mt-1 text-xs font-semibold px-2.5 py-1 rounded-full transition-all disabled:opacity-50"
+                                style={
+                                  isPaid
+                                    ? { color: "#6B7280", background: "transparent", border: "1px solid #E5E7EB" }
+                                    : { color: "white", background: "#10A65A" }
+                                }
+                              >
+                                {updating === p.id ? "..." : isPaid ? "Desfazer" : "Marcar pago"}
+                              </button>
+                            </div>
                           </div>
-                          <div className="text-xs text-gray-500 mt-0.5">
-                            {p.issuer ? `${p.issuer} · ` : ""}
-                            {isPaid
-                              ? `Pago em ${fmtDate(p.paidAt!)}`
-                              : isOverdue
-                                ? `Venceu há ${Math.abs(p.daysToDue)} ${Math.abs(p.daysToDue) === 1 ? "dia" : "dias"}`
-                                : `Vence ${fmtDate(p.dueDate)}${p.daysToDue > 0 ? ` · em ${p.daysToDue}d` : ""}`}
-                          </div>
-                        </div>
-                        <div className="text-right flex-shrink-0">
-                          <div className={`text-sm font-bold ${isPaid ? "text-gray-400 line-through" : ""}`}
-                               style={{ color: isPaid ? undefined : "#07113A" }}>
-                            {brl(p.amountCents)}
-                          </div>
-                          <button
-                            type="button"
-                            onClick={() => togglePaid(p)}
-                            disabled={updating === p.id}
-                            data-testid={`button-toggle-${p.id}`}
-                            className="mt-1 text-xs font-semibold px-2.5 py-1 rounded-full transition-all disabled:opacity-50"
-                            style={
-                              isPaid
-                                ? { color: "#6B7280", background: "transparent", border: "1px solid #E5E7EB" }
-                                : { color: "white", background: "#10A65A" }
-                            }
-                          >
-                            {updating === p.id ? "..." : isPaid ? "Desfazer" : "Marcar pago"}
-                          </button>
-                        </div>
-                      </div>
-                    );
-                  })}
-                </div>
-              </div>
-            );
-          })}
+                        );
+                      })}
+                    </div>
+                  </AccordionContent>
+                </AccordionItem>
+              );
+            })}
+          </Accordion>
 
           {/* ── Rodapé / origem dos dados ── */}
           {data.summary.source === "open_finance" ? (
@@ -350,7 +357,7 @@ export function ClientPagamentos() {
                 <div className="mt-2">
                   <button
                     type="button"
-                    onClick={() => setLocation("/dividas")}
+                    onClick={() => setLocation("/portal/dividas")}
                     className="text-xs font-semibold px-3 py-1.5 rounded-full transition-all"
                     style={{ color: "white", background: "#0D1B8C" }}
                     data-testid="button-connect-of"

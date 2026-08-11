@@ -17,7 +17,8 @@ interface OpenFinanceState {
   cardUsage: number | null;
   noLatePayments: boolean | null;
   cpfClear: boolean | null;
-  availableBanks: string[];
+  connectedBanks: string[];
+  availableBanks?: string[];
 }
 
 interface ClientProfile {
@@ -274,7 +275,82 @@ export function ClientDividas() {
     })();
   }, [BASE]);
 
-  async function handleConnectOF(bank: string) {
+  function loadPluggySDK(): Promise<void> {
+    return new Promise((resolve, reject) => {
+      if ((window as any).PluggyConnect) {
+        resolve();
+        return;
+      }
+      const script = document.createElement("script");
+      script.src = "https://cdn.pluggy.ai/pluggy-connect/v2.5.0/pluggy-connect.js";
+      script.async = true;
+      script.onload = () => resolve();
+      script.onerror = () => reject(new Error("Não foi possível carregar o widget da Pluggy."));
+      document.body.appendChild(script);
+    });
+  }
+
+  async function handleOpenPluggyConnect() {
+    setOfLoading(true);
+    setErr(null);
+    try {
+      const tokenRes = await fetch(`${BASE}/api/client/open-finance/connect-token`, {
+        method: "POST",
+        credentials: "include",
+      });
+      if (tokenRes.status === 401) {
+        handleAuthFailure(form);
+        return;
+      }
+      if (!tokenRes.ok) throw new Error("Não foi possível iniciar a sessão do Pluggy Open Finance.");
+
+      const { accessToken } = await tokenRes.json();
+      await loadPluggySDK();
+
+      const PluggyConnect = (window as any).PluggyConnect;
+      if (!PluggyConnect) {
+        throw new Error("SDK da Pluggy indisponível no navegador.");
+      }
+
+      const pluggyConnect = new PluggyConnect({
+        connectToken: accessToken,
+        includeSandbox: true,
+        onSuccess: (itemData: any) => {
+          const resolvedItemId =
+            typeof itemData?.id === "string"
+              ? itemData.id
+              : typeof itemData?.item?.id === "string"
+                ? itemData.item.id
+                : typeof itemData?.itemId === "string"
+                  ? itemData.itemId
+                  : null;
+          const institution =
+            itemData?.connector?.name ||
+            itemData?.item?.connector?.name ||
+            undefined;
+
+          if (!resolvedItemId) {
+            setErr("Conexão concluída, mas a Pluggy não retornou itemId.");
+            return;
+          }
+          handleConnectOF(resolvedItemId, institution);
+        },
+        onError: (error: any) => {
+          const message = error?.message || "Não foi possível iniciar o fluxo da Pluggy.";
+          setErr(message);
+          setOfLoading(false);
+        },
+      });
+
+      pluggyConnect.init();
+    } catch (e: any) {
+      setErr(e.message ?? "Erro ao abrir o Pluggy Open Finance.");
+    } finally {
+      setOfLoading(false);
+    }
+  }
+
+  async function handleConnectOF(itemId: string, institution?: string) {
     setOfLoading(true);
     setErr(null);
     try {
@@ -282,13 +358,13 @@ export function ClientDividas() {
         method: "POST",
         credentials: "include",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ bank }),
+        body: JSON.stringify({ itemId, institution }),
       });
       if (r.status === 401) {
         handleAuthFailure(form);
         return;
       }
-      if (!r.ok) throw new Error("Falha ao conectar.");
+      if (!r.ok) throw new Error("Falha ao sincronizar com a Pluggy.");
       const data = await r.json();
       setOf((prev) => ({
         ...(prev ?? { availableBanks: [] }),
@@ -298,7 +374,7 @@ export function ClientDividas() {
       setSaved(true);
       setTimeout(() => setSaved(false), 3000);
     } catch (e: any) {
-      setErr(e.message ?? "Não foi possível conectar ao Open Finance.");
+      setErr(e.message ?? "Não foi possível conectar ao Pluggy Open Finance.");
     } finally {
       setOfLoading(false);
     }
@@ -316,7 +392,7 @@ export function ClientDividas() {
         handleAuthFailure(form);
         return;
       }
-      setOf((prev) => prev ? { ...prev, connected: false, connectedAt: null, bank: null, avgBalance: null, recurringIncome: null, cardUsage: null, noLatePayments: null, cpfClear: null } : prev);
+      setOf((prev) => prev ? { ...prev, connected: false, connectedAt: null, bank: null, avgBalance: null, recurringIncome: null, cardUsage: null, noLatePayments: null, cpfClear: null, connectedBanks: [] } : prev);
     } finally {
       setOfLoading(false);
     }
@@ -400,6 +476,8 @@ export function ClientDividas() {
   }
 
   const income = profile?.lead.income ?? 0;
+  const connectedBanksList = (of?.connectedBanks ?? []).filter((name): name is string => !!name && name.trim().length > 0);
+  const primaryBankName = connectedBanksList[0] || of?.bank || "banco conectado";
   const vehNum = Number(form.vehicleLoanMonthly || 0);
   const othNum = Number(form.otherLoansMonthly || 0);
   const totalParcelas = vehNum + othNum;
@@ -643,7 +721,9 @@ export function ClientDividas() {
                   <div className="flex items-center gap-2">
                     <CheckCircle2 className="w-4 h-4" style={{ color: "#065F46" }} />
                     <span className="text-sm font-semibold" style={{ color: "#065F46" }}>
-                      Conectado a {of.bank}
+                      {connectedBanksList.length > 1
+                        ? `${connectedBanksList.length} bancos conectados`
+                        : `Conectado a ${primaryBankName}`}
                     </span>
                   </div>
                   <button
@@ -655,6 +735,26 @@ export function ClientDividas() {
                   >
                     <Unlink className="w-3.5 h-3.5" />
                     Desconectar
+                  </button>
+                </div>
+                {connectedBanksList.length > 0 && (
+                  <div className="flex flex-wrap gap-2 mb-3">
+                    {connectedBanksList.map((bankName) => (
+                      <span key={bankName} className="rounded-full border border-green-200 bg-white px-2.5 py-1 text-[11px] font-medium text-green-800">
+                        {bankName}
+                      </span>
+                    ))}
+                  </div>
+                )}
+                <div className="flex flex-wrap gap-2 mb-3">
+                  <button
+                    type="button"
+                    onClick={handleOpenPluggyConnect}
+                    disabled={ofLoading}
+                    className="flex items-center gap-2 rounded-lg border border-[#0D1B8C] px-3 py-2 text-[11px] font-semibold text-[#0D1B8C] disabled:opacity-50"
+                  >
+                    <Link2 className="w-3.5 h-3.5" />
+                    Conectar outro banco
                   </button>
                 </div>
                 <div className="grid grid-cols-2 sm:grid-cols-3 gap-3 text-xs">
@@ -710,23 +810,24 @@ export function ClientDividas() {
               </div>
             ) : (
               <div>
-                <p className="text-xs text-gray-600 mb-2">Escolha seu banco principal:</p>
-                <div className="grid grid-cols-2 sm:grid-cols-3 gap-2">
-                  {(of?.availableBanks ?? []).map((b) => (
-                    <button
-                      key={b}
-                      type="button"
-                      onClick={() => setOfConsent(b)}
-                      className="flex items-center gap-2 px-3 py-2.5 rounded-lg border border-gray-200 text-xs font-medium text-gray-700 hover:border-[#0D1B8C] hover:bg-blue-50 transition-colors"
-                      data-testid={`button-of-bank-${b.replace(/\s+/g, "-").toLowerCase()}`}
-                    >
-                      <Building2 className="w-3.5 h-3.5 text-gray-400" />
-                      <span className="truncate">{b}</span>
-                    </button>
-                  ))}
-                </div>
-                <p className="text-[11px] text-gray-400 mt-2 italic">
-                  Fluxo simulado para demonstração. Em produção, redireciona ao consentimento oficial do Open Finance Brasil.
+                <p className="text-xs text-gray-600 mb-4 leading-relaxed">
+                  Conecte com segurança sua conta bancária via <strong>Pluggy Open Finance</strong>. O sistema consulta de forma criptografada seu saldo médio, extrato e lançamentos dos próximos dias para calcular seu Índice de Aprovação.
+                </p>
+                
+                <button
+                  type="button"
+                  onClick={handleOpenPluggyConnect}
+                  disabled={ofLoading}
+                  className="w-full sm:w-auto flex items-center justify-center gap-2 px-6 py-3.5 rounded-xl font-bold text-sm text-white transition-all shadow-md hover:shadow-lg disabled:opacity-50"
+                  style={{ background: "#0D1B8C" }}
+                  data-testid="button-[#0D1B8C]-pluggy"
+                >
+                  {ofLoading ? <Loader2 className="w-4 h-4 animate-spin" /> : <Link2 className="w-4 h-4" />}
+                  Conectar Banco (Pluggy Open Finance)
+                </button>
+
+                <p className="text-[11px] text-gray-400 mt-3 italic">
+                  Integração oficial Pluggy ativa. Selecione seu banco no widget para autenticar com segurança.
                 </p>
               </div>
             )}

@@ -14,3 +14,4 @@ export * from "./caixa-ltv";
 export * from "./correspondents";
 export * from "./bank-rates";
 export * from "./payments";
+export * from "./open-finance-connections";
