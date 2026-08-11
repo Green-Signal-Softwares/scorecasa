@@ -5,14 +5,13 @@ import { ClientLayout } from "@/components/layout/ClientLayout";
 import { SessionExpiredBanner } from "@/components/SessionExpiredBanner";
 import { useSessionGuard } from "@/hooks/use-session-guard";
 import { Accordion, AccordionContent, AccordionItem, AccordionTrigger } from "@/components/ui/accordion";
-import { buildPaymentsSections, filterPaymentsByView, type PaymentItem, type PaymentViewFilter } from "./payments.utils";
+import { buildPaymentsSections, filterPaymentsByView, type PaymentCategory, type PaymentItem, type PaymentViewFilter } from "./payments.utils";
 import {
   CreditCard, Home, Lightbulb, Wifi, Smartphone, Tv, ShieldCheck, FileText,
   Check, AlertTriangle, Calendar, TrendingUp, RotateCcw, Bell, Link2, RefreshCw,
   Filter, ChevronDown,
 } from "lucide-react";
 
-type Category = "cartao" | "financiamento" | "conta" | "boleto" | "emprestimo" | "assinatura";
 type Bucket = "atrasado" | "hoje" | "semana" | "proximos" | "pago";
 interface PaymentsResponse {
   summary: {
@@ -30,7 +29,7 @@ interface PaymentsResponse {
   items: PaymentItem[];
 }
 
-const ICONS: Record<Category, typeof CreditCard> = {
+const ICONS: Record<PaymentCategory, typeof CreditCard> = {
   cartao: CreditCard,
   financiamento: Home,
   conta: Lightbulb,
