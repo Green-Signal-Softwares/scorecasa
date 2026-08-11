@@ -1,10 +1,11 @@
 export type PaymentViewFilter = "all" | "pending" | "paid";
 
 export type PaymentBucket = "atrasado" | "hoje" | "semana" | "proximos" | "pago";
+export type PaymentCategory = "cartao" | "financiamento" | "conta" | "boleto" | "emprestimo" | "assinatura";
 
 export interface PaymentItem {
   id: number;
-  category: string;
+  category: PaymentCategory;
   description: string;
   issuer: string | null;
   amountCents: number;
