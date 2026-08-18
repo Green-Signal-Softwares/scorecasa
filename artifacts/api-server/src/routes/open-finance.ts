@@ -333,7 +333,6 @@ async function syncAllPluggyConnectionsToPayments(
         paidAt: null,
         paidAmountCents: null,
         source: "open_finance",
-        externalId: `pluggy:${connection.itemId}:account:${acc.id}:due:${due.toISOString().slice(0, 10)}`,
         syncedAt: now,
       });
     }
@@ -397,7 +396,6 @@ async function syncAllPluggyConnectionsToPayments(
         paidAt: null,
         paidAmountCents: null,
         source: "open_finance",
-        externalId: tx.id ? `pluggy:${connection.itemId}:tx:${tx.id}` : null,
         syncedAt: now,
       });
     }
