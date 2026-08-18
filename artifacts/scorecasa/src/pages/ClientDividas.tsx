@@ -282,7 +282,7 @@ export function ClientDividas() {
         return;
       }
       const script = document.createElement("script");
-      script.src = "https://cdn.pluggy.ai/pluggy-connect/v2.5.0/pluggy-connect.js";
+      script.src = "/pluggy-connect.js";
       script.async = true;
       script.onload = () => resolve();
       script.onerror = () => reject(new Error("Não foi possível carregar o widget da Pluggy."));
