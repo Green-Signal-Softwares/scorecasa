@@ -304,7 +304,17 @@ export function ClientDividas() {
       }
       if (!tokenRes.ok) throw new Error("Não foi possível iniciar a sessão do Pluggy Open Finance.");
 
-      const { accessToken } = await tokenRes.json();
+      const data = await tokenRes.json();
+      const accessToken = data.accessToken || data.token || data.connectToken;
+
+      if (!accessToken || typeof accessToken !== "string") {
+        throw new Error("Não foi possível obter o token de conexão com o Open Finance.");
+      }
+
+      if (accessToken.startsWith("mock_")) {
+        throw new Error("Credenciais do Pluggy ausentes ou inválidas no servidor (.env). Configure PLUGGY_CLIENT_ID e PLUGGY_CLIENT_SECRET válidos.");
+      }
+
       await loadPluggySDK();
 
       const PluggyConnect = (window as any).PluggyConnect;
@@ -314,7 +324,8 @@ export function ClientDividas() {
 
       const pluggyConnect = new PluggyConnect({
         connectToken: accessToken,
-        includeSandbox: accessToken.includes("mock") || accessToken.includes("sandbox") || process.env.NODE_ENV !== "production",
+        accessToken: accessToken,
+        includeSandbox: accessToken.includes("sandbox") || process.env.NODE_ENV !== "production",
         onSuccess: (itemData: any) => {
           const resolvedItemId =
             typeof itemData?.id === "string"
