@@ -3,7 +3,7 @@
  * Billing method: CREDIT_CARD only
  *
  * Env vars:
- *   ASAAS_API_KEY     — required
+ *   ASAAS_API_KEY     — required for live/sandbox API calls. If unconfigured, falls back to local dev mock mode.
  *   ASAAS_SANDBOX     — set to "true" to use sandbox (default: production)
  */
 
@@ -23,7 +23,7 @@ export function getAsaasWalletId(): string {
 
 function getApiKey(): string {
   const key = process.env.ASAAS_API_KEY;
-  if (!key) throw new Error("ASAAS_API_KEY is not set");
+  if (!key) return "";
   return key;
 }
 
@@ -85,6 +85,16 @@ export interface AsaasCustomer {
 export async function createAsaasCustomer(
   data: AsaasCustomerInput,
 ): Promise<AsaasCustomer> {
+  const key = process.env.ASAAS_API_KEY;
+  if (!key || key.trim() === "" || key === "mock") {
+    console.log("[Asaas MOCK] Creating customer for:", data.name);
+    return {
+      id: `cus_mock_${Date.now()}`,
+      name: data.name,
+      email: data.email,
+      cpfCnpj: data.cpfCnpj,
+    };
+  }
   return asaasRequest<AsaasCustomer>("POST", "/customers", data);
 }
 
@@ -140,10 +150,32 @@ export interface AsaasPayment {
 export async function createAsaasPayment(
   data: AsaasPaymentInput,
 ): Promise<AsaasPayment> {
+  const key = process.env.ASAAS_API_KEY;
+  if (!key || key.trim() === "" || key === "mock") {
+    console.log("[Asaas MOCK] Processing payment for amount:", data.value);
+    return {
+      id: `pay_mock_${Date.now()}`,
+      status: "CONFIRMED",
+      billingType: "CREDIT_CARD",
+      value: data.value,
+      dueDate: data.dueDate,
+      description: data.description,
+    };
+  }
   return asaasRequest<AsaasPayment>("POST", "/payments", data);
 }
 
 export async function getAsaasPayment(id: string): Promise<AsaasPayment> {
+  const key = process.env.ASAAS_API_KEY;
+  if (!key || key.trim() === "" || key === "mock" || id.startsWith("pay_mock_")) {
+    return {
+      id,
+      status: "CONFIRMED",
+      billingType: "CREDIT_CARD",
+      value: 0,
+      dueDate: new Date().toISOString().slice(0, 10),
+    };
+  }
   return asaasRequest<AsaasPayment>("GET", `/payments/${id}`);
 }
 

@@ -2,7 +2,7 @@ import { useState } from "react";
 import { useLocation, Link } from "wouter";
 import {
   Eye, EyeOff, ArrowRight, ArrowLeft, Building2, User, Briefcase,
-  Landmark, ShieldCheck, Check, Lock, Sparkles, Search,
+  Landmark, Check, Lock, Sparkles, Search,
   CreditCard, Calendar, Shield,
 } from "lucide-react";
 import { ScoreCasaLogo, ScoreCasaWordmark } from "@/components/ScoreCasaLogo";
@@ -11,7 +11,7 @@ import { useToast } from "@/hooks/use-toast";
 import { useGetPlans, getGetMeQueryKey, type Plan } from "@workspace/api-client-react";
 
 // ── Profiles ────────────────────────────────────────────────────────────────
-type ProfileId = "client" | "broker" | "correspondent" | "admin";
+type ProfileId = "client" | "broker" | "correspondent";
 
 const PROFILES: {
   id: ProfileId;
@@ -52,16 +52,6 @@ const PROFILES: {
     color: "#7C3AED",
     bgLight: "#F5F3FF",
     available: true,
-  },
-  {
-    id: "admin",
-    label: "Sou administrador",
-    short: "Administrador",
-    description: "Acesso restrito — disponível somente sob convite ou via equipe ScoreCasa.",
-    icon: ShieldCheck,
-    color: "#64748B",
-    bgLight: "#F1F5F9",
-    available: false,
   },
 ];
 
@@ -401,9 +391,11 @@ export function ClientRegister() {
 
   const availablePlans = activeDbPlans.length > 0
     ? activeDbPlans.map((p) => {
-        const catRole: ProfileId = (p.role === "correspondent" || p.group === "correspondent")
+        const catRole: ProfileId = (p.role === "correspondent" || p.role === "broker" || p.role === "client")
+          ? (p.role as ProfileId)
+          : (p.group === "correspondent")
           ? "correspondent"
-          : (p.role === "broker" || p.group === "corretor")
+          : (p.group === "corretor")
           ? "broker"
           : "client";
         return {
@@ -425,13 +417,6 @@ export function ClientRegister() {
 
   // ── Step 1: choose profile ────────────────────────────────────────────────
   const selectProfile = (p: ProfileId) => {
-    if (p === "admin") {
-      toast({
-        title: "Acesso administrador",
-        description: "O acesso de administrador é criado sob convite. Fale com a equipe ScoreCasa.",
-      });
-      return;
-    }
     setProfile(p);
     const pPlans = availablePlans.filter((item) => item.role === p);
     const highlighted = pPlans.find((item) => item.highlight);

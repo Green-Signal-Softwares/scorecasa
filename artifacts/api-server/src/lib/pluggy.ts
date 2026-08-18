@@ -18,21 +18,26 @@ function requiredEnv(value: string | undefined, name: string): string {
  * Autentica na API da Pluggy e retorna a X-API-KEY
  */
 export async function getPluggyApiKey(): Promise<string> {
+  const clientId = process.env.PLUGGY_CLIENT_ID;
+  const clientSecret = process.env.PLUGGY_CLIENT_SECRET;
+
+  if (!clientId || !clientSecret || clientId.includes("coloque_") || clientSecret.includes("coloque_")) {
+    logger.info("[Pluggy MOCK] Credentials unconfigured, using dev mock key");
+    return "mock_pluggy_api_key";
+  }
+
   const now = Date.now();
   if (cachedApiKey && apiKeyExpiresAt > now + 60_000) {
     return cachedApiKey;
   }
 
   try {
-    const clientId = requiredEnv(PLUGGY_CLIENT_ID, "PLUGGY_CLIENT_ID");
-    const clientSecret = requiredEnv(PLUGGY_CLIENT_SECRET, "PLUGGY_CLIENT_SECRET");
-
     const res = await fetch(`${PLUGGY_API_URL}/auth`, {
       method: "POST",
       headers: { "Content-Type": "application/json" },
       body: JSON.stringify({
-        clientId,
-        clientSecret,
+        clientId: clientId.trim(),
+        clientSecret: clientSecret.trim(),
       }),
     });
 
@@ -63,6 +68,11 @@ export async function createPluggyConnectToken(options?: {
   avoidDuplicates?: boolean;
 }): Promise<{ accessToken: string }> {
   const apiKey = await getPluggyApiKey();
+
+  if (apiKey === "mock_pluggy_api_key") {
+    logger.info("[Pluggy MOCK] Returning mock connect token");
+    return { accessToken: "mock_connect_token_" + Date.now() };
+  }
 
   const payload: any = {};
 

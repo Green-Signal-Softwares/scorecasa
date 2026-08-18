@@ -31,6 +31,7 @@ const router: IRouter = Router();
 
 router.use(healthRouter);
 router.use("/auth", authRouter);
+router.use("/plans", plansRouter);
 
 router.use((req, res, next) => {
   const isAuthRoute = req.path.startsWith("/auth") || req.path === "/auth";
@@ -62,7 +63,6 @@ router.use("/client/documents", clientDocumentsRouter);
 router.use("/caixa-ltv", caixaLtvRouter);
 router.use("/calc", calcRouter);
 router.use("/rates", ratesRouter);
-router.use("/plans", plansRouter);
 router.use("/team", teamRouter);
 router.use("/asaas", asaasRouter);
 

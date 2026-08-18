@@ -6,6 +6,7 @@ import crypto from "crypto";
 import { z } from "zod";
 import { createAsaasCustomer, createAsaasPayment } from "../lib/asaas";
 import { getBillingAmount, getNextDueDate } from "../lib/billing";
+import { logger } from "../lib/logger";
 
 const RegisterBody = z.object({
   role: z.enum(["client", "broker", "correspondent"]).default("client"),
@@ -90,6 +91,7 @@ declare global {
 router.post("/register", async (req, res) => {
   const parsed = RegisterBody.safeParse(req.body);
   if (!parsed.success) {
+    logger.warn({ issues: parsed.error.issues, body: req.body }, "[Register] Validation failed");
     res.status(400).json({ error: "Invalid request body", details: parsed.error.issues });
     return;
   }
@@ -103,6 +105,7 @@ router.post("/register", async (req, res) => {
     .where(eq(plansTable.id, planId)).limit(1);
 
   if (!planTier || planTier.role !== role) {
+    logger.warn({ planId, planTierRole: planTier?.role, requestedRole: role }, "[Register] Plan role mismatch");
     res.status(400).json({ error: "Plan does not match the selected profile" });
     return;
   }
