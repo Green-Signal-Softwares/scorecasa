@@ -314,7 +314,7 @@ export function ClientDividas() {
 
       const pluggyConnect = new PluggyConnect({
         connectToken: accessToken,
-        includeSandbox: true,
+        includeSandbox: accessToken.includes("mock") || accessToken.includes("sandbox") || process.env.NODE_ENV !== "production",
         onSuccess: (itemData: any) => {
           const resolvedItemId =
             typeof itemData?.id === "string"
